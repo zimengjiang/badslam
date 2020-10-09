@@ -276,6 +276,8 @@ when optimizing the depth camera's deformation, which lacks synchronization for 
 Thus, to possibly increase robustness, use the `--sequential_ba` parameter.
 Live operation may still be simulated by also specifying `--target_frame_rate <desired_fps>`.
 
+## Evaluation BAD SLAM on ETH3D Dataset
+ To evaluate on the ETH3D dataset, first run:[run_on_eth3d_slam_datasets.py](https://github.com/zimengjiang/badslam/blob/master/evaluation/run_on_eth3d_slam_datasets.py). A script to automate the evaluation on all datasets and output comparison plots for multiple methods is provided here:[evaluate_eth3d_slam_results.py](https://github.com/zimengjiang/badslam/blob/master/evaluation/evaluate_eth3d_slam_results.py). 
 
 ## Extending BAD SLAM ##
 
