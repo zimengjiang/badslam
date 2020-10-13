@@ -8,7 +8,7 @@ import timeit
 
 
 ### ADJUST THIS TO YOUR ENVIRONMENT ###
-eth3d_datasets_path = '/local/home/zjiang/data/eth3d/'  # the folder containing the training and test folders
+tum_rgbd_datasets_path = '/local/home/zjiang/data/tum_rgbd/'  # the folder containing the training and test folders
 slam_program_path = '/local/home/zjiang/fbadslam/build/applications/badslam/badslam'
 
 ### ------------------------------- ###
@@ -41,28 +41,28 @@ def RunMethod():
 
 if __name__ == '__main__':
     # Check that the paths have been set
-    if len(slam_program_path) == 0 or len(eth3d_datasets_path) == 0:
+    if len(slam_program_path) == 0 or len(tum_rgbd_datasets_path) == 0:
         print('Before using this script, please set slam_program_path in this script to the path of the' +
-              ' SLAM executable that you want to run, and set eth3d_datasets_path' +
-              ' in this script to the path of the ETH3D SLAM datasets on your system.')
+              ' SLAM executable that you want to run, and set tum_rgbd_datasets_path' +
+              ' in this script to the path of the tum_rgbd datasets on your system.')
         sys.exit(1)
     
     # Print the paths such that the user is aware of them
-    print('Datasets path: ' + eth3d_datasets_path)
+    print('Datasets path: ' + tum_rgbd_datasets_path)
     print('SLAM program: ' + slam_program_path)
     
     # Parse arguments
     if len(sys.argv) < 3:
         print('Usage:')
-        print('python run_on_eth3d_slam_datasets.py training/test result_name [additional_options_to_slam_program]')
+        print('python run_on_tum_rgbd_datasets.py training/test result_name [additional_options_to_slam_program]')
         print('')
         sys.exit(1)
     
     datasets_folder = ''
     if sys.argv[1] == 'training':
-        datasets_folder = os.path.join(eth3d_datasets_path, 'training')
+        datasets_folder = os.path.join(tum_rgbd_datasets_path, 'training')
     elif sys.argv[1] == 'test':
-        datasets_folder = os.path.join(eth3d_datasets_path, 'test')
+        datasets_folder = os.path.join(tum_rgbd_datasets_path, 'test')
     else:
         print('Either \'training\' or \'test\' must be given as first argument to the script.')
         sys.exit(1)
