@@ -313,5 +313,3 @@ different: Instead of using the gradient magnitude as the photometric descriptor
 the two components of the gradient are used separately. For these reasons,
 it should not be expected that the code reproduces the results in the paper
 exactly, however the results should be similar.
-
-## In progress: extend BAD SLAM to Feature-metric BAD SLAM
