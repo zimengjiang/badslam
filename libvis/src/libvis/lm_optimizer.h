@@ -618,7 +618,7 @@ class LMOptimizer {
   template <class State, class CostFunction>
   bool VerifyOptimum(
       State* state,
-      const CostFunction& cost_function,
+      const CostFunction& ,
       Scalar step_size,
       bool reduce_cost_if_possible,
       int first_dof = 0,

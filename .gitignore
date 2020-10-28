@@ -4,3 +4,9 @@ CMakeLists.txt.user
 build*/
 .ipynb_checkpoints
 *.pyc
+*_backup*
+.vscode/
+.project
+.cproject
+core 
+

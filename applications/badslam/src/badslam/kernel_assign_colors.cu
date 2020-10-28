@@ -79,7 +79,7 @@ __global__ void AccumulateColorObservationsCUDAKernel(
   if (SurfelProjectsToAssociatedPixel(surfel_index, s, &r)) {
     float2 color_pxy;
     if (TransformDepthToColorPixelCorner(r.pxy, depth_to_color, &color_pxy)) {
-      s.surfels(kSurfelAccum0, surfel_index) += 1.f;
+      s.surfels(kSurfelAccum0, surfel_index) += 1.f; // 10.25, count observations
       float4 color = tex2D<float4>(color_texture, color_pxy.x, color_pxy.y);
       s.surfels(kSurfelAccum1, surfel_index) += color.x;
       s.surfels(kSurfelAccum2, surfel_index) += color.y;

@@ -171,6 +171,9 @@ void BadSlam::ProcessFrame(int frame_index, bool force_keyframe) {
   // Get the images. This should be before starting the "without I/O" timer
   // since it can lead to the images being loaded from disk (in case they are
   // not cached yet).
+  // jzm: debugging
+  printf("**********\n");
+  printf("frame index:%d\n",frame_index );
   const Image<Vec3u8>* rgb_image =
       rgbd_video_->color_frame_mutable(frame_index)->GetImage().get();
   /*const shared_ptr<Image<u16>>& depth_image =*/
@@ -207,7 +210,6 @@ void BadSlam::ProcessFrame(int frame_index, bool force_keyframe) {
   }
   
   keyframe_created_ = create_keyframe;
-  
   // Perform bundle adjustment until convergence / reaching the maximum (planned) iteration count in offline mode,
   // or additionally only until the time for the current frame ran out in real-time mode.
   if (num_planned_ba_iterations_ > 0) {
@@ -217,7 +219,7 @@ void BadSlam::ProcessFrame(int frame_index, bool force_keyframe) {
       double elapsed_frame_time = frame_timer_.GetTimeSinceStart();
       start_ba = actual_frame_start_time_ + elapsed_frame_time < target_frame_end_time_;
     }
-    
+    //jzm: doing BA here
     if (start_ba) {
       static int bundle_adjustment_counter = 0;
       ++ bundle_adjustment_counter;
@@ -243,6 +245,7 @@ void BadSlam::ProcessFrame(int frame_index, bool force_keyframe) {
       
       if (config_.parallel_ba) {
         // Signal to the BA thread to start BA iterations
+        // jzm 16/10: I guess BA is done here, but couldn't see where the functions are called
         StartParallelIterations(
             num_planned_ba_iterations_,
             optimize_depth_intrinsics,
@@ -950,6 +953,7 @@ void BadSlam::RunOdometry(int frame_index) {
   frame_tr_base_kf_.push_back(base_T_frame_estimate.inverse());
 }
 
+//jzm 15/10
 shared_ptr<Keyframe> BadSlam::CreateKeyframe(
     int frame_index,
     const Image<Vec3u8>* rgb_image,
@@ -1278,7 +1282,7 @@ void BadSlam::BAThreadMain(OpenGLContext* opengl_context) {
         options.optimize_poses,
         options.optimize_geometry,
         /*min_iterations*/ 0,
-        /*max_iterations*/ 1,
+        /*max_iterations*/ 1, //jzm: because iterations are stored in parallel_ba_iteration_queue_. each time just pop one iteration and do the BA once. Executing one queue = perform BA num_iterations
         /*use_pcg*/ false,
         /*active_keyframe_window_start*/ 0,
         /*active_keyframe_window_end*/ direct_ba_->keyframes().size() - 1,

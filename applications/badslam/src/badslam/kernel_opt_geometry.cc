@@ -199,5 +199,4 @@ void OptimizeGeometryIterationCUDA(
         active_surfels.ToCUDA());
   }
 }
-
 }

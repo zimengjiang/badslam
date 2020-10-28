@@ -147,8 +147,15 @@ __forceinline__ __device__ void ComputeRawDescriptorResidual(
     float* raw_residual_1,
     float* raw_residual_2) {
   float intensity = tex2D<float4>(color_texture, pxy.x, pxy.y).w;
-  
-  float t1_intensity = tex2D<float4>(color_texture, t1_pxy.x, t1_pxy.y).w;
+//  printf("******************** \n");
+//  printf("intensity = %f", intensity);
+//  printf("******************** \n");
+  // id = blockDim.x * 
+  // unsigned int id = blockIdx.x * blockDim.x + threadIdx.x;
+  if (threadIdx.x == 9  && blockIdx.x == 0) { // jzm: 23/10 are you sure the threadIdx.x which you wanna check is correct? acutally it's fine. Only want to print result of an arbitrary thread. 
+    printf("intensity = %f\n", intensity);
+  }
+  float t1_intensity = tex2D<float4>(color_texture, t1_pxy.x, t1_pxy.y).w; // <float4> ???
   float t2_intensity = tex2D<float4>(color_texture, t2_pxy.x, t2_pxy.y).w;
   
   *raw_residual_1 = (180.f * (t1_intensity - intensity)) - surfel_descriptor_1;
@@ -350,5 +357,37 @@ __forceinline__ __device__ void ColorJacobianWrtProjectedPosition(
   *grad_x_fx = (bottom_right - bottom_left) * ty + (top_right - top_left) * (1 - ty);
   *grad_y_fy = (bottom_right - top_right) * tx + (bottom_left - top_left) * (1 - tx);
 }
+
+// --- 10.24 updates ---
+// --- Computes the "raw" feature-metric residual for each channel, i.e. without any weighting.
+/*__forceinline__ __device__ void ComputeRawFeatureResidual(
+    cudaTextureObject_t feature_texture, // we only use rgb img for now. TODO: use feature maps. 
+    const float2& pxy,
+    const float2& t1_pxy,
+    const float2& t2_pxy,
+    float* surfel_descriptor_vec,
+    float* raw_residual_vec) {
+  
+  // float3 pxy_feature = tex2D<float3>(feature_texture, pxy.x, pxy.y);
+  float pxy_feature1 = tex2D<float4>(feature_texture, pxy.x, pxy.y).x;
+  float pxy_feature2 = tex2D<float4>(feature_texture, pxy.x, pxy.y).y;
+  float pxy_feature3 = tex2D<float4>(feature_texture, pxy.x, pxy.y).z;
+
+  float t1_feature1 = tex2D<float4>(feature_texture, t1_pxy.x, t1_pxy.y).x;
+  float t1_feature2 = tex2D<float4>(feature_texture, t1_pxy.x, t1_pxy.y).y;
+  float t1_feature3 = tex2D<float4>(feature_texture, t1_pxy.x, t1_pxy.y).z;
+
+  float t2_feature1 = tex2D<float4>(feature_texture, t2_pxy.x, t2_pxy.y).x;
+  float t2_feature2 = tex2D<float4>(feature_texture, t2_pxy.x, t2_pxy.y).y;
+  float t2_feature3 = tex2D<float4>(feature_texture, t2_pxy.x, t2_pxy.y).z;
+  
+  *(raw_residual_vec) = (180.f * (t1_feature1 - pxy_feature1)) - surfel_descriptor_vec[0];
+  *(raw_residual_vec+3) = (180.f * (t2_feature1 - pxy_feature1)) - surfel_descriptor_vec[3];
+  *(raw_residual_vec+1) = (180.f * (t1_feature2 - pxy_feature2)) - surfel_descriptor_vec[1];
+  *(raw_residual_vec+4) = (180.f * (t2_feature2 - pxy_feature2)) - surfel_descriptor_vec[4];
+  *(raw_residual_vec+2) = (180.f * (t1_feature3 - pxy_feature3)) - surfel_descriptor_vec[2];
+  *(raw_residual_vec+5) = (180.f * (t2_feature3 - pxy_feature3)) - surfel_descriptor_vec[5];
+
+}*/
 
 }

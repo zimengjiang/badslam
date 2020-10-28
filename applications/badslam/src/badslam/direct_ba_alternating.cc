@@ -149,7 +149,7 @@ repeat_pose_estimation:;
       H.setZero();
       b.setZero();
     } else {
-      float H_temp[6 * (6 + 1) / 2];
+      float H_temp[6 * (6 + 1) / 2]; //10.26 due to symmetry
       AccumulatePoseEstimationCoeffsCUDA(
           stream,
           use_depth_residuals_,
@@ -393,7 +393,7 @@ void DirectBA::BundleAdjustmentAlternating(
       LOG(INFO) << "[iteration " << iteration << "] active: " << debug_active_count << ", covis-active: " << debug_covisible_active_count << ", inactive: " << debug_inactive_count;
     }
     
-    
+    // jzm: 16/10 surfel creation
     // --- SURFEL CREATION ---
     keyframes_with_new_surfels.clear();
     
@@ -462,9 +462,10 @@ void DirectBA::BundleAdjustmentAlternating(
       DebugVerifySurfelCount(stream, surfel_count_, surfels_size_, *surfels_);
     }
     
-    
+    printf("-------Iteration:%d -------\n", iteration);
     // --- GEOMETRY OPTIMIZATION ---
     if (optimize_geometry) {
+      printf("\n opt geometry...\n");
       cudaEventRecord(ba_geometry_optimization_pre_event_, stream);
       OptimizeGeometryIterationCUDA(
           stream,
@@ -543,6 +544,7 @@ void DirectBA::BundleAdjustmentAlternating(
     // --- POSE OPTIMIZATION ---
     usize num_converged = 0;
     if (optimize_poses) {
+      printf("\n opt pose...\n");
       cudaEventRecord(ba_pose_optimization_pre_event_, stream);
       for (const shared_ptr<Keyframe>& keyframe : keyframes_) {
         // Only estimate pose for active and covisible-active keyframes.

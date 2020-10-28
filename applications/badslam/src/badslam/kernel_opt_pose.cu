@@ -336,6 +336,7 @@ __global__ void AccumulatePoseEstimationCoeffsCUDAKernel(
           color_corner_projector,
           &t1_pxy,
           &t2_pxy);
+          // 10.26 the following should be executed N times, each time for 1 channel, use an array to 
       ComputeRawDescriptorResidualAndJacobian(
           color_center_projector,
           color_texture,
@@ -351,7 +352,7 @@ __global__ void AccumulatePoseEstimationCoeffsCUDAKernel(
     } else {
       visible = false;
     }
-    
+    // 10.26, the follwoing two accumulations should be executed N times , each time for 1 channel, in the end we will get the summed value of all channels. 
     AccumulateGaussNewtonHAndB<6, block_width, block_height>(
         visible,
         raw_residual,

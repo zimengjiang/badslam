@@ -470,6 +470,10 @@ class DirectBA {
   
   // GPU buffer with all surfels.
   CUDABufferPtr<float> surfels_;
+
+  // 10.27 H buffer for all surfels
+  // 10.27 B buffer for all surfels
+  
   
   // GPU buffer with a u8 for each surfel, having bit 1 set if the surfel is
   // currently active, and bit 2 set if the surfel has been active at some

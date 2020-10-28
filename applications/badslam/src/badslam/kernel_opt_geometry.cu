@@ -124,7 +124,7 @@ __global__ void AccumulateSurfelPositionAndDescriptorOptimizationCoeffsCUDAKerne
     cudaTextureObject_t color_texture,
     CUDABuffer_<u8> active_surfels) {
   const unsigned int surfel_index = blockIdx.x * blockDim.x + threadIdx.x;
-  
+
   if (surfel_index < s.surfels_size) {
     if (!(active_surfels(0, surfel_index) & kSurfelActiveFlag)) {
       return;
@@ -160,6 +160,13 @@ __global__ void AccumulateSurfelPositionAndDescriptorOptimizationCoeffsCUDAKerne
       float2 color_pxy;
       if (TransformDepthToColorPixelCorner(r.pxy, depth_to_color, &color_pxy)) {
         // --- Descriptor residual ---
+          if (surfel_index == 0){
+            printf("surfel_index: %d \n", surfel_index);
+            float x = tex2D<float4>(color_texture, color_pxy.x, color_pxy.y).x;
+            float y = tex2D<float4>(color_texture, color_pxy.x, color_pxy.y).y;
+            float z = tex2D<float4>(color_texture, color_pxy.x, color_pxy.y).z;
+            printf("(%f, %f, %f) \n",x,y,z);
+          }
         float2 t1_pxy, t2_pxy;
         ComputeTangentProjections(
             r.surfel_global_position,

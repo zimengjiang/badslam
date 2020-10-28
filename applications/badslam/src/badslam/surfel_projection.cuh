@@ -40,6 +40,11 @@ namespace vis {
 struct PixelCornerProjector {
   __host__ PixelCornerProjector(float fx, float fy, float cx, float cy)
       : fx(fx), fy(fy), cx(cx), cy(cy) {}
+      // {
+      //   this->fx = fx;
+      //   this->fy = fy;
+      // }
+
   
   // Host-only copy (should not run on device since it would be inefficient)
   __host__ PixelCornerProjector(const PixelCornerProjector& other)
