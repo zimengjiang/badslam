@@ -151,6 +151,9 @@ __global__ void AccumulateSurfelPositionAndDescriptorOptimizationCoeffsCUDAKerne
         const float depth_weight = ComputeDepthResidualWeight(raw_depth_residual);
         
         // Accumulate:
+        // 10.29 shouldn't it be depth_weight^2? 
+        // jzm TODO: 
+        // s.surfels(kSurfelAccum0, surfel_index) += depth_weight * depth_weight * depth_jacobian * depth_jacobian;
         s.surfels(kSurfelAccum0, surfel_index) += depth_weight * depth_jacobian * depth_jacobian;
         s.surfels(kSurfelAccum6, surfel_index) += depth_weight * raw_depth_residual * depth_jacobian;
       }
@@ -220,6 +223,11 @@ __global__ void AccumulateSurfelPositionAndDescriptorOptimizationCoeffsCUDAKerne
         const float weighted_raw_residual_2 = weight_2 * raw_descriptor_residual_2;
         
         // Residual 1 (and some parts of 2, where accumulating onto the same variable)
+        // jzm TODO: for diagnal entries of H, the weights should be squared.
+        // s.surfels(kSurfelAccum0, surfel_index) += weight_1 * weight_1 * jacobian_wrt_position_1 * jacobian_wrt_position_1 +
+        // weight_2 * jacobian_wrt_position_2 * jacobian_wrt_position_2; 
+        // s.surfels(kSurfelAccum3, surfel_index) += weight_1 * weight_1 * jacobian_wrt_descriptor * jacobian_wrt_descriptor;
+        // s.surfels(kSurfelAccum5, surfel_index) += weight_2 * weight_2 * jacobian_wrt_descriptor * jacobian_wrt_descriptor;
         s.surfels(kSurfelAccum0, surfel_index) += weight_1 * jacobian_wrt_position_1 * jacobian_wrt_position_1 +
                                                   weight_2 * jacobian_wrt_position_2 * jacobian_wrt_position_2;  // from residual 2
         s.surfels(kSurfelAccum1, surfel_index) += weight_1 * jacobian_wrt_position_1 * jacobian_wrt_descriptor;

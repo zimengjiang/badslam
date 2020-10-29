@@ -75,9 +75,6 @@ constexpr int kSurfelColor = 5;  // (u8 r, u8 g, u8 b, 8 bits unused)
 constexpr int kSurfelDescriptor1 = 6;  // float
 constexpr int kSurfelDescriptor2 = 7;  // float
 
-
-
-
 constexpr int kSurfelAccum0 = 8;  // float
 constexpr int kSurfelAccum1 = 9;  // float
 constexpr int kSurfelAccum2 = 10;  // float
@@ -87,8 +84,6 @@ constexpr int kSurfelAccum5 = 13;  // float
 constexpr int kSurfelAccum6 = 14;  // float
 constexpr int kSurfelAccum7 = 15;  // float
 constexpr int kSurfelAccum8 = 16;  // float
-
-
 
 // This first number of attributes will be copied if a surfel is copied to a
 // different index.
