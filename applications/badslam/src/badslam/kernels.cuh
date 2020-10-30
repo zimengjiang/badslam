@@ -74,6 +74,13 @@ constexpr int kSurfelRadiusSquared = 4;  // float
 constexpr int kSurfelColor = 5;  // (u8 r, u8 g, u8 b, 8 bits unused)
 constexpr int kSurfelDescriptor1 = 6;  // float
 constexpr int kSurfelDescriptor2 = 7;  // float
+// jzm, 10.29: for channel size of 3, need 6 descriptors in total, append 4 more.
+// constexpr int kSurfelDescriptor3 = 8;
+// constexpr int kSurfelDescriptor4 = 9;
+// constexpr int kSurfelDescriptor5 = 10;
+// constexpr int kSurfelDescriptor6 = 11;
+
+// jzm. 10.29: +4 for each old value, for 4 more descirptors added
 
 constexpr int kSurfelAccum0 = 8;  // float
 constexpr int kSurfelAccum1 = 9;  // float
@@ -85,11 +92,29 @@ constexpr int kSurfelAccum6 = 14;  // float
 constexpr int kSurfelAccum7 = 15;  // float
 constexpr int kSurfelAccum8 = 16;  // float
 
+
+// 10.29, construct kSurfelDescriptorArr
+// constexpr kSurfelAttributesArr kSurfelDescriptor = kSurfelAttributesArr<2,6>();
+// constexpr kSurfelAttributesArr kSurfelAccum = kSurfelAttributesArr<9,8>();
+
+// 10.29, use an int array to store the index of kSurfelAccum
+
+
+
 // This first number of attributes will be copied if a surfel is copied to a
 // different index.
-constexpr int kSurfelDataAttributeCount = 8;
+// constexpr int kSurfelDataAttributeCount = 8;
+constexpr int kSurfelDataAttributeCount = 12; // 6+2N, N channels
 // Total surfel attribute count, including temporary attributes (which are not
 // preserved during copies).
-constexpr int kSurfelAttributeCount = 17;
-
+// constexpr int kSurfelAttributeCount = 17;
+constexpr int kSurfelAttributeCount = 47;
+/*
+1. fixed attributes: 6, [0,1,2,3,4,5]
+2. descriptors: 2N, [6, ..., 2N+5]
+3. Hessian: (2N+1)*(N+1), [2N+6, ..., 2N+5+(2N+1)*(N+1)]
+4. b: 2N+1 [2N+5+(2N+1)*(N+1)+1, 6+2N+(2N+1)*(N+1)+2N]
+5. data attribute count: 6+2N
+5. total count: 7+2N+(2N+1)*(N+1)+2N
+*/
 }

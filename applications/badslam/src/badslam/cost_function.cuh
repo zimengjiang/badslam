@@ -147,14 +147,6 @@ __forceinline__ __device__ void ComputeRawDescriptorResidual(
     float* raw_residual_1,
     float* raw_residual_2) {
   float intensity = tex2D<float4>(color_texture, pxy.x, pxy.y).w;
-//  printf("******************** \n");
-//  printf("intensity = %f", intensity);
-//  printf("******************** \n");
-  // id = blockDim.x * 
-  // unsigned int id = blockIdx.x * blockDim.x + threadIdx.x;
-  if (threadIdx.x == 9  && blockIdx.x == 0) { // jzm: 23/10 are you sure the threadIdx.x which you wanna check is correct? acutally it's fine. Only want to print result of an arbitrary thread. 
-    printf("intensity = %f\n", intensity);
-  }
   float t1_intensity = tex2D<float4>(color_texture, t1_pxy.x, t1_pxy.y).w; // <float4> ???
   float t2_intensity = tex2D<float4>(color_texture, t2_pxy.x, t2_pxy.y).w;
   
@@ -389,5 +381,28 @@ __forceinline__ __device__ void ColorJacobianWrtProjectedPosition(
   *(raw_residual_vec+5) = (180.f * (t2_feature3 - pxy_feature3)) - surfel_descriptor_vec[5];
 
 }*/
+__forceinline__ __device__ void ComputeRawFeatureDescriptorResidual(
+    cudaTextureObject_t color_texture,
+    const float2& pxy,
+    const float2& t1_pxy,
+    const float2& t2_pxy,
+    float* surfel_descriptor,
+    float* raw_residual) {
+  float intensity = tex2D<float4>(color_texture, pxy.x, pxy.y).w;
+  // unsigned int id = blockIdx.x * blockDim.x + threadIdx.x;
+  float t1_intensity = tex2D<float4>(color_texture, t1_pxy.x, t1_pxy.y).w; 
+  float t2_intensity = tex2D<float4>(color_texture, t2_pxy.x, t2_pxy.y).w;
+  // TODO: for feature maps. make feature[N]t1_feature[N], t2_feature[N];
+  
+  for (int i = 0; i < 1; ++i){ // here i < 1, the 1 is the number of channels, TODO: make a variable
+    *(raw_residual+i) = (180.f * (t1_intensity - intensity)) - surfel_descriptor[i];
+    *(raw_residual+1+i) = (180.f * (t2_intensity - intensity)) - surfel_descriptor[i];
+  }
+  *raw_residual = (180.f * (t1_intensity - intensity)) - surfel_descriptor[0];
+  *(raw_residual+1) = (180.f * (t2_intensity - intensity)) - surfel_descriptor[1];
+  if (threadIdx.x == 9  && blockIdx.x == 0) { // jzm: 23/10 are you sure the threadIdx.x which you wanna check is correct? acutally it's fine. Only want to print result of an arbitrary thread. 
+    printf("intensity = %f\n", intensity);
+  }
+}
 
 }

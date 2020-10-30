@@ -179,12 +179,29 @@ __global__ void AccumulateSurfelPositionAndDescriptorOptimizationCoeffsCUDAKerne
             color_corner_projector,
             &t1_pxy,
             &t2_pxy);
+        /*
         const float surfel_descriptor_1 = s.surfels(kSurfelDescriptor1, surfel_index);
         const float surfel_descriptor_2 = s.surfels(kSurfelDescriptor2, surfel_index);
         float raw_descriptor_residual_1;
         float raw_descriptor_residual_2;
         ComputeRawDescriptorResidual(
             color_texture, color_pxy, t1_pxy, t2_pxy, surfel_descriptor_1, surfel_descriptor_2, &raw_descriptor_residual_1, &raw_descriptor_residual_2);
+        */
+        constexpr int kSurfelDescriptorArr[2] = {6,7};
+        float surfel_descriptor[2]; // problematic with const float array and use for loop to initialize
+        for (int i = 0; i< 2; ++i){
+          surfel_descriptor[i] = s.surfels(kSurfelDescriptorArr[i], surfel_index);
+        }
+        float raw_descriptor_residual[2];
+        ComputeRawFeatureDescriptorResidual(
+          color_texture, // TODO: use feature_texture
+          color_pxy,
+          t1_pxy,
+          t2_pxy,
+          surfel_descriptor,
+          raw_descriptor_residual);
+
+
         // ---------------------------
         
         // --- Descriptor residual change wrt. position change ---
@@ -216,11 +233,16 @@ __global__ void AccumulateSurfelPositionAndDescriptorOptimizationCoeffsCUDAKerne
         // kSurfelAccum6: b(0)
         // kSurfelAccum7: b(1)
         // kSurfelAccum8: b(2)
-        const float weight_1 = ComputeDescriptorResidualWeight(raw_descriptor_residual_1);
+        /*const float weight_1 = ComputeDescriptorResidualWeight(raw_descriptor_residual_1);
         const float weighted_raw_residual_1 = weight_1 * raw_descriptor_residual_1;
         
         const float weight_2 = ComputeDescriptorResidualWeight(raw_descriptor_residual_2);
-        const float weighted_raw_residual_2 = weight_2 * raw_descriptor_residual_2;
+        const float weighted_raw_residual_2 = weight_2 * raw_descriptor_residual_2;*/
+        const float weight_1 = ComputeDescriptorResidualWeight(raw_descriptor_residual[0]);
+        const float weighted_raw_residual_1 = weight_1 * raw_descriptor_residual[0];
+        
+        const float weight_2 = ComputeDescriptorResidualWeight(raw_descriptor_residual[1]);
+        const float weighted_raw_residual_2 = weight_2 * raw_descriptor_residual[1];
         
         // Residual 1 (and some parts of 2, where accumulating onto the same variable)
         // jzm TODO: for diagnal entries of H, the weights should be squared.

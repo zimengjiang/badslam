@@ -138,17 +138,27 @@ __device__ __forceinline__ void CreateNewSurfel(
       &t1_pxy,
       &t2_pxy);
   
-  float descriptor_1;
-  float descriptor_2;
-  ComputeRawDescriptorResidual(
-      color_texture,
-      color_pxy,
-      t1_pxy,
-      t2_pxy,
-      /*surfel_descriptor_1*/ 0,
-      /*surfel_descriptor_2*/ 0,
-      &descriptor_1,
-      &descriptor_2);
+  // float descriptor_1;
+  // float descriptor_2;
+  // 10.29 first, use array to see if values are passed correctly
+  float descriptor[2];
+  float surfel_descriptor[2] = {0,0}; // only for initialization
+  //ComputeRawDescriptorResidual(
+    //  color_texture,
+      //color_pxy,
+      //t1_pxy,
+      //t2_pxy,
+      ///*surfel_descriptor_1*/ 0,
+      ///*surfel_descriptor_2*/ 0,
+      //&descriptor_1,
+      //&descriptor_2);
+  ComputeRawFeatureDescriptorResidual(
+        color_texture, // TODO: use feature_texture
+        color_pxy,
+        t1_pxy,
+        t2_pxy,
+        surfel_descriptor,
+        descriptor);
   
   SurfelSetColor(&surfels, surfel_index, make_uchar4(
       255.f * color.x,
@@ -156,8 +166,14 @@ __device__ __forceinline__ void CreateNewSurfel(
       255.f * color.z,
       0));
   
-  surfels(kSurfelDescriptor1, surfel_index) = descriptor_1;
-  surfels(kSurfelDescriptor2, surfel_index) = descriptor_2;
+  //surfels(kSurfelDescriptor1, surfel_index) = descriptor_1;
+  //surfels(kSurfelDescriptor2, surfel_index) = descriptor_2;
+  constexpr int kSurfelDescriptorArr[2] = {6,7};
+  // constexpr int kSurfelAccumuArr[9] = {8,9,10,11,12,13,14,15,16};
+
+  for (int i = 0; i<2; ++i){
+    surfels(kSurfelDescriptorArr[i], surfel_index) = descriptor[i];
+  }
 }
 
 

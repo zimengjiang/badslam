@@ -141,6 +141,58 @@ __forceinline__ __device__ void ComputeRawDescriptorResidualAndJacobian(
   jacobian_2[5] = -(ls.x * grad_y_fy_2 - ls.y * grad_x_fx_2) * inv_ls_z;
 }
 
+__forceinline__ __device__ void ComputeRawDescriptorFeatureResidualAndJacobian(
+  const PixelCenterProjector& color_center_projector,
+  cudaTextureObject_t color_texture,
+  const float2& pxy,
+  const float2& t1_pxy,
+  const float2& t2_pxy,
+  const float3& ls,  // surfel_local_position
+  float* surfel_descriptor,
+  float* raw_residual_vec,
+  float* jacobian_1,
+  float* jacobian_2) {
+ComputeRawFeatureDescriptorResidual(
+  color_texture, // TODO: use feature_texture
+  pxy,
+  t1_pxy,
+  t2_pxy,
+  surfel_descriptor,
+  raw_residual_vec);
+
+float grad_x_fx_1;
+float grad_y_fy_1;
+float grad_x_fx_2;
+float grad_y_fy_2;
+DescriptorJacobianWrtProjectedPosition(
+    color_texture, pxy, t1_pxy, t2_pxy, &grad_x_fx_1, &grad_y_fy_1, &grad_x_fx_2, &grad_y_fy_2);
+grad_x_fx_1 *= color_center_projector.fx;
+grad_x_fx_2 *= color_center_projector.fx;
+grad_y_fy_1 *= color_center_projector.fy;
+grad_y_fy_2 *= color_center_projector.fy;
+
+float inv_ls_z = 1.f / ls.z;
+float ls_z_sq = ls.z * ls.z;
+float inv_ls_z_sq = inv_ls_z * inv_ls_z;
+
+jacobian_1[0] = -grad_x_fx_1 * inv_ls_z;
+jacobian_1[1] = -grad_y_fy_1 * inv_ls_z;
+jacobian_1[2] = (ls.x * grad_x_fx_1 + ls.y * grad_y_fy_1) * inv_ls_z_sq;
+
+float ls_x_y = ls.x * ls.y;
+
+jacobian_1[3] =  ((ls.y * ls.y + ls_z_sq) * grad_y_fy_1 + ls_x_y * grad_x_fx_1) * inv_ls_z_sq;
+jacobian_1[4] = -((ls.x * ls.x + ls_z_sq) * grad_x_fx_1 + ls_x_y * grad_y_fy_1) * inv_ls_z_sq;
+jacobian_1[5] = -(ls.x * grad_y_fy_1 - ls.y * grad_x_fx_1) * inv_ls_z;
+
+jacobian_2[0] = -grad_x_fx_2 * inv_ls_z;
+jacobian_2[1] = -grad_y_fy_2 * inv_ls_z;
+jacobian_2[2] = (ls.x * grad_x_fx_2 + ls.y * grad_y_fy_2) * inv_ls_z_sq;
+jacobian_2[3] =  ((ls.y * ls.y + ls_z_sq) * grad_y_fy_2 + ls_x_y * grad_x_fx_2) * inv_ls_z_sq;
+jacobian_2[4] = -((ls.x * ls.x + ls_z_sq) * grad_x_fx_2 + ls_x_y * grad_y_fy_2) * inv_ls_z_sq;
+jacobian_2[5] = -(ls.x * grad_y_fy_2 - ls.y * grad_x_fx_2) * inv_ls_z;
+}
+
 __forceinline__ __device__ void ComputeRawDescriptorResidualAndJacobianWithFloatTexture(
     const PixelCenterProjector& color_center_projector,
     cudaTextureObject_t color_texture,
@@ -270,6 +322,7 @@ __global__ void AccumulatePoseEstimationCoeffsCUDAKernel(
   
   float jacobian[6];
   float raw_residual;
+  float raw_residual_vec[2];
   
   constexpr int block_height = 1;
   typedef cub::BlockReduce<float, block_width, cub::BLOCK_REDUCE_RAKING_COMMUTATIVE_ONLY, block_height> BlockReduceFloat;
@@ -288,7 +341,6 @@ __global__ void AccumulatePoseEstimationCoeffsCUDAKernel(
     
     float depth_residual_inv_stddev =
         ComputeDepthResidualInvStddevEstimate(depth_unprojector.nx(r.px), depth_unprojector.ny(r.py), r.pixel_calibrated_depth, surfel_local_normal, s.depth_params.baseline_fx);
-    
     ComputeRawDepthResidualAndJacobian(
         depth_unprojector,
         r.px,
@@ -322,7 +374,7 @@ __global__ void AccumulatePoseEstimationCoeffsCUDAKernel(
   
   // --- Descriptor residual ---
   if (use_descriptor_residuals) {
-    float raw_residual_2;
+    // float raw_residual_2;
     float jacobian_2[6];
     
     float2 color_pxy;
@@ -337,7 +389,7 @@ __global__ void AccumulatePoseEstimationCoeffsCUDAKernel(
           &t1_pxy,
           &t2_pxy);
           // 10.26 the following should be executed N times, each time for 1 channel, use an array to 
-      ComputeRawDescriptorResidualAndJacobian(
+      /*ComputeRawDescriptorResidualAndJacobian(
           color_center_projector,
           color_texture,
           color_pxy,
@@ -348,15 +400,31 @@ __global__ void AccumulatePoseEstimationCoeffsCUDAKernel(
           &raw_residual,
           &raw_residual_2,
           jacobian,
-          jacobian_2);
+          jacobian_2);*/
+        constexpr int kSurfelDescriptorArr[2] = {6,7};
+        float surfel_descriptor[2]; // problematic with const float array and use for loop to initialize
+        for (int i = 0; i< 2; ++i){
+          surfel_descriptor[i] = s.surfels(kSurfelDescriptorArr[i], surfel_index);
+        }
+
+          ComputeRawDescriptorFeatureResidualAndJacobian(
+            color_center_projector,
+            color_texture,
+            color_pxy,
+            t1_pxy, t2_pxy,
+            r.surfel_local_position,
+            surfel_descriptor,
+            raw_residual_vec,
+            jacobian,
+            jacobian_2);
     } else {
       visible = false;
     }
     // 10.26, the follwoing two accumulations should be executed N times , each time for 1 channel, in the end we will get the summed value of all channels. 
     AccumulateGaussNewtonHAndB<6, block_width, block_height>(
         visible,
-        raw_residual,
-        ComputeDescriptorResidualWeight(raw_residual),
+        raw_residual_vec[0],
+        ComputeDescriptorResidualWeight(raw_residual_vec[0]),
         jacobian,
         H_buffer,
         b_buffer,
@@ -364,8 +432,8 @@ __global__ void AccumulatePoseEstimationCoeffsCUDAKernel(
     
     AccumulateGaussNewtonHAndB<6, block_width, block_height>(
         visible,
-        raw_residual_2,
-        ComputeDescriptorResidualWeight(raw_residual_2),
+        raw_residual_vec[1],
+        ComputeDescriptorResidualWeight(raw_residual_vec[1]),
         jacobian_2,
         H_buffer,
         b_buffer,

@@ -68,10 +68,11 @@ __global__ void AccumulateIntrinsicsCoefficientsCUDAKernel(
   
   // Parameters: fx_inv, fy_inv, cx_inv, cy_inv
   float descriptor_jacobian_1[4] = {0, 0, 0, 0};
-  float raw_descriptor_residual_1 = 0;
+  // float raw_descriptor_residual_1 = 0;
   float descriptor_jacobian_2[4] = {0, 0, 0, 0};
-  float raw_descriptor_residual_2 = 0;
-  
+  // float raw_descriptor_residual_2 = 0;
+  float raw_descriptor_residual[2];
+
   int sparse_pixel_index = -1;
   
   SurfelProjectionResult6 r;
@@ -149,10 +150,23 @@ __global__ void AccumulateIntrinsicsCoefficientsCUDAKernel(
         descriptor_jacobian_2[2] = grad_x_2;
         descriptor_jacobian_2[3] = grad_y_2;
         
-        float surfel_descriptor_1 = s.surfels(kSurfelDescriptor1, surfel_index);
+        /*float surfel_descriptor_1 = s.surfels(kSurfelDescriptor1, surfel_index);
         float surfel_descriptor_2 = s.surfels(kSurfelDescriptor2, surfel_index);
         ComputeRawDescriptorResidual(
             color_texture, color_pxy, t1_pxy, t2_pxy, surfel_descriptor_1, surfel_descriptor_2, &raw_descriptor_residual_1, &raw_descriptor_residual_2);
+        */
+        constexpr int kSurfelDescriptorArr[2] = {6,7};
+        float surfel_descriptor[2]; // problematic with const float array and use for loop to initialize
+        for (int i = 0; i< 2; ++i){
+          surfel_descriptor[i] = s.surfels(kSurfelDescriptorArr[i], surfel_index);
+        }
+        ComputeRawFeatureDescriptorResidual(
+              color_texture, // TODO: use feature_texture
+              color_pxy,
+              t1_pxy,
+              t2_pxy,
+              surfel_descriptor,
+              raw_descriptor_residual);
       }
     }
   }
@@ -198,17 +212,17 @@ __global__ void AccumulateIntrinsicsCoefficientsCUDAKernel(
   
   if (optimize_color_intrinsics) {
     AccumulateGaussNewtonHAndB<4, block_width, block_height>(
-        raw_descriptor_residual_1 != 0,
-        raw_descriptor_residual_1,
-        ComputeDescriptorResidualWeight(raw_descriptor_residual_1),
+        raw_descriptor_residual[0] != 0,
+        raw_descriptor_residual[0],
+        ComputeDescriptorResidualWeight(raw_descriptor_residual[0]),
         descriptor_jacobian_1,
         color_H,
         color_b,
         &float_storage);
     AccumulateGaussNewtonHAndB<4, block_width, block_height>(
-        raw_descriptor_residual_2 != 0,
-        raw_descriptor_residual_2,
-        ComputeDescriptorResidualWeight(raw_descriptor_residual_2),
+        raw_descriptor_residual[1] != 0,
+        raw_descriptor_residual[1],
+        ComputeDescriptorResidualWeight(raw_descriptor_residual[1]),
         descriptor_jacobian_2,
         color_H,
         color_b,

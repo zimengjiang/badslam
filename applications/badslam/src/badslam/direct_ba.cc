@@ -119,7 +119,9 @@ DirectBA::DirectBA(
   
   surfels_size_ = 0;
   surfel_count_ = 0;
-  surfels_.reset(new CUDABuffer<float>(kSurfelAttributeCount, max_surfel_count));
+  // 10.29 as the surfelattributecount increases, max-surfel_count should be decreased? 
+  // 10.29 If our convergence basin is large enough, we might use sparser surfels and further reduce the max_surfel_count?
+  surfels_.reset(new CUDABuffer<float>(kSurfelAttributeCount, max_surfel_count)); 
   active_surfels_.reset(new CUDABuffer<u8>(1, max_surfel_count));
   
   ba_iteration_count_ = 0;

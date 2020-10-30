@@ -40,6 +40,22 @@
 #include "badslam/surfel_projection.cuh"
 
 namespace vis {
+// 10.29 for constructing descriptor and accumulator indices
+// offset: number of attributes declared beforehead
+// TODO: the following triggers error when define in kernels.cuh, constexpr variables defined in kernels.cuh is in gpu or cpu?
+/*
+template<int size, int offset>
+struct kSurfelAttributesArr {
+    constexpr kSurfelAttributesArr() : arr() {
+        for (int i = 0; i < size; ++i)
+            arr[i] = i+offset; // before the first descriptor, there're already 6 attributes allocated in the surfel buffer 
+    }
+    int arr[size];
+  int get_size(){
+      return size;
+  }
+};*/
+
 
 class Keyframe;
 

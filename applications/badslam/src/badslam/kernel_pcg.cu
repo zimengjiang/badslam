@@ -342,18 +342,19 @@ __global__ void PCGInitCUDAKernel(
         color_corner_projector,
         &t1_pxy,
         &t2_pxy);
-    
-    float raw_residual_1;
-    float raw_residual_2;
-    ComputeRawDescriptorResidual(
-        color_texture,
-        color_pxy,
-        t1_pxy,
-        t2_pxy,
-        s.surfels(kSurfelDescriptor1, ::min(surfel_index, s.surfels_size - 1)),
-        s.surfels(kSurfelDescriptor2, ::min(surfel_index, s.surfels_size - 1)),
-        &raw_residual_1,
-        &raw_residual_2);
+    float raw_descriptor_residual[2];
+    float surfel_descriptor[2];
+    constexpr int kSurfelDescriptorArr[2] = {6,7};
+    for (int i = 0; i< 2; ++i){
+      surfel_descriptor[i] = s.surfels(kSurfelDescriptorArr[i], surfel_index);
+    }
+    ComputeRawFeatureDescriptorResidual(
+      color_texture, // TODO: use feature_texture
+      color_pxy,
+      t1_pxy,
+      t2_pxy,
+      surfel_descriptor,
+      raw_descriptor_residual);
     
     float grad_x_fx_1;
     float grad_y_fy_1;
@@ -367,8 +368,8 @@ __global__ void PCGInitCUDAKernel(
     grad_y_fy_2 *= color_corner_projector.fy;
     
     // Compute weight
-    const PCGScalar weight_1 = ComputeDescriptorResidualWeight(raw_residual_1);
-    const PCGScalar weight_2 = ComputeDescriptorResidualWeight(raw_residual_2);
+    const PCGScalar weight_1 = ComputeDescriptorResidualWeight(raw_descriptor_residual[0]);
+    const PCGScalar weight_2 = ComputeDescriptorResidualWeight(raw_descriptor_residual[1]);
     
     // Jacobians wrt. position changes and wrt. descriptor changes:
     if (visible && optimize_geometry) {
@@ -379,8 +380,8 @@ __global__ void PCGInitCUDAKernel(
       float jacobian_wrt_position_2 = -(grad_x_fx_2 * term1 + grad_y_fy_2 * term2) * term3;
       
       pcg_r(0, surfel_unknown_start_index + 3 * surfel_index + 0) -=
-          jacobian_wrt_position_1 * weight_1 * raw_residual_1 +
-          jacobian_wrt_position_2 * weight_2 * raw_residual_2;
+          jacobian_wrt_position_1 * weight_1 * raw_descriptor_residual[0] +
+          jacobian_wrt_position_2 * weight_2 * raw_descriptor_residual[1];
       pcg_M(0, surfel_unknown_start_index + 3 * surfel_index + 0) +=
           jacobian_wrt_position_1 * weight_1 * jacobian_wrt_position_1 +
           jacobian_wrt_position_2 * weight_2 * jacobian_wrt_position_2;
@@ -388,8 +389,8 @@ __global__ void PCGInitCUDAKernel(
       constexpr PCGScalar jacobian_wrt_descriptor1_1 = -1;
       constexpr PCGScalar jacobian_wrt_descriptor1_2 = 0;
       pcg_r(0, surfel_unknown_start_index + 3 * surfel_index + 1) -=
-          jacobian_wrt_descriptor1_1 * weight_1 * raw_residual_1 +
-          jacobian_wrt_descriptor1_2 * weight_2 * raw_residual_2;
+          jacobian_wrt_descriptor1_1 * weight_1 * raw_descriptor_residual[0] +
+          jacobian_wrt_descriptor1_2 * weight_2 * raw_descriptor_residual[1];
       pcg_M(0, surfel_unknown_start_index + 3 * surfel_index + 1) +=
           jacobian_wrt_descriptor1_1 * weight_1 * jacobian_wrt_descriptor1_1 +
           jacobian_wrt_descriptor1_2 * weight_2 * jacobian_wrt_descriptor1_2;
@@ -397,8 +398,8 @@ __global__ void PCGInitCUDAKernel(
       constexpr PCGScalar jacobian_wrt_descriptor2_1 = 0;
       constexpr PCGScalar jacobian_wrt_descriptor2_2 = -1;
       pcg_r(0, surfel_unknown_start_index + 3 * surfel_index + 2) -=
-          jacobian_wrt_descriptor2_1 * weight_1 * raw_residual_1 +
-          jacobian_wrt_descriptor2_2 * weight_2 * raw_residual_2;
+          jacobian_wrt_descriptor2_1 * weight_1 * raw_descriptor_residual[0] +
+          jacobian_wrt_descriptor2_2 * weight_2 * raw_descriptor_residual[1];
       pcg_M(0, surfel_unknown_start_index + 3 * surfel_index + 2) +=
           jacobian_wrt_descriptor2_1 * weight_1 * jacobian_wrt_descriptor2_1 +
           jacobian_wrt_descriptor2_2 * weight_2 * jacobian_wrt_descriptor2_2;
@@ -413,25 +414,25 @@ __global__ void PCGInitCUDAKernel(
       BlockedAtomicSumRAndM2<block_width, block_height>(
           kf_pose_unknown_index + 0,
           -grad_x_fx_1 * inv_ls_z,  // Jacobian 1
-          weight_1, raw_residual_1,
+          weight_1, raw_descriptor_residual[0],
           -grad_x_fx_2 * inv_ls_z,  // Jacobian 2
-          weight_2, raw_residual_2,
+          weight_2, raw_descriptor_residual[1],
           visible, &pcg_r, &pcg_M, &scalar_storage);
       __syncthreads();
       BlockedAtomicSumRAndM2<block_width, block_height>(
           kf_pose_unknown_index + 1,
           -grad_y_fy_1 * inv_ls_z,  // Jacobian 1
-          weight_1, raw_residual_1,
+          weight_1, raw_descriptor_residual[0],
           -grad_y_fy_2 * inv_ls_z,  // Jacobian 2
-          weight_2, raw_residual_2,
+          weight_2, raw_descriptor_residual[1],
           visible, &pcg_r, &pcg_M, &scalar_storage);
       __syncthreads();
       BlockedAtomicSumRAndM2<block_width, block_height>(
           kf_pose_unknown_index + 2,
           (r.surfel_local_position.x * grad_x_fx_1 + r.surfel_local_position.y * grad_y_fy_1) * inv_ls_z_sq,  // Jacobian 1
-          weight_1, raw_residual_1,
+          weight_1, raw_descriptor_residual[0],
           (r.surfel_local_position.x * grad_x_fx_2 + r.surfel_local_position.y * grad_y_fy_2) * inv_ls_z_sq,  // Jacobian 2
-          weight_2, raw_residual_2,
+          weight_2, raw_descriptor_residual[1],
           visible, &pcg_r, &pcg_M, &scalar_storage);
       __syncthreads();
       
@@ -441,26 +442,26 @@ __global__ void PCGInitCUDAKernel(
       BlockedAtomicSumRAndM2<block_width, block_height>(
           kf_pose_unknown_index + 3,
           (term1 * grad_y_fy_1 + ls_x_y * grad_x_fx_1) * inv_ls_z_sq,  // Jacobian 1
-          weight_1, raw_residual_1,
+          weight_1, raw_descriptor_residual[0],
           (term1 * grad_y_fy_2 + ls_x_y * grad_x_fx_2) * inv_ls_z_sq,  // Jacobian 2
-          weight_2, raw_residual_2,
+          weight_2, raw_descriptor_residual[1],
           visible, &pcg_r, &pcg_M, &scalar_storage);
       __syncthreads();
       const float term2 = r.surfel_local_position.x * r.surfel_local_position.x + ls_z_sq;
       BlockedAtomicSumRAndM2<block_width, block_height>(
           kf_pose_unknown_index + 4,
           -(term2 * grad_x_fx_1 + ls_x_y * grad_y_fy_1) * inv_ls_z_sq,  // Jacobian 1
-          weight_1, raw_residual_1,
+          weight_1, raw_descriptor_residual[0],
           -(term2 * grad_x_fx_2 + ls_x_y * grad_y_fy_2) * inv_ls_z_sq,  // Jacobian 2
-          weight_2, raw_residual_2,
+          weight_2, raw_descriptor_residual[1],
           visible, &pcg_r, &pcg_M, &scalar_storage);
       __syncthreads();
       BlockedAtomicSumRAndM2<block_width, block_height>(
           kf_pose_unknown_index + 5,
           -(r.surfel_local_position.x * grad_y_fy_1 - r.surfel_local_position.y * grad_x_fx_1) * inv_ls_z,  // Jacobian 1
-          weight_1, raw_residual_1,
+          weight_1, raw_descriptor_residual[0],
           -(r.surfel_local_position.x * grad_y_fy_2 - r.surfel_local_position.y * grad_x_fx_2) * inv_ls_z,  // Jacobian 2
-          weight_2, raw_residual_2,
+          weight_2, raw_descriptor_residual[1],
           visible, &pcg_r, &pcg_M, &scalar_storage);
     }
     
@@ -477,36 +478,36 @@ __global__ void PCGInitCUDAKernel(
       BlockedAtomicSumRAndM2<block_width, block_height>(
           color_intrinsics_unknown_start_index + 0,
           grad_x_1 * depth_center_unprojector.nx(r.px),  // Jacobian 1
-          weight_1, raw_residual_1,
+          weight_1, raw_descriptor_residual[0],
           grad_x_2 * depth_center_unprojector.nx(r.px),  // Jacobian 2
-          weight_2, raw_residual_2,
+          weight_2, raw_descriptor_residual[1],
           visible, &pcg_r, &pcg_M, &scalar_storage);
       // fy
       __syncthreads();
       BlockedAtomicSumRAndM2<block_width, block_height>(
           color_intrinsics_unknown_start_index + 1,
           grad_y_1 * depth_center_unprojector.ny(r.py),  // Jacobian 1
-          weight_1, raw_residual_1,
+          weight_1, raw_descriptor_residual[0],
           grad_y_2 * depth_center_unprojector.ny(r.py),  // Jacobian 2
-          weight_2, raw_residual_2,
+          weight_2, raw_descriptor_residual[1],
           visible, &pcg_r, &pcg_M, &scalar_storage);
       // cx
       __syncthreads();
       BlockedAtomicSumRAndM2<block_width, block_height>(
           color_intrinsics_unknown_start_index + 2,
           grad_x_1,  // Jacobian 1
-          weight_1, raw_residual_1,
+          weight_1, raw_descriptor_residual[0],
           grad_x_2,  // Jacobian 2
-          weight_2, raw_residual_2,
+          weight_2, raw_descriptor_residual[1],
           visible, &pcg_r, &pcg_M, &scalar_storage);
       // cy
       __syncthreads();
       BlockedAtomicSumRAndM2<block_width, block_height>(
           color_intrinsics_unknown_start_index + 3,
           grad_y_1,  // Jacobian 1
-          weight_1, raw_residual_1,
+          weight_1, raw_descriptor_residual[0],
           grad_y_2,  // Jacobian 2
-          weight_2, raw_residual_2,
+          weight_2, raw_descriptor_residual[1],
           visible, &pcg_r, &pcg_M, &scalar_storage);
     }
   }
