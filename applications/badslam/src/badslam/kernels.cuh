@@ -81,16 +81,18 @@ constexpr int kSurfelDescriptor2 = 7;  // float
 // constexpr int kSurfelDescriptor6 = 11;
 
 // jzm. 10.29: +4 for each old value, for 4 more descirptors added
-
-constexpr int kSurfelAccum0 = 8;  // float
-constexpr int kSurfelAccum1 = 9;  // float
-constexpr int kSurfelAccum2 = 10;  // float
-constexpr int kSurfelAccum3 = 11;  // float
-constexpr int kSurfelAccum4 = 12;  // float
-constexpr int kSurfelAccum5 = 13;  // float
-constexpr int kSurfelAccum6 = 14;  // float
-constexpr int kSurfelAccum7 = 15;  // float
-constexpr int kSurfelAccum8 = 16;  // float
+// 10.30 some steps only uses few kSurfelAccum
+// kernel_assign_colors: kSurfelAccum0-2N [observation count, descriptors]
+// kernel_opt_geometry: kSurfelAccum0-(2N+1)*(N+1)+2N [H, b ]
+constexpr int kSurfelAccum0 = 8+4;  // float
+constexpr int kSurfelAccum1 = 9+4;  // float
+constexpr int kSurfelAccum2 = 10+4;  // float
+constexpr int kSurfelAccum3 = 11+4;  // float
+constexpr int kSurfelAccum4 = 12+4;  // float
+constexpr int kSurfelAccum5 = 13+4;  // float
+constexpr int kSurfelAccum6 = 14+4;  // float
+constexpr int kSurfelAccum7 = 15+4;  // float
+constexpr int kSurfelAccum8 = 16+4;  // float
 
 
 // 10.29, construct kSurfelDescriptorArr

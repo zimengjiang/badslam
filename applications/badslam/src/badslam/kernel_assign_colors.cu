@@ -144,11 +144,15 @@ __global__ void ResetSurfelForDescriptorColorAssignmentKernel(
     u32 surfels_size,
     CUDABuffer_<float> surfels) {
   const unsigned int surfel_index = blockIdx.x * blockDim.x + threadIdx.x;
-  
+  constexpr int kSurfelAccumuArr[7] = {12,13,14,15,16,17,18};
+  // 10.30
   if (surfel_index < surfels_size) {
-    surfels(kSurfelAccum0, surfel_index) = 0;
+    /*surfels(kSurfelAccum0, surfel_index) = 0;
     surfels(kSurfelAccum1, surfel_index) = 0;
-    surfels(kSurfelAccum2, surfel_index) = 0;
+    surfels(kSurfelAccum2, surfel_index) = 0;*/
+    for (int i = 0; i < 7; ++i ){
+      surfels(kSurfelAccumuArr[i], surfel_index) = 0;
+    }
   }
 }
 
@@ -193,8 +197,8 @@ __global__ void AccumulateDescriptorColorObservationsCUDAKernel(
       
       //float descriptor_1;
       //float descriptor_2;
-      float descriptor[2];
-      float surfel_descriptor[2] = {0,0}; // only for initialization
+      float descriptor[6];
+      float surfel_descriptor[6] = {0,0,0,0,0,0}; // only for initialization
       //ComputeRawDescriptorResidual(
         //  color_texture,
         //  color_pxy,
@@ -212,12 +216,13 @@ __global__ void AccumulateDescriptorColorObservationsCUDAKernel(
         t2_pxy,
         surfel_descriptor,
         descriptor);
-      constexpr int kSurfelAccumuArr[9] = {8,9,10,11,12,13,14,15,16};
+      // constexpr int kSurfelAccumuArr[7] = {12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39};
       // 10.29: Although there're several accumulate indices we can use, we only use the indices 1 and 2. Because 0 is already used for observation count.
+      constexpr int kSurfelAccumuArr[6] = {13,14,15,16,17,18};// because 12 is used for observation count, here we only update the descirptor
       //s.surfels(kSurfelAccum1, surfel_index) += descriptor_1;
       //s.surfels(kSurfelAccum2, surfel_index) += descriptor_2;
-      for (int i = 0; i<2; ++i){
-        s.surfels(kSurfelAccumuArr[i+1], surfel_index) = descriptor[i];
+      for (int i = 0; i<6; ++i){
+        s.surfels(kSurfelAccumuArr[i], surfel_index) = descriptor[i];
       }
       
     }

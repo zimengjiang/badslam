@@ -141,8 +141,8 @@ __device__ __forceinline__ void CreateNewSurfel(
   // float descriptor_1;
   // float descriptor_2;
   // 10.29 first, use array to see if values are passed correctly
-  float descriptor[2];
-  float surfel_descriptor[2] = {0,0}; // only for initialization
+  float descriptor[6];
+  float surfel_descriptor[6] = {0,0,0,0,0,0}; // only for initialization
   //ComputeRawDescriptorResidual(
     //  color_texture,
       //color_pxy,
@@ -168,10 +168,8 @@ __device__ __forceinline__ void CreateNewSurfel(
   
   //surfels(kSurfelDescriptor1, surfel_index) = descriptor_1;
   //surfels(kSurfelDescriptor2, surfel_index) = descriptor_2;
-  constexpr int kSurfelDescriptorArr[2] = {6,7};
-  // constexpr int kSurfelAccumuArr[9] = {8,9,10,11,12,13,14,15,16};
-
-  for (int i = 0; i<2; ++i){
+  constexpr int kSurfelDescriptorArr[6] = {6,7,8,9,10,11};
+  for (int i = 0; i<6; ++i){
     surfels(kSurfelDescriptorArr[i], surfel_index) = descriptor[i];
   }
 }
