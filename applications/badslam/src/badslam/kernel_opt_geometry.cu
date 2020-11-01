@@ -377,8 +377,80 @@ void AccumulateSurfelPositionAndDescriptorOptimizationCoeffsCUDAKernel(
   CUDA_CHECK();
 }
 
-
 __global__ void UpdateSurfelPositionAndDescriptorCUDAKernel(
+  u32 surfels_size,
+  CUDABuffer_<float> surfels,
+  CUDABuffer_<u8> active_surfels) {
+const unsigned int surfel_index = blockIdx.x * blockDim.x + threadIdx.x;
+
+if (surfel_index < surfels_size) {
+  if (!(active_surfels(0, surfel_index) & kSurfelActiveFlag)) {
+    return;
+  }
+  // 11.1 for each surfel we have H = [A, B^T, diag(D)], apply Schur complement
+  // loop over D to compute inv(D), Achtung: before 1/D, add kEpsilon to ensure invertability
+  // D_{2N*2N}
+  float Di_inverse;
+  float Bi;
+  float x1; // delta_t
+  float x2[6] = {0,0,0,0,0,0}; // delta_descriptor 2N
+  // Make sure that the matrix is positive definite
+  // (instead of only semi-positive definite).
+  constexpr float kEpsilon = 1e-6f; // jzmTODO: not clear to use 1e-6 or 1e-12, related to weight^2 or weight?
+  // for i = 1:2N
+  //    D_inverse = 1.0/D(i)
+  //    A = A - B(i)^2*D_inverse
+  //    b1 = b1 - B(i)*D_inverse*b2(i)
+  //    
+  // after the loop:
+  // x1 = b1/A corresponds to surfel position t
+  // x2[i] = D_inverse*b2(i) - D_inverse*B(i), because D is diagnal.
+  // jzmTODO: double check the indices
+  const int DiOffset = kSurfelAccum0 + 7;
+  const int BiOffset = kSurfelAccum0 + 1;
+  const int b2iOffset = kSurfelAccum0 + kSurfelAccumHCount + 1;
+  for (int i = 0; i < 2*3; ++i){ // i < 2N
+    // D_inverse = 1.0/D(i)
+    Di_inverse = 1.0f / (surfels(DiOffset + i, surfel_index)+kEpsilon); // 7 = 2N+1
+    Bi = surfels(BiOffset + i, surfel_index); // A occupies 1 space, so here b starts from kSurfelAccum0+1
+    // A = A - B(i)^2*D_inverse
+    surfels(kSurfelAccum0, surfel_index) -= Bi*Bi*Di_inverse; // jzmTODO: make it const float?
+    // b1 = b1 - B(i)*D_inverse*b2(i)
+    surfels(kSurfelAccum0 + kSurfelAccumHCount, surfel_index) -= Bi*Di_inverse*surfels(b2iOffset + i, surfel_index); // +1 because b1 has occupied 1 space.
+    // Question: in-place operation to save storage? jzmTODO: double check you have used the correct value to compute x1 and x2
+    // B(i) <- D_inverse*B(i)
+    surfels(BiOffset + i, surfel_index) = Di_inverse*Bi;
+    // D(i) <- D_inverse*b2(i)
+    surfels(DiOffset + i, surfel_index) = Di_inverse*surfels(b2iOffset + i, surfel_index);
+  }
+  // x1 = b1/A corresponds to surfel position t, A needs to be well-defined
+  x1 =  surfels(kSurfelAccum0 + kSurfelAccumHCount, surfel_index)/(surfels(kSurfelAccum0, surfel_index)+kEpsilon);
+  if (x1 != 0){
+    // Update surfel position
+    float3 global_position = SurfelGetPosition(surfels, surfel_index);
+    float3 surfel_normal = SurfelGetNormal(surfels, surfel_index);
+    SurfelSetPosition(&surfels, surfel_index, global_position - x1 * surfel_normal);
+  }
+  
+  for (int i = 0; i < 6; ++i){
+    // since we have done in-placement for D_inverse*B(i) and D_inverse*b2(i)
+    x2[i] = surfels(DiOffset + i, surfel_index) - surfels(BiOffset + i, surfel_index)*x1;
+    if (x2[i] != 0){
+      float surfel_descriptor = surfels(kSurfelFixedAttributeCount + i, surfel_index);
+      surfel_descriptor -= x2[i];
+      surfels(kSurfelFixedAttributeCount + i, surfel_index) = ::max(-180.f, ::min(180.f, surfel_descriptor));
+    } 
+  }
+  
+  // Reset accum fields for normal optimization.
+  // surfels(kSurfelAccum0, surfel_index) = 0;
+  // surfels(kSurfelAccum1, surfel_index) = 0;
+  // surfels(kSurfelAccum2, surfel_index) = 0;
+  // surfels(kSurfelAccum3, surfel_index) = 0;
+}
+}
+
+__global__ void UpdateSurfelPositionAndDescriptorCUDAKernel_backup(
     u32 surfels_size,
     CUDABuffer_<float> surfels,
     CUDABuffer_<u8> active_surfels) {

@@ -113,7 +113,7 @@ constexpr int kSurfelDataAttributeCount = 12; // 6+2N, N channels
 // 11.1 we only need to keep non-zero entries of H:4N+1 and b: 2N+1, in total:6N+2
 /*
 H is symmetric. split it into 3 parts: NOTICE: ensure that A and D are invertable. 
-[A, B^T, diag(D)], A: top left part of H, B^T: top right part of H, D: bottom right part of H.
+[A, C^T, diag(D)], A: top left part of H, C^T: top right part of H, D: bottom right part of H.
 */
 constexpr int kSurfelAttributeCount = 32; 
 /*
@@ -129,4 +129,6 @@ constexpr int kSurfelAttributeCount = 32;
 constexpr int kSurfelAccumHAndBCount = 20; // kSurfelAttributeCount - kSurfelDataAttributeCount
 constexpr int kSurfelAccumHCount = 13; // 4N+1
 constexpr int kSurfelAccumBCount = 7; // 2N+1
+constexpr int kSurfelFixedAttributeCount = 6; // 2N+1
+
 }
