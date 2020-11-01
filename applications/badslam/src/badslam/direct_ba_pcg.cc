@@ -206,6 +206,7 @@ void DirectBA::BundleAdjustmentPCG(
     }
     
     // Set all surfels to active. TODO: Do this implicitly instead of requiring this memset.
+    // 10.31 Set new surfels to active | have_been_active?
     cudaMemsetAsync(active_surfels_->ToCUDA().address(),
                     kSurfelActiveFlag,
                     surfels_size_ * sizeof(u8),
@@ -236,7 +237,7 @@ void DirectBA::BundleAdjustmentPCG(
     const u32 max_surfels_unknown_count = 3 * surfels_->width();
     const u32 surfels_unknown_count = optimize_geometry ? ((use_descriptor_residuals_ ? 3 : 1) * surfels_size_) : 0;
     CHECK_LE(surfels_unknown_count, max_surfels_unknown_count);
-    
+    // 10.31 what's inside cfactor_buffer?
     const u32 max_depth_intrinsics_unknown_count = 4 + 1 + cfactor_buffer_->width() * cfactor_buffer_->height();
     const u32 depth_intrinsics_unknown_count = optimize_depth_intrinsics ? max_depth_intrinsics_unknown_count : 0;
     CHECK_LE(depth_intrinsics_unknown_count, max_depth_intrinsics_unknown_count);

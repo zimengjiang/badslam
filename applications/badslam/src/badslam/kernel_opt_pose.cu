@@ -437,7 +437,7 @@ __global__ void AccumulatePoseEstimationCoeffsCUDAKernel(
           &t2_pxy);
     }
     else{
-      visible = false;
+      visible = false; // nothing is done if visible 
     }
     // 10.30 Since nothing is done if visible = false, we only accumulate H and b when visible = true
     if (visible){

@@ -58,9 +58,11 @@ __global__ void ResetSurfelAccumCUDAKernel(
     surfels(kSurfelAccum6, surfel_index) = 0;
     surfels(kSurfelAccum7, surfel_index) = 0;
     surfels(kSurfelAccum8, surfel_index) = 0;*/
-    constexpr int kSurfelAccumuArr[35] = {12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46};
-    for (int i = 0; i < 35; ++i){
-      surfels(kSurfelAccumuArr[i], surfel_index) = 0;
+    // 11.1
+    //jzmTODO: check the indices
+    #pragma unroll
+    for (int i = 0; i < kSurfelAccumHAndBCount; ++i){ //constexpr int kSurfelAccumuArr[20] = {12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31};
+      surfels(kSurfelDataAttributeCount+i, surfel_index) = 0; // kSurfelDataAttributeCount = 12
     }
   }
 }
@@ -156,12 +158,12 @@ __global__ void AccumulateSurfelPositionAndDescriptorOptimizationCoeffsCUDAKerne
         
         // Accumulate:
         // 10.29 shouldn't it be depth_weight^2? 
-        // jzmTODO: 
-        // s.surfels(kSurfelAccum0, surfel_index) += depth_weight * depth_weight * depth_jacobian * depth_jacobian;
+        // jzmTODO: s.surfels(kSurfelAccum0, surfel_index) += depth_weight * depth_weight * depth_jacobian * depth_jacobian;
         // s.surfels(kSurfelAccum0, surfel_index) += depth_weight * depth_jacobian * depth_jacobian;
         // s.surfels(kSurfelAccum6, surfel_index) += depth_weight * raw_depth_residual * depth_jacobian;
+        // 11.1 
         s.surfels(kSurfelAccum0, surfel_index) += depth_weight * depth_jacobian * depth_jacobian;
-        s.surfels(kSurfelAccum0 + 28, surfel_index) += depth_weight * raw_depth_residual * depth_jacobian;// 28 is the number of kAccums used for H, 28 = 6 * (6 + 1) / 2
+        s.surfels(kSurfelAccum0 + kSurfelAccumHCount, surfel_index) += depth_weight * raw_depth_residual * depth_jacobian;// 13 is the number of kAccums used for H, 4*N+1, N = 3
         /*if (surfel_index == 0){
           printf("use depth residual \n");
         }*/
@@ -196,10 +198,12 @@ __global__ void AccumulateSurfelPositionAndDescriptorOptimizationCoeffsCUDAKerne
         ComputeRawDescriptorResidual(
             color_texture, color_pxy, t1_pxy, t2_pxy, surfel_descriptor_1, surfel_descriptor_2, &raw_descriptor_residual_1, &raw_descriptor_residual_2);
         */
-        constexpr int kSurfelDescriptorArr[6] = {6,7,8,9,10,11};
         float surfel_descriptor[6]; // problematic with const float array and use for loop to initialize
-        for (int i = 0; i< 6; ++i){
-          surfel_descriptor[i] = s.surfels(kSurfelDescriptorArr[i], surfel_index);
+        // jzmTODO: use # pragma unroll to optimize the following 
+        // 11.1
+        #pragma unroll
+        for (int i = 0; i < 6; ++i){ // constexpr int kSurfelDescriptorArr[6] = {6,7,8,9,10,11};
+          surfel_descriptor[i] = s.surfels(6+i, surfel_index); // hard code the kSurfelDescriptorArr
         }
         float raw_descriptor_residual[6];
         ComputeRawFeatureDescriptorResidual(
@@ -215,8 +219,8 @@ __global__ void AccumulateSurfelPositionAndDescriptorOptimizationCoeffsCUDAKerne
         const float term3 = 1.f / (r.surfel_local_position.z * r.surfel_local_position.z);
         // ---------------------------
         // Accumulate H and b
-        // constexpr int kSurfelAccumuHArr[35] = {12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39}; // I think this is too large, so for now I just hard code by idx+12
-        // constexpr int kSurfelAccumubArr[7] = {40,41,42,43,44,45,46};
+        // constexpr int kSurfelAccumuHArr[13] = {12,13,14,15,16,17,18,19,20,21,22,23,24}; // I think this is too large, so for now I just hard code by idx+12
+        // constexpr int kSurfelAccumubArr[7] = {25,26,27,28,29,30,31};
         // 10.30 iterate over feature channels to accumulate H and b
           // loop over channel n in N:
           //    accumulate H(0,0)
@@ -224,26 +228,33 @@ __global__ void AccumulateSurfelPositionAndDescriptorOptimizationCoeffsCUDAKerne
           //    accumulate H(0,1+n+N) for residual_2
           //    accumulate H(n+1,n+1) for jacobian w.r.t. descirptor
           //    accumulate b(n)
+        float grad_x_1;
+        float grad_y_1;
+        float grad_x_2;
+        float grad_y_2;
+        float jacobian_wrt_position_1;
+        float jacobian_wrt_position_2;
+
+        // --- Descriptor residual change wrt. descriptor change ---
+        constexpr float jacobian_wrt_descriptor = -1.f; // 10.31 defined here for efficiency
+
         for (int channel_i = 1; channel_i < 4; ++channel_i){
           
           // --- Descriptor residual change wrt. position change ---
           // 10.30 gradients varies form channel to channel
-          float grad_x_1;
-          float grad_y_1;
-          float grad_x_2;
-          float grad_y_2;
           DescriptorJacobianWrtProjectedPositionOnChannels(color_texture, color_pxy, t1_pxy, t2_pxy, &grad_x_1, &grad_y_1, &grad_x_2, &grad_y_2, channel_i);
           
-          float jacobian_wrt_position_1 = -(grad_x_1 * term1 + grad_y_1 * term2) * term3;
-          float jacobian_wrt_position_2 = -(grad_x_2 * term1 + grad_y_2 * term2) * term3;
+          jacobian_wrt_position_1 = -(grad_x_1 * term1 + grad_y_1 * term2) * term3;
+          jacobian_wrt_position_2 = -(grad_x_2 * term1 + grad_y_2 * term2) * term3;
           // -------------------------------------------------------
         
           // --- Descriptor residual change wrt. descriptor change ---
-          constexpr float jacobian_wrt_descriptor = -1.f;
+          // constexpr float jacobian_wrt_descriptor = -1.f;
           // ---------------------------------------------------------
           
           // --- Compute weights for each residual term ---
-          const float weight_1 = ComputeDescriptorResidualWeight(raw_descriptor_residual[channel_i]); // 10.30 jzmTODO: maybe the weight needs adjusted when applying feature maps
+          // 10.30 jzmTODO: maybe the weight needs adjusted when applying feature maps
+          const float weight_1 = ComputeDescriptorResidualWeight(raw_descriptor_residual[channel_i]); 
           const float weighted_raw_residual_1 = weight_1 * raw_descriptor_residual[channel_i];
           
           const float weight_2 = ComputeDescriptorResidualWeight(raw_descriptor_residual[channel_i+3]);// N = 3
@@ -264,7 +275,7 @@ __global__ void AccumulateSurfelPositionAndDescriptorOptimizationCoeffsCUDAKerne
           // Accumulate formula for b: index of bi where i = 0,...,2N, b_0 is for depth residual and descriptor residual, b_1 - b_2N if for descriptor residual. 
           // The depth residual impacts only b_0.
           // ---------------------------------------------------------
-          // We fill H rowwise, mainly deal with the H(0,:) and diag(H)
+          // We fill H rowwise, deal with the H(0,:) and diag(H)
           // H(0,0)
           s.surfels(kSurfelAccum0, surfel_index) += weight_1 * jacobian_wrt_position_1 * jacobian_wrt_position_1 +
                                                   weight_2 * jacobian_wrt_position_2 * jacobian_wrt_position_2;  // from residual 2
@@ -272,16 +283,19 @@ __global__ void AccumulateSurfelPositionAndDescriptorOptimizationCoeffsCUDAKerne
           s.surfels(kSurfelAccum0 + channel_i, surfel_index) += weight_1 * jacobian_wrt_position_1 * jacobian_wrt_descriptor;
           // H(0,1+channel_i+N), from residual_2
           s.surfels(kSurfelAccum0 + channel_i + 3, surfel_index) += weight_2 * jacobian_wrt_position_2 * jacobian_wrt_descriptor;
-          // H(k,k)
+          // H(k,k), update two entries in the diagnal. kSurfelAccum0 + 2N + channel_i, kSurfelAccum0 + 2N + channel_i + N
+          // Achtung: channel_i is 1-based index. 
           // jzmTODO:check int 
-          s.surfels(kSurfelAccum0 + int(channel_i*6+channel_i-channel_i*(channel_i-1)/2), surfel_index) += weight_1 * jacobian_wrt_descriptor * jacobian_wrt_descriptor; // from residual_1
-          s.surfels(kSurfelAccum0 + int((channel_i+3)*6+(channel_i+3)-(channel_i+3)*((channel_i+3)-1)/2), surfel_index) += weight_2 * jacobian_wrt_descriptor * jacobian_wrt_descriptor; // from residual_2
-          // In total, there are 28 unique non-zero entries in H, start of b: kSurfelAccum0 + 28
+          s.surfels(kSurfelAccum0 + 6 + channel_i, surfel_index) += weight_1 * jacobian_wrt_descriptor * jacobian_wrt_descriptor; // from residual_1
+          s.surfels(kSurfelAccum0 + 6 + channel_i + 3, surfel_index) += weight_2 * jacobian_wrt_descriptor * jacobian_wrt_descriptor; // from residual_2
+          // In total, there are kSurfelAccumHCount unique non-zero entries in H, start of b: kSurfelAccum0 + kSurfelAccumHCount
           // accumulate b_0, depth residual related part is already accumulated
-          s.surfels(kSurfelAccum0  + 28, surfel_index) += weighted_raw_residual_1 * jacobian_wrt_position_1 + 
+          s.surfels(kSurfelAccum0  + kSurfelAccumHCount, surfel_index) += weighted_raw_residual_1 * jacobian_wrt_position_1 + 
                                                     weighted_raw_residual_2 * jacobian_wrt_position_2;  // from residual 2
-          s.surfels(kSurfelAccum0 + 28 + channel_i, surfel_index) += weighted_raw_residual_1 * jacobian_wrt_descriptor;
-          s.surfels(kSurfelAccum0 + 28 + channel_i + 3, surfel_index) += weighted_raw_residual_2 * jacobian_wrt_descriptor;
+          // residual 1
+          s.surfels(kSurfelAccum0 + kSurfelAccumHCount + channel_i, surfel_index) += weighted_raw_residual_1 * jacobian_wrt_descriptor;
+          // residual 2
+          s.surfels(kSurfelAccum0 + kSurfelAccumHCount + channel_i + 3, surfel_index) += weighted_raw_residual_2 * jacobian_wrt_descriptor;
 
         }
         
@@ -426,6 +440,12 @@ __global__ void UpdateSurfelPositionAndDescriptorCUDAKernel(
     float x2 = y2 / H_2_2;
     float x1 = (y1 - H_1_2 * x2) / H_1_1;
     float x0 = (y0 - H_0_2 * x2 - H_0_1 * x1) / H_0_0;
+
+    if (surfel_index == 0){
+      printf("b0: %f, b1: %f, b2:%f \n", b0, b1, b2);
+      printf("x0: %f, x1: %f, x2:%f \n", x0, x1, x2);
+    }
+    
     
     if (x0 != 0) {
       // Update surfel position

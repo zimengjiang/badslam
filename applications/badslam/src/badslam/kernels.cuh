@@ -110,13 +110,23 @@ constexpr int kSurfelDataAttributeCount = 12; // 6+2N, N channels
 // Total surfel attribute count, including temporary attributes (which are not
 // preserved during copies).
 // constexpr int kSurfelAttributeCount = 17;
-constexpr int kSurfelAttributeCount = 47;
+// 11.1 we only need to keep non-zero entries of H:4N+1 and b: 2N+1, in total:6N+2
+/*
+H is symmetric. split it into 3 parts: NOTICE: ensure that A and D are invertable. 
+[A, B^T, diag(D)], A: top left part of H, B^T: top right part of H, D: bottom right part of H.
+*/
+constexpr int kSurfelAttributeCount = 32; 
 /*
 1. fixed attributes: 6, [0,1,2,3,4,5]
 2. descriptors: 2N, [6, ..., 2N+5]
-3. Hessian: (2N+1)*(N+1), [2N+6, ..., 2N+5+(2N+1)*(N+1)]
-4. b: 2N+1 [2N+5+(2N+1)*(N+1)+1, 6+2N+(2N+1)*(N+1)+2N]
-5. data attribute count: 6+2N
-5. total count: 7+2N+(2N+1)*(N+1)+2N
+3. Hessian: (2N+1)+2N, [2N+6, ..., 6N+6]
+4. b: 2N+1 [6N+7, 8N+7]
+5. data attribute count (x,y,z,normal,r^2,color,descriptor): 6+2N
+6. accumulate H and b count: 6N+2
+7. in totol: 8N+8
 */
+// 11.1 
+constexpr int kSurfelAccumHAndBCount = 20; // kSurfelAttributeCount - kSurfelDataAttributeCount
+constexpr int kSurfelAccumHCount = 13; // 4N+1
+constexpr int kSurfelAccumBCount = 7; // 2N+1
 }
