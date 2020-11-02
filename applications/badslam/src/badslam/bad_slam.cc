@@ -171,9 +171,6 @@ void BadSlam::ProcessFrame(int frame_index, bool force_keyframe) {
   // Get the images. This should be before starting the "without I/O" timer
   // since it can lead to the images being loaded from disk (in case they are
   // not cached yet).
-  // jzm: debugging
-  printf("**********\n");
-  printf("frame index:%d\n",frame_index );
   const Image<Vec3u8>* rgb_image =
       rgbd_video_->color_frame_mutable(frame_index)->GetImage().get();
   /*const shared_ptr<Image<u16>>& depth_image =*/
@@ -203,6 +200,9 @@ void BadSlam::ProcessFrame(int frame_index, bool force_keyframe) {
       ((frame_index - config_.start_frame) % config_.keyframe_interval == 0);
   
   if (create_keyframe) {
+    // 11.2 debugging
+    printf("**********\n");
+    printf("frame index:%d\n",frame_index );
     CreateKeyframe(frame_index,
                    rgb_image,
                    final_cpu_depth_map,

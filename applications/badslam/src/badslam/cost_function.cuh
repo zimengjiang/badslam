@@ -445,30 +445,26 @@ __forceinline__ __device__ void DescriptorJacobianWrtProjectedPositionOnChannels
   int iy = static_cast<int>(::max(0.f, color_pxy.y - 0.5f));
   float tx = ::max(0.f, ::min(1.f, color_pxy.x - 0.5f - ix));  // truncated x = trunc(cx + fx*ls.x/ls.z)
   float ty = ::max(0.f, ::min(1.f, color_pxy.y - 0.5f - iy));  // truncated y = trunc(cy + fy*ls.y/ls.z)
+  
   float top_left, top_right, bottom_left, bottom_right;
-  switch (channel)
-  {
-  case 1:
-     top_left = tex2D<float4>(color_texture, ix + 0.5f, iy + 0.5f).x;
+  if (channel == 1){
+    top_left = tex2D<float4>(color_texture, ix + 0.5f, iy + 0.5f).x;
      top_right = tex2D<float4>(color_texture, ix + 1.5f, iy + 0.5f).x;
      bottom_left = tex2D<float4>(color_texture, ix + 0.5f, iy + 1.5f).x;
      bottom_right = tex2D<float4>(color_texture, ix + 1.5f, iy + 1.5f).x;
-    break;
-  case 2:
-     top_left = tex2D<float4>(color_texture, ix + 0.5f, iy + 0.5f).y;
+  }
+  else if (channel == 2){
+    top_left = tex2D<float4>(color_texture, ix + 0.5f, iy + 0.5f).y;
      top_right = tex2D<float4>(color_texture, ix + 1.5f, iy + 0.5f).y;
      bottom_left = tex2D<float4>(color_texture, ix + 0.5f, iy + 1.5f).y;
      bottom_right = tex2D<float4>(color_texture, ix + 1.5f, iy + 1.5f).y;
-    break;
-  case 3:
-     top_left = tex2D<float4>(color_texture, ix + 0.5f, iy + 0.5f).z;
+  }
+  else {
+    top_left = tex2D<float4>(color_texture, ix + 0.5f, iy + 0.5f).z;
      top_right = tex2D<float4>(color_texture, ix + 1.5f, iy + 0.5f).z;
      bottom_left = tex2D<float4>(color_texture, ix + 0.5f, iy + 1.5f).z;
      bottom_right = tex2D<float4>(color_texture, ix + 1.5f, iy + 1.5f).z;
-    break;
-  default:
-    break;
-  }
+  }  
   
   float center_dx = (bottom_right - bottom_left) * ty + (top_right - top_left) * (1 - ty);
   float center_dy = (bottom_right - top_right) * tx + (bottom_left - top_left) * (1 - tx);
@@ -479,10 +475,25 @@ __forceinline__ __device__ void DescriptorJacobianWrtProjectedPositionOnChannels
   tx = ::max(0.f, ::min(1.f, t1_pxy.x - 0.5f - ix));  // truncated x = trunc(cx + fx*ls.x/ls.z)
   ty = ::max(0.f, ::min(1.f, t1_pxy.y - 0.5f - iy));  // truncated y = trunc(cy + fy*ls.y/ls.z)
   
-  top_left = tex2D<float4>(color_texture, ix + 0.5f, iy + 0.5f).w;
-  top_right = tex2D<float4>(color_texture, ix + 1.5f, iy + 0.5f).w;
-  bottom_left = tex2D<float4>(color_texture, ix + 0.5f, iy + 1.5f).w;
-  bottom_right = tex2D<float4>(color_texture, ix + 1.5f, iy + 1.5f).w;
+  if (channel == 1){
+    top_left = tex2D<float4>(color_texture, ix + 0.5f, iy + 0.5f).x;
+  top_right = tex2D<float4>(color_texture, ix + 1.5f, iy + 0.5f).x;
+  bottom_left = tex2D<float4>(color_texture, ix + 0.5f, iy + 1.5f).x;
+  bottom_right = tex2D<float4>(color_texture, ix + 1.5f, iy + 1.5f).x;
+  }
+  else if (channel == 2){
+    top_left = tex2D<float4>(color_texture, ix + 0.5f, iy + 0.5f).y;
+  top_right = tex2D<float4>(color_texture, ix + 1.5f, iy + 0.5f).y;
+  bottom_left = tex2D<float4>(color_texture, ix + 0.5f, iy + 1.5f).y;
+  bottom_right = tex2D<float4>(color_texture, ix + 1.5f, iy + 1.5f).y;
+  }
+  else {
+    top_left = tex2D<float4>(color_texture, ix + 0.5f, iy + 0.5f).z;
+  top_right = tex2D<float4>(color_texture, ix + 1.5f, iy + 0.5f).z;
+  bottom_left = tex2D<float4>(color_texture, ix + 0.5f, iy + 1.5f).z;
+  bottom_right = tex2D<float4>(color_texture, ix + 1.5f, iy + 1.5f).z;
+  }
+  
   
   float t1_dx = (bottom_right - bottom_left) * ty + (top_right - top_left) * (1 - ty);
   float t1_dy = (bottom_right - top_right) * tx + (bottom_left - top_left) * (1 - tx);
@@ -492,19 +503,33 @@ __forceinline__ __device__ void DescriptorJacobianWrtProjectedPositionOnChannels
   iy = static_cast<int>(::max(0.f, t2_pxy.y - 0.5f));
   tx = ::max(0.f, ::min(1.f, t2_pxy.x - 0.5f - ix));  // truncated x = trunc(cx + fx*ls.x/ls.z)
   ty = ::max(0.f, ::min(1.f, t2_pxy.y - 0.5f - iy));  // truncated y = trunc(cy + fy*ls.y/ls.z)
-  
-  top_left = tex2D<float4>(color_texture, ix + 0.5f, iy + 0.5f).w;
-  top_right = tex2D<float4>(color_texture, ix + 1.5f, iy + 0.5f).w;
-  bottom_left = tex2D<float4>(color_texture, ix + 0.5f, iy + 1.5f).w;
-  bottom_right = tex2D<float4>(color_texture, ix + 1.5f, iy + 1.5f).w;
+
+  if (channel == 1){
+    top_left = tex2D<float4>(color_texture, ix + 0.5f, iy + 0.5f).x;
+  top_right = tex2D<float4>(color_texture, ix + 1.5f, iy + 0.5f).x;
+  bottom_left = tex2D<float4>(color_texture, ix + 0.5f, iy + 1.5f).x;
+  bottom_right = tex2D<float4>(color_texture, ix + 1.5f, iy + 1.5f).x;
+  }
+  else if (channel == 2){
+    top_left = tex2D<float4>(color_texture, ix + 0.5f, iy + 0.5f).y;
+  top_right = tex2D<float4>(color_texture, ix + 1.5f, iy + 0.5f).y;
+  bottom_left = tex2D<float4>(color_texture, ix + 0.5f, iy + 1.5f).y;
+  bottom_right = tex2D<float4>(color_texture, ix + 1.5f, iy + 1.5f).y;
+  }
+  else {
+    top_left = tex2D<float4>(color_texture, ix + 0.5f, iy + 0.5f).z;
+  top_right = tex2D<float4>(color_texture, ix + 1.5f, iy + 0.5f).z;
+  bottom_left = tex2D<float4>(color_texture, ix + 0.5f, iy + 1.5f).z;
+  bottom_right = tex2D<float4>(color_texture, ix + 1.5f, iy + 1.5f).z;
+  }
   
   float t2_dx = (bottom_right - bottom_left) * ty + (top_right - top_left) * (1 - ty);
   float t2_dy = (bottom_right - top_right) * tx + (bottom_left - top_left) * (1 - tx);
-  
+  /* 11.2 not used?
   float intensity = tex2D<float4>(color_texture, color_pxy.x, color_pxy.y).w;
   float t1_intensity = tex2D<float4>(color_texture, t1_pxy.x, t1_pxy.y).w;
   float t2_intensity = tex2D<float4>(color_texture, t2_pxy.x, t2_pxy.y).w;
-  
+  */
   // NOTE: It is approximate to mix all the center, t1, t2 derivatives
   //       directly since the points would move slightly differently on most
   //       pose changes. However, the approximation is possibly pretty good since

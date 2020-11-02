@@ -141,7 +141,7 @@ __forceinline__ __device__ void ComputeRawDescriptorResidualAndJacobian(
   jacobian_2[5] = -(ls.x * grad_y_fy_2 - ls.y * grad_x_fx_2) * inv_ls_z;
 }
 
-__forceinline__ __device__ void ComputeRawDescriptorJacobian(
+__forceinline__ __device__ void ComputeRawDescriptorFeatureJacobian(
   const PixelCenterProjector& color_center_projector,
   cudaTextureObject_t color_texture,
   const float2& pxy,
@@ -445,7 +445,7 @@ __global__ void AccumulatePoseEstimationCoeffsCUDAKernel(
       // We only need to retrieve current surfel_descriptor value once
       constexpr int kSurfelDescriptorArr[6] = {6,7,8,9,10,11};
       float surfel_descriptor[6]; // problematic with const float array and use for loop to initialize
-        for (int i = 0; i< 6; ++i){
+      for (int i = 0; i< 6; ++i){
           surfel_descriptor[i] = s.surfels(kSurfelDescriptorArr[i], surfel_index);
         }
       // we only need to compute the descriptor residual in vector form once. 
@@ -459,8 +459,8 @@ __global__ void AccumulatePoseEstimationCoeffsCUDAKernel(
         t2_pxy,
         surfel_descriptor,
         raw_residual_vec);
-      for (int channel_i = 1; channel_i < 4; ++ channel_i){
-        ComputeRawDescriptorJacobian(
+      for (int channel_i = 0; channel_i < 3; ++ channel_i){
+        ComputeRawDescriptorFeatureJacobian(
           color_center_projector,
           color_texture,
           color_pxy,
@@ -468,7 +468,7 @@ __global__ void AccumulatePoseEstimationCoeffsCUDAKernel(
           r.surfel_local_position,
           jacobian,
           jacobian_2,
-          channel_i);
+          channel_i+1);//inside the function is 1-based index
         AccumulateGaussNewtonHAndB<6, block_width, block_height>(
             visible,
             raw_residual_vec[channel_i],

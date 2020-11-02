@@ -59,7 +59,7 @@ __global__ void ResetSurfelAccumCUDAKernel(
     surfels(kSurfelAccum7, surfel_index) = 0;
     surfels(kSurfelAccum8, surfel_index) = 0;*/
     // 11.1
-    //jzmTODO: check the indices
+    //jzmTODO: check the indices: 11.2 Done
     #pragma unroll
     for (int i = 0; i < kSurfelAccumHAndBCount; ++i){ //constexpr int kSurfelAccumuArr[20] = {12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31};
       surfels(kSurfelDataAttributeCount+i, surfel_index) = 0; // kSurfelDataAttributeCount = 12
@@ -162,7 +162,7 @@ __global__ void AccumulateSurfelPositionAndDescriptorOptimizationCoeffsCUDAKerne
         // s.surfels(kSurfelAccum0, surfel_index) += depth_weight * depth_jacobian * depth_jacobian;
         // s.surfels(kSurfelAccum6, surfel_index) += depth_weight * raw_depth_residual * depth_jacobian;
         // 11.1 
-        s.surfels(kSurfelAccum0, surfel_index) += depth_weight * depth_jacobian * depth_jacobian;
+        s.surfels(kSurfelAccum0, surfel_index) += depth_weight * depth_jacobian * depth_jacobian; // H_00
         s.surfels(kSurfelAccum0 + kSurfelAccumHCount, surfel_index) += depth_weight * raw_depth_residual * depth_jacobian;// 13 is the number of kAccums used for H, 4*N+1, N = 3
         /*if (surfel_index == 0){
           printf("use depth residual \n");
@@ -174,13 +174,14 @@ __global__ void AccumulateSurfelPositionAndDescriptorOptimizationCoeffsCUDAKerne
       float2 color_pxy;
       if (TransformDepthToColorPixelCorner(r.pxy, depth_to_color, &color_pxy)) {
         // --- Descriptor residual ---
-          /*if (surfel_index == 0){
+          if (surfel_index == 0){
             printf("surfel_index: %d \n", surfel_index);
             float x = tex2D<float4>(color_texture, color_pxy.x, color_pxy.y).x;
             float y = tex2D<float4>(color_texture, color_pxy.x, color_pxy.y).y;
             float z = tex2D<float4>(color_texture, color_pxy.x, color_pxy.y).z;
-            printf("(%f, %f, %f) \n",x,y,z);
-          }*/
+            float i = tex2D<float4>(color_texture, color_pxy.x, color_pxy.y).w;
+            printf("(%f, %f, %f, %f) \n",x,y,z,i);
+          }
         float2 t1_pxy, t2_pxy;
         ComputeTangentProjections(
             r.surfel_global_position,
@@ -277,8 +278,8 @@ __global__ void AccumulateSurfelPositionAndDescriptorOptimizationCoeffsCUDAKerne
           // ---------------------------------------------------------
           // We fill H rowwise, deal with the H(0,:) and diag(H)
           // H(0,0)
-          s.surfels(kSurfelAccum0, surfel_index) += weight_1 * jacobian_wrt_position_1 * jacobian_wrt_position_1 +
-                                                  weight_2 * jacobian_wrt_position_2 * jacobian_wrt_position_2;  // from residual 2
+          s.surfels(kSurfelAccum0, surfel_index) += weight_1 * jacobian_wrt_position_1 * jacobian_wrt_position_1 + 
+                                                    weight_2  * jacobian_wrt_position_2 * jacobian_wrt_position_2;  // from residual 2
           // H(0,channel_i), from residual_1 H(0,0) reserves a spot and channel_i starts from 1 to 3
           s.surfels(kSurfelAccum0 + channel_i, surfel_index) += weight_1 * jacobian_wrt_position_1 * jacobian_wrt_descriptor;
           // H(0,1+channel_i+N), from residual_2
@@ -396,7 +397,7 @@ if (surfel_index < surfels_size) {
   float x2[6] = {0,0,0,0,0,0}; // delta_descriptor 2N
   // Make sure that the matrix is positive definite
   // (instead of only semi-positive definite).
-  constexpr float kEpsilon = 1e-6f; // jzmTODO: not clear to use 1e-6 or 1e-12, related to weight^2 or weight?
+  constexpr float kEpsilon = 1e-12f; // jzmTODO: not clear to use 1e-6 or 1e-12, related to weight^2 or weight?
   // for i = 1:2N
   //    D_inverse = 1.0/D(i)
   //    A = A - B(i)^2*D_inverse
@@ -409,14 +410,16 @@ if (surfel_index < surfels_size) {
   const int DiOffset = kSurfelAccum0 + 7;
   const int BiOffset = kSurfelAccum0 + 1;
   const int b2iOffset = kSurfelAccum0 + kSurfelAccumHCount + 1;
+  // A needs to be well-defined
+  surfels(kSurfelAccum0, surfel_index) = surfels(kSurfelAccum0, surfel_index) + kEpsilon; // should + epsilon here, if in computing x1, couse very large x2
   for (int i = 0; i < 2*3; ++i){ // i < 2N
     // D_inverse = 1.0/D(i)
     Di_inverse = 1.0f / (surfels(DiOffset + i, surfel_index)+kEpsilon); // 7 = 2N+1
     Bi = surfels(BiOffset + i, surfel_index); // A occupies 1 space, so here b starts from kSurfelAccum0+1
     // A = A - B(i)^2*D_inverse
-    surfels(kSurfelAccum0, surfel_index) -= Bi*Bi*Di_inverse; // jzmTODO: make it const float?
+    surfels(kSurfelAccum0, surfel_index) = surfels(kSurfelAccum0, surfel_index) - Bi*Bi*Di_inverse; // jzmTODO: make it const float?
     // b1 = b1 - B(i)*D_inverse*b2(i)
-    surfels(kSurfelAccum0 + kSurfelAccumHCount, surfel_index) -= Bi*Di_inverse*surfels(b2iOffset + i, surfel_index); // +1 because b1 has occupied 1 space.
+    surfels(kSurfelAccum0 + kSurfelAccumHCount, surfel_index) = surfels(kSurfelAccum0 + kSurfelAccumHCount, surfel_index)  - Bi*Di_inverse*surfels(b2iOffset + i, surfel_index); // +1 because b1 has occupied 1 space.
     // Question: in-place operation to save storage? jzmTODO: double check you have used the correct value to compute x1 and x2
     // B(i) <- D_inverse*B(i)
     surfels(BiOffset + i, surfel_index) = Di_inverse*Bi;
@@ -424,8 +427,11 @@ if (surfel_index < surfels_size) {
     surfels(DiOffset + i, surfel_index) = Di_inverse*surfels(b2iOffset + i, surfel_index);
   }
   // x1 = b1/A corresponds to surfel position t, A needs to be well-defined
-  x1 =  surfels(kSurfelAccum0 + kSurfelAccumHCount, surfel_index)/(surfels(kSurfelAccum0, surfel_index)+kEpsilon);
+  x1 =  surfels(kSurfelAccum0 + kSurfelAccumHCount, surfel_index)/surfels(kSurfelAccum0, surfel_index);
   if (x1 != 0){
+    if (surfel_index == 0){
+      printf("x1 = %f \n", x1);
+    }
     // Update surfel position
     float3 global_position = SurfelGetPosition(surfels, surfel_index);
     float3 surfel_normal = SurfelGetNormal(surfels, surfel_index);
@@ -436,6 +442,9 @@ if (surfel_index < surfels_size) {
     // since we have done in-placement for D_inverse*B(i) and D_inverse*b2(i)
     x2[i] = surfels(DiOffset + i, surfel_index) - surfels(BiOffset + i, surfel_index)*x1;
     if (x2[i] != 0){
+      if (surfel_index == 0){
+        printf("x2[i] = %f \n", x2[i]);
+      }
       float surfel_descriptor = surfels(kSurfelFixedAttributeCount + i, surfel_index);
       surfel_descriptor -= x2[i];
       surfels(kSurfelFixedAttributeCount + i, surfel_index) = ::max(-180.f, ::min(180.f, surfel_descriptor));
