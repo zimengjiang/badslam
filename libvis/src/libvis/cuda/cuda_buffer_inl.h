@@ -132,11 +132,14 @@ void CUDABuffer<T>::DownloadPitchedAsync(cudaStream_t stream, size_t pitch,
 
 template <typename T>
 void CUDABuffer<T>::DownloadAsync(cudaStream_t stream, T* data) const {
+  printf("jzm4.1\n");
   CHECK_NOTNULL(data);
+  printf("jzm4.2\n");
   CUDA_CHECKED_CALL(
       cudaMemcpy2DAsync(static_cast<void*>(data), data_.width_ * sizeof(T),
                         data_.address_, data_.pitch_, data_.width_ * sizeof(T),
                         data_.height_, cudaMemcpyDeviceToHost, stream));
+  printf("jzm4.3\n");
 }
 
 template <typename T>

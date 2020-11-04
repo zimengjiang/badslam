@@ -40,7 +40,11 @@
 #include "badslam/util_nvcc_only.cuh"
 
 
+
+
 namespace vis {
+// Macro definition
+#define CudaAssert( X ) if ( !(X) ) { printf( "Thread %d:%d failed assert at %s:%d! \n", blockIdx.x, threadIdx.x, __FILE__, __LINE__ ); return; }
 
 __forceinline__ __device__ void ComputeRawDepthResidualAndJacobian(
     const PixelCenterUnprojector& unprojector,
@@ -151,7 +155,10 @@ __forceinline__ __device__ void ComputeRawDescriptorFeatureJacobian(
   float* jacobian_1,
   float* jacobian_2,
   int channel) {
-
+  CudaAssert(ls.x == ls.x);
+  CudaAssert(ls.y == ls.y);
+  CudaAssert(ls.z == ls.z);
+// 11.3 jzmTODO: reuse computation. here the derivative of the projected position w.r.t. pose is the same for all the channels.
 float grad_x_fx_1;
 float grad_y_fy_1;
 float grad_x_fx_2;
@@ -162,27 +169,43 @@ grad_x_fx_1 *= color_center_projector.fx;
 grad_x_fx_2 *= color_center_projector.fx;
 grad_y_fy_1 *= color_center_projector.fy;
 grad_y_fy_2 *= color_center_projector.fy;
+// 11.3 jzmTODO: for debugging , delete it after debugging
+// unsigned int surfel_index = blockIdx.x * blockDim.x + threadIdx.x;
 
 float inv_ls_z = 1.f / ls.z;
+CudaAssert(inv_ls_z == inv_ls_z);
 float ls_z_sq = ls.z * ls.z;
+CudaAssert(ls_z_sq == ls_z_sq);
 float inv_ls_z_sq = inv_ls_z * inv_ls_z;
+CudaAssert(inv_ls_z_sq == inv_ls_z_sq)
 
 jacobian_1[0] = -grad_x_fx_1 * inv_ls_z;
 jacobian_1[1] = -grad_y_fy_1 * inv_ls_z;
 jacobian_1[2] = (ls.x * grad_x_fx_1 + ls.y * grad_y_fy_1) * inv_ls_z_sq;
 
 float ls_x_y = ls.x * ls.y;
-
+CudaAssert(ls_x_y == ls_x_y);
 jacobian_1[3] =  ((ls.y * ls.y + ls_z_sq) * grad_y_fy_1 + ls_x_y * grad_x_fx_1) * inv_ls_z_sq;
+CudaAssert(jacobian_1[3] == jacobian_1[3]);
 jacobian_1[4] = -((ls.x * ls.x + ls_z_sq) * grad_x_fx_1 + ls_x_y * grad_y_fy_1) * inv_ls_z_sq;
+CudaAssert(jacobian_1[4] == jacobian_1[4]);
 jacobian_1[5] = -(ls.x * grad_y_fy_1 - ls.y * grad_x_fx_1) * inv_ls_z;
 
 jacobian_2[0] = -grad_x_fx_2 * inv_ls_z;
 jacobian_2[1] = -grad_y_fy_2 * inv_ls_z;
 jacobian_2[2] = (ls.x * grad_x_fx_2 + ls.y * grad_y_fy_2) * inv_ls_z_sq;
 jacobian_2[3] =  ((ls.y * ls.y + ls_z_sq) * grad_y_fy_2 + ls_x_y * grad_x_fx_2) * inv_ls_z_sq;
+CudaAssert(jacobian_2[3] == jacobian_2[3]);
 jacobian_2[4] = -((ls.x * ls.x + ls_z_sq) * grad_x_fx_2 + ls_x_y * grad_y_fy_2) * inv_ls_z_sq;
+CudaAssert(jacobian_2[4] == jacobian_2[4]);
 jacobian_2[5] = -(ls.x * grad_y_fy_2 - ls.y * grad_x_fx_2) * inv_ls_z;
+/*if (surfel_index == 0){
+  printf("grad_x_fx_1: %f, grad_y_fy_1: %f\n", grad_x_fx_1,grad_y_fy_1);
+  printf("grad_x_fx_2: %f, grad_y_fy_2: %f\n", grad_x_fx_2,grad_y_fy_2);
+  printf("j10, j11, j12, j13, j14, j15  = \n %f, %f, %f, %f, %f, %f \n",jacobian_1[0], jacobian_1[1], jacobian_1[2],jacobian_1[3], jacobian_1[4], jacobian_1[5]);
+  printf("j20, j21, j22, j23, j24, j25  = \n %f, %f, %f, %f, %f, %f \n",jacobian_2[0], jacobian_2[1], jacobian_2[2],jacobian_2[3], jacobian_2[4], jacobian_2[5]);
+}*/
+
 }
 
 __forceinline__ __device__ void ComputeRawDescriptorFeatureResidualAndJacobian(
@@ -344,7 +367,6 @@ __forceinline__ __device__ void AccumulatePoseResidualAndCount(
   }
 }
 
-
 template <int block_width, bool debug, bool use_depth_residuals, bool use_descriptor_residuals>
 __global__ void AccumulatePoseEstimationCoeffsCUDAKernel(
     SurfelProjectionParameters s,
@@ -367,7 +389,6 @@ __global__ void AccumulatePoseEstimationCoeffsCUDAKernel(
   
   float jacobian[6];
   float raw_residual;
-  float raw_residual_vec[6];
   
   constexpr int block_height = 1;
   typedef cub::BlockReduce<float, block_width, cub::BLOCK_REDUCE_RAKING_COMMUTATIVE_ONLY, block_height> BlockReduceFloat;
@@ -386,6 +407,7 @@ __global__ void AccumulatePoseEstimationCoeffsCUDAKernel(
     
     float depth_residual_inv_stddev =
         ComputeDepthResidualInvStddevEstimate(depth_unprojector.nx(r.px), depth_unprojector.ny(r.py), r.pixel_calibrated_depth, surfel_local_normal, s.depth_params.baseline_fx);
+    
     ComputeRawDepthResidualAndJacobian(
         depth_unprojector,
         r.px,
@@ -419,14 +441,13 @@ __global__ void AccumulatePoseEstimationCoeffsCUDAKernel(
   
   // --- Descriptor residual ---
   if (use_descriptor_residuals) {
-    // float raw_residual_2;
+    float raw_residual_2;
     float jacobian_2[6];
     
     float2 color_pxy;
-    float2 t1_pxy, t2_pxy;
-    // 10.30 If visible, compute t1_px1, t2_pxy
     if (TransformDepthToColorPixelCorner(r.pxy, depth_to_color, &color_pxy)) {
-      visible = true;      
+      // CudaAssert(visible);
+      float2 t1_pxy, t2_pxy;
       ComputeTangentProjections(
           r.surfel_global_position,
           r.surfel_normal,
@@ -435,18 +456,158 @@ __global__ void AccumulatePoseEstimationCoeffsCUDAKernel(
           color_corner_projector,
           &t1_pxy,
           &t2_pxy);
+      ComputeRawDescriptorResidualAndJacobian(
+          color_center_projector,
+          color_texture,
+          color_pxy,
+          t1_pxy, t2_pxy,
+          r.surfel_local_position,
+          s.surfels(kSurfelDescriptor1, surfel_index),
+          s.surfels(kSurfelDescriptor2, surfel_index),
+          &raw_residual,
+          &raw_residual_2,
+          jacobian,
+          jacobian_2);
+          /*if (surfel_index == 0){
+            for (int debugi = 0; debugi < 6; ++debugi){
+              printf("jacobian1 = %f, jacobian2 = %f \n", jacobian[debugi], jacobian_2[debugi]);
+            }
+            
+            printf("residual_weight 1: %f \n",ComputeDescriptorResidualWeight(raw_residual));
+            printf("residual_weight 2: %f \n",ComputeDescriptorResidualWeight(raw_residual_2));
+          }*/
+    } else {
+      visible = false;
     }
-    else{
-      visible = false; // nothing is done if visible 
+    
+    AccumulateGaussNewtonHAndB<6, block_width, block_height>(
+        visible,
+        raw_residual,
+        ComputeDescriptorResidualWeight(raw_residual),
+        jacobian,
+        H_buffer,
+        b_buffer,
+        &temp_storage.float_storage);
+    
+    AccumulateGaussNewtonHAndB<6, block_width, block_height>(
+        visible,
+        raw_residual_2,
+        ComputeDescriptorResidualWeight(raw_residual_2),
+        jacobian_2,
+        H_buffer,
+        b_buffer,
+        &temp_storage.float_storage);
+    
+    if (debug) {
+      AccumulatePoseResidualAndCount<block_width, block_height>(
+          visible,
+          ComputeWeightedDescriptorResidual(raw_residual),
+          residual_count_buffer,
+          residual_buffer,
+          &temp_storage.float_storage,
+          &temp_storage.int_storage);
     }
-    // 10.30 Since nothing is done if visible = false, we only accumulate H and b when visible = true
-    if (visible){
+  }
+}
+
+template <int block_width, bool debug, bool use_depth_residuals, bool use_descriptor_residuals>
+__global__ void MyAccumulatePoseEstimationCoeffsCUDAKernel(
+    SurfelProjectionParameters s,
+    DepthToColorPixelCorner depth_to_color,
+    PixelCenterProjector color_center_projector,
+    PixelCornerProjector color_corner_projector,
+    PixelCenterUnprojector depth_unprojector,
+    cudaTextureObject_t color_texture,
+    CUDABuffer_<u32> residual_count_buffer,
+    CUDABuffer_<float> residual_buffer,
+    CUDABuffer_<float> H_buffer,
+    CUDABuffer_<float> b_buffer) {
+  unsigned int surfel_index = blockIdx.x * blockDim.x + threadIdx.x;
+
+  bool visible;
+  SurfelProjectionResult6 r;
+  if (!AnySurfelProjectsToAssociatedPixel(&surfel_index, s, &visible, &r)) {
+    return;
+  }
+  // CudaAssert(visible); //should be true to be here?
+
+  float jacobian[6] = {0,0,0,0,0,0};
+  float depth_raw_residual = 0;
+  float raw_residual_vec[6] = {0,0,0,0,0,0}; // It's very important to initialize !!!!
+  
+  constexpr int block_height = 1;
+  typedef cub::BlockReduce<float, block_width, cub::BLOCK_REDUCE_RAKING_COMMUTATIVE_ONLY, block_height> BlockReduceFloat;
+  typedef cub::BlockReduce<int, block_width, cub::BLOCK_REDUCE_RAKING_COMMUTATIVE_ONLY, block_height> BlockReduceInt;
+  __shared__ union {
+    typename BlockReduceFloat::TempStorage float_storage;
+    typename BlockReduceInt::TempStorage int_storage;
+  } temp_storage;
+  
+  // TODO: Would it be faster to do the accumulation only once, while summing
+  //       both residual types at the same time?
+  
+  // --- Depth residual ---
+  if (use_depth_residuals) {
+    float3 surfel_local_normal = s.frame_T_global.Rotate(r.surfel_normal);  // TODO: Could be gotten from surfel association instead of computing it twice
+    
+    float depth_residual_inv_stddev =
+        ComputeDepthResidualInvStddevEstimate(depth_unprojector.nx(r.px), depth_unprojector.ny(r.py), r.pixel_calibrated_depth, surfel_local_normal, s.depth_params.baseline_fx);
+    ComputeRawDepthResidualAndJacobian(
+        depth_unprojector,
+        r.px,
+        r.py,
+        r.pixel_calibrated_depth,
+        depth_residual_inv_stddev,
+        r.surfel_local_position,
+        surfel_local_normal,
+        &depth_raw_residual,
+        jacobian);
+    
+    AccumulateGaussNewtonHAndB<6, block_width, block_height>(
+        visible,
+        depth_raw_residual,
+        ComputeDepthResidualWeight(depth_raw_residual),
+        jacobian,
+        H_buffer,
+        b_buffer,
+        &temp_storage.float_storage);
+    
+    if (debug) {
+      AccumulatePoseResidualAndCount<block_width, block_height>(
+          visible,
+          ComputeWeightedDepthResidual(depth_raw_residual),
+          residual_count_buffer,
+          residual_buffer,
+          &temp_storage.float_storage,
+          &temp_storage.int_storage);
+    }
+  }
+  
+  // --- Descriptor residual ---
+  if (use_descriptor_residuals) {
+    // float raw_residual_2;
+    float jacobian_2[6] = {0,0,0,0,0,0};
+    
+    float2 color_pxy;
+    float2 t1_pxy, t2_pxy;
+    // 10.30 If visible, compute t1_px1, t2_pxy
+    if (TransformDepthToColorPixelCorner(r.pxy, depth_to_color, &color_pxy)) {
+      // CudaAssert(visible);
+      ComputeTangentProjections(
+          r.surfel_global_position,
+          r.surfel_normal,
+          SurfelGetRadiusSquared(s.surfels, surfel_index),
+          s.frame_T_global,
+          color_corner_projector,
+          &t1_pxy,
+          &t2_pxy);
       // 10.30 If visible, iterate over all the channels, accumulate H and b for each channel
       // We only need to retrieve current surfel_descriptor value once
       constexpr int kSurfelDescriptorArr[6] = {6,7,8,9,10,11};
       float surfel_descriptor[6]; // problematic with const float array and use for loop to initialize
       for (int i = 0; i< 6; ++i){
           surfel_descriptor[i] = s.surfels(kSurfelDescriptorArr[i], surfel_index);
+          CudaAssert(surfel_descriptor[i] == surfel_descriptor[i]);
         }
       // we only need to compute the descriptor residual in vector form once. 
       // jzmTODO: maybe when we change the data structure from color_texture to feature_texture, we can learn from intensity implementation and 
@@ -459,7 +620,13 @@ __global__ void AccumulatePoseEstimationCoeffsCUDAKernel(
         t2_pxy,
         surfel_descriptor,
         raw_residual_vec);
-      for (int channel_i = 0; channel_i < 3; ++ channel_i){
+      // 11.3 debug weight, why jacobian is not nan but H is nan
+      /*if (surfel_index == 0){
+        for (int debugi=0; debugi < 6; ++debugi){
+          printf("residual_weight %d: %f \n", debugi,ComputeDescriptorResidualWeight(raw_residual_vec[debugi]));
+        }
+      }*/
+      /*for (int channel_i = 0; channel_i < 3; ++ channel_i){
         ComputeRawDescriptorFeatureJacobian(
           color_center_projector,
           color_texture,
@@ -468,7 +635,17 @@ __global__ void AccumulatePoseEstimationCoeffsCUDAKernel(
           r.surfel_local_position,
           jacobian,
           jacobian_2,
-          channel_i+1);//inside the function is 1-based index
+          channel_i);
+          if (surfel_index == 0){
+            printf("channel = %d \n", channel_i);
+            for (int debugi = 0; debugi < 6; ++debugi){
+              printf("jacobian1 = %f, jacobian2 = %f \n", jacobian[debugi], jacobian_2[debugi]);
+            }
+          }
+          for (int debugi = 0; debugi < 6; ++debugi){
+            CudaAssert (jacobian[debugi] == jacobian[debugi]);
+            CudaAssert (jacobian_2[debugi] == jacobian_2[debugi]);
+          }
         AccumulateGaussNewtonHAndB<6, block_width, block_height>(
             visible,
             raw_residual_vec[channel_i],
@@ -486,11 +663,137 @@ __global__ void AccumulatePoseEstimationCoeffsCUDAKernel(
             H_buffer,
             b_buffer,
             &temp_storage.float_storage);
-      }
+      }*/
     }
-    /*
+    else{
+      visible = false; // nothing is done if visible 
+      // doesn't mater if nan here, because visible = false, ntohing will be done. 
+      /*for (int debugi = 0; debugi < 6; ++debugi){
+        CudaAssert (jacobian[debugi] == jacobian[debugi]);
+        CudaAssert (jacobian_2[debugi] == jacobian_2[debugi]);
+        CudaAssert (raw_residual_vec[debugi] == raw_residual_vec[debugi]);
+      }*/}
+    
+    for (int channel_i = 0; channel_i < 3; ++ channel_i){
+      AccumulateGaussNewtonHAndB<6, block_width, block_height>(
+          visible,
+          raw_residual_vec[channel_i],
+          ComputeDescriptorResidualWeight(raw_residual_vec[channel_i]),
+          jacobian,
+          H_buffer,
+          b_buffer,
+          &temp_storage.float_storage);
+      
+      AccumulateGaussNewtonHAndB<6, block_width, block_height>(
+          visible,
+          raw_residual_vec[channel_i + 3], // channel_i + N is residual_2 for each channel
+          ComputeDescriptorResidualWeight(raw_residual_vec[channel_i + 3]),
+          jacobian_2,
+          H_buffer,
+          b_buffer,
+          &temp_storage.float_storage);
+    }
+    
+    // 10.30 Put the debug within the for loop above?
+    if (debug) {
+      AccumulatePoseResidualAndCount<block_width, block_height>(
+          visible,
+          ComputeWeightedDescriptorResidual(raw_residual_vec[0]),
+          residual_count_buffer,
+          residual_buffer,
+          &temp_storage.float_storage,
+          &temp_storage.int_storage);
+    }
+  }
+}
+
+template <int block_width, bool debug, bool use_depth_residuals, bool use_descriptor_residuals>
+__global__ void MyNewAccumulatePoseEstimationCoeffsCUDAKernel(
+    SurfelProjectionParameters s,
+    DepthToColorPixelCorner depth_to_color,
+    PixelCenterProjector color_center_projector,
+    PixelCornerProjector color_corner_projector,
+    PixelCenterUnprojector depth_unprojector,
+    cudaTextureObject_t color_texture,
+    CUDABuffer_<u32> residual_count_buffer,
+    CUDABuffer_<float> residual_buffer,
+    CUDABuffer_<float> H_buffer,
+    CUDABuffer_<float> b_buffer) {
+  unsigned int surfel_index = blockIdx.x * blockDim.x + threadIdx.x;
+
+  bool visible;
+  SurfelProjectionResult6 r;
+  if (!AnySurfelProjectsToAssociatedPixel(&surfel_index, s, &visible, &r)) {
+    return;
+  }
+  // CudaAssert(visible); //should be true to be here?
+
+  float jacobian[6] = {0,0,0,0,0,0};
+  float depth_raw_residual = 0;
+  float raw_residual_vec[6] = {0,0,0,0,0,0}; // It's very important to initialize !!!!
+  
+  constexpr int block_height = 1;
+  typedef cub::BlockReduce<float, block_width, cub::BLOCK_REDUCE_RAKING_COMMUTATIVE_ONLY, block_height> BlockReduceFloat;
+  typedef cub::BlockReduce<int, block_width, cub::BLOCK_REDUCE_RAKING_COMMUTATIVE_ONLY, block_height> BlockReduceInt;
+  __shared__ union {
+    typename BlockReduceFloat::TempStorage float_storage;
+    typename BlockReduceInt::TempStorage int_storage;
+  } temp_storage;
+  
+  // TODO: Would it be faster to do the accumulation only once, while summing
+  //       both residual types at the same time?
+  
+  // --- Depth residual ---
+  if (use_depth_residuals) {
+    float3 surfel_local_normal = s.frame_T_global.Rotate(r.surfel_normal);  // TODO: Could be gotten from surfel association instead of computing it twice
+    
+    float depth_residual_inv_stddev =
+        ComputeDepthResidualInvStddevEstimate(depth_unprojector.nx(r.px), depth_unprojector.ny(r.py), r.pixel_calibrated_depth, surfel_local_normal, s.depth_params.baseline_fx);
+    ComputeRawDepthResidualAndJacobian(
+        depth_unprojector,
+        r.px,
+        r.py,
+        r.pixel_calibrated_depth,
+        depth_residual_inv_stddev,
+        r.surfel_local_position,
+        surfel_local_normal,
+        &depth_raw_residual,
+        jacobian);
+    
+    AccumulateGaussNewtonHAndB<6, block_width, block_height>(
+        visible,
+        depth_raw_residual,
+        ComputeDepthResidualWeight(depth_raw_residual),
+        jacobian,
+        H_buffer,
+        b_buffer,
+        &temp_storage.float_storage);
+    
+    if (debug) {
+      AccumulatePoseResidualAndCount<block_width, block_height>(
+          visible,
+          ComputeWeightedDepthResidual(depth_raw_residual),
+          residual_count_buffer,
+          residual_buffer,
+          &temp_storage.float_storage,
+          &temp_storage.int_storage);
+    }
+  }
+  
+  // --- Descriptor residual ---
+  if (use_descriptor_residuals) {
+    // float raw_residual_2;
+    float jacobian_2[6] = {0,0,0,0,0,0};
+    float jacobian_3[6] = {0,0,0,0,0,0};
+    float jacobian_4[6] = {0,0,0,0,0,0};
+    float jacobian_5[6] = {0,0,0,0,0,0};
+    float jacobian_6[6] = {0,0,0,0,0,0};
+    
+    float2 color_pxy;
+    float2 t1_pxy, t2_pxy;
+    // 10.30 If visible, compute t1_px1, t2_pxy
     if (TransformDepthToColorPixelCorner(r.pxy, depth_to_color, &color_pxy)) {
-      float2 t1_pxy, t2_pxy;
+      // CudaAssert(visible);
       ComputeTangentProjections(
           r.surfel_global_position,
           r.surfel_normal,
@@ -498,46 +801,68 @@ __global__ void AccumulatePoseEstimationCoeffsCUDAKernel(
           s.frame_T_global,
           color_corner_projector,
           &t1_pxy,
-          &t2_pxy);*/
-      // 10.26 the following should be executed N times, each time for 1 channel
-      /*ComputeRawDescriptorResidualAndJacobian(
+          &t2_pxy);
+      // 10.30 If visible, iterate over all the channels, accumulate H and b for each channel
+      // We only need to retrieve current surfel_descriptor value once
+      constexpr int kSurfelDescriptorArr[6] = {6,7,8,9,10,11};
+      float surfel_descriptor[6]; // problematic with const float array and use for loop to initialize
+      for (int i = 0; i< 6; ++i){
+          surfel_descriptor[i] = s.surfels(kSurfelDescriptorArr[i], surfel_index);
+          CudaAssert(surfel_descriptor[i] == surfel_descriptor[i]);
+        }
+      // we only need to compute the descriptor residual in vector form once. 
+      // jzmTODO: maybe when we change the data structure from color_texture to feature_texture, we can learn from intensity implementation and 
+      // loop over all the feature maps, for each feature map, we do exactly the same thing for intensity based approach, just to change the 
+      // indices of H and b (in geometry optimization). For pose optimization, we just loop over all the feature maps and accumulate H and b.
+      ComputeRawFeatureDescriptorResidual(
+        color_texture, // TODO: use feature_texture
+        color_pxy,
+        t1_pxy,
+        t2_pxy,
+        surfel_descriptor,
+        raw_residual_vec);
+      // 11.3 debug weight, why jacobian is not nan but H is nan
+      /*if (surfel_index == 0){
+        for (int debugi=0; debugi < 6; ++debugi){
+          printf("residual_weight %d: %f \n", debugi,ComputeDescriptorResidualWeight(raw_residual_vec[debugi]));
+        }
+      }*/
+        ComputeRawDescriptorFeatureJacobian(
           color_center_projector,
           color_texture,
           color_pxy,
           t1_pxy, t2_pxy,
           r.surfel_local_position,
-          s.surfels(kSurfelDescriptor1, surfel_index),
-          s.surfels(kSurfelDescriptor2, surfel_index),
-          &raw_residual,
-          &raw_residual_2,
           jacobian,
-          jacobian_2);*/
-        /*constexpr int kSurfelDescriptorArr[6] = {6,7,8,9,10,11};
-        float surfel_descriptor[6]; // problematic with const float array and use for loop to initialize
-        for (int i = 0; i< 6; ++i){
-          surfel_descriptor[i] = s.surfels(kSurfelDescriptorArr[i], surfel_index);
-        }
-
-          ComputeRawDescriptorFeatureResidualAndJacobian(
-            color_center_projector,
-            color_texture,
-            color_pxy,
-            t1_pxy, t2_pxy,
-            r.surfel_local_position,
-            surfel_descriptor,
-            raw_residual_vec,
-            jacobian,
-            jacobian_2,
-          1); // 10.30 visibility check only for the first channel, because it's the same for all the other channels
-    } else {
-      visible = false;
+          jacobian_2,
+          0 /* channel*/);
+        ComputeRawDescriptorFeatureJacobian(
+          color_center_projector,
+          color_texture,
+          color_pxy,
+          t1_pxy, t2_pxy,
+          r.surfel_local_position,
+          jacobian_3,
+          jacobian_4,
+          1 /* channel*/);
+        ComputeRawDescriptorFeatureJacobian(
+          color_center_projector,
+          color_texture,
+          color_pxy,
+          t1_pxy, t2_pxy,
+          r.surfel_local_position,
+          jacobian_5,
+          jacobian_6,
+          2 /* channel*/);
     }
-    // 10.26, the follwoing two accumulations should be executed N times , each time for 1 channel, in the end we will get the summed value of all channels. 
-    */
-    /*  AccumulateGaussNewtonHAndB<6, block_width, block_height>(
+    else{
+      visible = false; // nothing is done if not visible 
+    }
+    
+    AccumulateGaussNewtonHAndB<6, block_width, block_height>(
         visible,
-        raw_residual_vec[channel_i],
-        ComputeDescriptorResidualWeight(raw_residual_vec[channel_i]),
+        raw_residual_vec[0],
+        ComputeDescriptorResidualWeight(raw_residual_vec[0]),
         jacobian,
         H_buffer,
         b_buffer,
@@ -545,13 +870,50 @@ __global__ void AccumulatePoseEstimationCoeffsCUDAKernel(
     
     AccumulateGaussNewtonHAndB<6, block_width, block_height>(
         visible,
-        raw_residual_vec[channel_i + 3], // channel_i + N is residual_2 for each channel
-        ComputeDescriptorResidualWeight(raw_residual_vec[channel_i + 3]),
+        raw_residual_vec[0 + 3], // channel_i + N is residual_2 for each channel
+        ComputeDescriptorResidualWeight(raw_residual_vec[0 + 3]),
         jacobian_2,
         H_buffer,
         b_buffer,
-        &temp_storage.float_storage);*/
+        &temp_storage.float_storage);
     
+    AccumulateGaussNewtonHAndB<6, block_width, block_height>(
+        visible,
+        raw_residual_vec[1],
+        ComputeDescriptorResidualWeight(raw_residual_vec[1]),
+        jacobian_3,
+        H_buffer,
+        b_buffer,
+        &temp_storage.float_storage);
+    
+    AccumulateGaussNewtonHAndB<6, block_width, block_height>(
+        visible,
+        raw_residual_vec[1 + 3], // channel_i + N is residual_2 for each channel
+        ComputeDescriptorResidualWeight(raw_residual_vec[1 + 3]),
+        jacobian_4,
+        H_buffer,
+        b_buffer,
+        &temp_storage.float_storage);
+    
+    AccumulateGaussNewtonHAndB<6, block_width, block_height>(
+        visible,
+        raw_residual_vec[2],
+        ComputeDescriptorResidualWeight(raw_residual_vec[2]),
+        jacobian_5,
+        H_buffer,
+        b_buffer,
+        &temp_storage.float_storage);
+    
+    AccumulateGaussNewtonHAndB<6, block_width, block_height>(
+        visible,
+        raw_residual_vec[2 + 3], // channel_i + N is residual_2 for each channel
+        ComputeDescriptorResidualWeight(raw_residual_vec[2 + 3]),
+        jacobian_6,
+        H_buffer,
+        b_buffer,
+        &temp_storage.float_storage);
+    
+  
     
     // 10.30 Put the debug within the for loop above?
     if (debug) {
@@ -583,7 +945,7 @@ void CallAccumulatePoseEstimationCoeffsCUDAKernel(
     const CUDABuffer_<float>& b_buffer) {
   COMPILE_OPTION_3(debug, use_depth_residuals, use_descriptor_residuals,
       CUDA_AUTO_TUNE_1D_TEMPLATED(
-          AccumulatePoseEstimationCoeffsCUDAKernel,
+        MyNewAccumulatePoseEstimationCoeffsCUDAKernel,
           256,
           s.surfels_size,
           0, stream,

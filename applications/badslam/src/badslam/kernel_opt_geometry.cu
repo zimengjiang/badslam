@@ -37,6 +37,8 @@
 #include "badslam/util_nvcc_only.cuh"
 
 namespace vis {
+// Macro definition
+#define CudaAssert( X ) if ( !(X) ) { printf( "Thread %d:%d failed assert at %s:%d! \n", blockIdx.x, threadIdx.x, __FILE__, __LINE__ ); return; }
 
 __global__ void ResetSurfelAccumCUDAKernel(
     u32 surfels_size,
@@ -191,6 +193,10 @@ __global__ void AccumulateSurfelPositionAndDescriptorOptimizationCoeffsCUDAKerne
             color_corner_projector,
             &t1_pxy,
             &t2_pxy);
+
+        CudaAssert(t1_pxy.x > 0.5f && t1_pxy.y > 0.5f);
+        CudaAssert(t2_pxy.x > 0.5f && t2_pxy.y > 0.5f);
+
         /*
         const float surfel_descriptor_1 = s.surfels(kSurfelDescriptor1, surfel_index);
         const float surfel_descriptor_2 = s.surfels(kSurfelDescriptor2, surfel_index);
@@ -202,7 +208,7 @@ __global__ void AccumulateSurfelPositionAndDescriptorOptimizationCoeffsCUDAKerne
         float surfel_descriptor[6]; // problematic with const float array and use for loop to initialize
         // jzmTODO: use # pragma unroll to optimize the following 
         // 11.1
-        #pragma unroll
+        // #pragma unroll
         for (int i = 0; i < 6; ++i){ // constexpr int kSurfelDescriptorArr[6] = {6,7,8,9,10,11};
           surfel_descriptor[i] = s.surfels(6+i, surfel_index); // hard code the kSurfelDescriptorArr
         }
@@ -218,6 +224,9 @@ __global__ void AccumulateSurfelPositionAndDescriptorOptimizationCoeffsCUDAKerne
         const float term1 = -color_corner_projector.fx * (rn.x*r.surfel_local_position.z - rn.z*r.surfel_local_position.x);
         const float term2 = -color_corner_projector.fy * (rn.y*r.surfel_local_position.z - rn.z*r.surfel_local_position.y);
         const float term3 = 1.f / (r.surfel_local_position.z * r.surfel_local_position.z);
+        CudaAssert(term1 != 0);
+        CudaAssert(term2 != 0);
+        CudaAssert(term3 != 0);
         // ---------------------------
         // Accumulate H and b
         // constexpr int kSurfelAccumuHArr[13] = {12,13,14,15,16,17,18,19,20,21,22,23,24}; // I think this is too large, so for now I just hard code by idx+12
@@ -239,7 +248,7 @@ __global__ void AccumulateSurfelPositionAndDescriptorOptimizationCoeffsCUDAKerne
         // --- Descriptor residual change wrt. descriptor change ---
         constexpr float jacobian_wrt_descriptor = -1.f; // 10.31 defined here for efficiency
 
-        for (int channel_i = 1; channel_i < 4; ++channel_i){
+        for (int channel_i = 0; channel_i < 3; ++channel_i){
           
           // --- Descriptor residual change wrt. position change ---
           // 10.30 gradients varies form channel to channel
@@ -247,6 +256,12 @@ __global__ void AccumulateSurfelPositionAndDescriptorOptimizationCoeffsCUDAKerne
           
           jacobian_wrt_position_1 = -(grad_x_1 * term1 + grad_y_1 * term2) * term3;
           jacobian_wrt_position_2 = -(grad_x_2 * term1 + grad_y_2 * term2) * term3;
+          //CudaAssert(grad_x_1 != 0 );
+          //CudaAssert(grad_y_1 != 0 );
+          //CudaAssert(grad_x_2 != 0 );
+          //CudaAssert(grad_y_2 != 0 );
+          //CudaAssert(jacobian_wrt_position_1 != 0);
+          //CudaAssert(jacobian_wrt_position_2 != 0);
           // -------------------------------------------------------
         
           // --- Descriptor residual change wrt. descriptor change ---
@@ -281,22 +296,22 @@ __global__ void AccumulateSurfelPositionAndDescriptorOptimizationCoeffsCUDAKerne
           s.surfels(kSurfelAccum0, surfel_index) += weight_1 * jacobian_wrt_position_1 * jacobian_wrt_position_1 + 
                                                     weight_2  * jacobian_wrt_position_2 * jacobian_wrt_position_2;  // from residual 2
           // H(0,channel_i), from residual_1 H(0,0) reserves a spot and channel_i starts from 1 to 3
-          s.surfels(kSurfelAccum0 + channel_i, surfel_index) += weight_1 * jacobian_wrt_position_1 * jacobian_wrt_descriptor;
+          s.surfels(kSurfelAccum0 + channel_i + 1, surfel_index) += weight_1 * jacobian_wrt_position_1 * jacobian_wrt_descriptor;
           // H(0,1+channel_i+N), from residual_2
-          s.surfels(kSurfelAccum0 + channel_i + 3, surfel_index) += weight_2 * jacobian_wrt_position_2 * jacobian_wrt_descriptor;
+          s.surfels(kSurfelAccum0 + channel_i + 1 + 3, surfel_index) += weight_2 * jacobian_wrt_position_2 * jacobian_wrt_descriptor;
           // H(k,k), update two entries in the diagnal. kSurfelAccum0 + 2N + channel_i, kSurfelAccum0 + 2N + channel_i + N
           // Achtung: channel_i is 1-based index. 
           // jzmTODO:check int 
-          s.surfels(kSurfelAccum0 + 6 + channel_i, surfel_index) += weight_1 * jacobian_wrt_descriptor * jacobian_wrt_descriptor; // from residual_1
-          s.surfels(kSurfelAccum0 + 6 + channel_i + 3, surfel_index) += weight_2 * jacobian_wrt_descriptor * jacobian_wrt_descriptor; // from residual_2
+          s.surfels(kSurfelAccum0 + 7 + channel_i, surfel_index) += weight_1 * jacobian_wrt_descriptor * jacobian_wrt_descriptor; // from residual_1
+          s.surfels(kSurfelAccum0 + 7 + channel_i + 3, surfel_index) += weight_2 * jacobian_wrt_descriptor * jacobian_wrt_descriptor; // from residual_2
           // In total, there are kSurfelAccumHCount unique non-zero entries in H, start of b: kSurfelAccum0 + kSurfelAccumHCount
           // accumulate b_0, depth residual related part is already accumulated
           s.surfels(kSurfelAccum0  + kSurfelAccumHCount, surfel_index) += weighted_raw_residual_1 * jacobian_wrt_position_1 + 
                                                     weighted_raw_residual_2 * jacobian_wrt_position_2;  // from residual 2
           // residual 1
-          s.surfels(kSurfelAccum0 + kSurfelAccumHCount + channel_i, surfel_index) += weighted_raw_residual_1 * jacobian_wrt_descriptor;
+          s.surfels(kSurfelAccum0 + kSurfelAccumHCount + channel_i + 1, surfel_index) += weighted_raw_residual_1 * jacobian_wrt_descriptor;
           // residual 2
-          s.surfels(kSurfelAccum0 + kSurfelAccumHCount + channel_i + 3, surfel_index) += weighted_raw_residual_2 * jacobian_wrt_descriptor;
+          s.surfels(kSurfelAccum0 + kSurfelAccumHCount + channel_i + 1 + 3, surfel_index) += weighted_raw_residual_2 * jacobian_wrt_descriptor;
 
         }
         
@@ -397,7 +412,7 @@ if (surfel_index < surfels_size) {
   float x2[6] = {0,0,0,0,0,0}; // delta_descriptor 2N
   // Make sure that the matrix is positive definite
   // (instead of only semi-positive definite).
-  constexpr float kEpsilon = 1e-12f; // jzmTODO: not clear to use 1e-6 or 1e-12, related to weight^2 or weight?
+  constexpr float kEpsilon = 1e-6f; // jzmTODO: not clear to use 1e-6 or 1e-12, related to weight^2 or weight?
   // for i = 1:2N
   //    D_inverse = 1.0/D(i)
   //    A = A - B(i)^2*D_inverse
@@ -416,6 +431,8 @@ if (surfel_index < surfels_size) {
     // D_inverse = 1.0/D(i)
     Di_inverse = 1.0f / (surfels(DiOffset + i, surfel_index)+kEpsilon); // 7 = 2N+1
     Bi = surfels(BiOffset + i, surfel_index); // A occupies 1 space, so here b starts from kSurfelAccum0+1
+    // CudaAssert(Bi!=0);
+    // CudaAssert (surfels(kSurfelAccum0 + kSurfelAccumHCount, surfel_index) != 0);
     // A = A - B(i)^2*D_inverse
     surfels(kSurfelAccum0, surfel_index) = surfels(kSurfelAccum0, surfel_index) - Bi*Bi*Di_inverse; // jzmTODO: make it const float?
     // b1 = b1 - B(i)*D_inverse*b2(i)
@@ -428,6 +445,12 @@ if (surfel_index < surfels_size) {
   }
   // x1 = b1/A corresponds to surfel position t, A needs to be well-defined
   x1 =  surfels(kSurfelAccum0 + kSurfelAccumHCount, surfel_index)/surfels(kSurfelAccum0, surfel_index);
+  
+  /*if (x1 == 0){
+    printf("b1: %f, A: %f \n", surfels(kSurfelAccum0 + kSurfelAccumHCount, surfel_index), surfels(kSurfelAccum0, surfel_index));
+  }*/
+  // CudaAssert (x1 != 0);
+  // CudaAssert (surfels(kSurfelAccum0 + kSurfelAccumHCount, surfel_index) != 0);
   if (x1 != 0){
     if (surfel_index == 0){
       printf("x1 = %f \n", x1);
@@ -441,9 +464,10 @@ if (surfel_index < surfels_size) {
   for (int i = 0; i < 6; ++i){
     // since we have done in-placement for D_inverse*B(i) and D_inverse*b2(i)
     x2[i] = surfels(DiOffset + i, surfel_index) - surfels(BiOffset + i, surfel_index)*x1;
+    // CudaAssert(x2[i] != 0);
     if (x2[i] != 0){
       if (surfel_index == 0){
-        printf("x2[i] = %f \n", x2[i]);
+        printf("x2[%d] = %f \n", i, x2[i]);
       }
       float surfel_descriptor = surfels(kSurfelFixedAttributeCount + i, surfel_index);
       surfel_descriptor -= x2[i];

@@ -36,6 +36,8 @@
 #include <libvis/cuda/cuda_buffer.cuh>
 
 namespace vis {
+// Macro definition
+#define CudaAssert( X ) if ( !(X) ) { printf( "Thread %d:%d failed assert at %s:%d! \n", blockIdx.x, threadIdx.x, __FILE__, __LINE__ ); return; }
 
 // Adds a residual (given its Jacobian and "raw" (unweighted) residual value and
 // its weight) to the matrix H and the vector b of the Gauss-Newton update
@@ -64,7 +66,9 @@ __forceinline__ __device__ void AccumulateGaussNewtonHAndB(
       #pragma unroll
       for (int col = row; col < size; ++ col) {
         const float jacobian_sq_i = residual_weight * jacobian[row] * jacobian[col];
+        // printf("here 0 \n");
         __syncthreads();  // Required before re-use of shared memory.
+        // printf("here 1 \n");
         const float block_sum =
             BlockReduceFloat(*float_storage).Sum(valid ? jacobian_sq_i : 0.f);
         if (threadIdx.x == 0 && (block_height == 1 || threadIdx.y == 0)) {
@@ -73,6 +77,7 @@ __forceinline__ __device__ void AccumulateGaussNewtonHAndB(
         }
       }
     }
+    // printf("here 2 \n");
   }
   
   const float weighted_raw_residual = residual_weight * raw_residual;
@@ -90,6 +95,7 @@ __forceinline__ __device__ void AccumulateGaussNewtonHAndB(
       }
     }
   }
+  // printf("here 3 \n");
 }
 
 }

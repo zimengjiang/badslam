@@ -174,6 +174,8 @@ repeat_pose_estimation:;
       for (int row = 0; row < 6; ++ row) {
         for (int col = row; col < 6; ++ col) {
           H(row, col) = H_temp[index];
+          // 11.3 debug
+          printf("H%d%d = %f\n",row, col, H(row,col));
           ++ index;
         }
       }
@@ -204,15 +206,15 @@ repeat_pose_estimation:;
     // Solve for the update x
     // NOTE: Not sure if using double is helpful here
     Eigen::Matrix<float, 6, 1> x = H.cast<double>().selfadjointView<Eigen::Upper>().ldlt().solve(b.cast<double>()).cast<float>();
-    
+    // printf("jzm0 \n");
     if (kDebug) {
       LOG(INFO) << "Debug: x = " << std::endl << x;
     }
-    
+    LOG(INFO) << "Debug: x = " << std::endl << x;
     // Apply the (negative) update -x.
     constexpr float kDamping = 1.f;
     global_T_frame_estimate = global_T_frame_estimate * SE3f::exp(-kDamping * x);
-    
+    // printf("jzm1 \n");
     if (kDebug) {
       LOG(INFO) << "Debug: camera position: " << global_T_frame_estimate.translation().transpose();
       if (render_window_) {
@@ -226,7 +228,7 @@ repeat_pose_estimation:;
       }
       std::getchar();
     }
-    
+    // printf("jzm2 \n");
     // Check for convergence
     converged = IsScale1PoseEstimationConverged(x);
     if (!gather_convergence_samples_ && converged) {
@@ -581,7 +583,7 @@ void DirectBA::BundleAdjustmentAlternating(
     if (kDebugVerifySurfelCount) {
       DebugVerifySurfelCount(stream, surfel_count_, surfels_size_, *surfels_);
     }
-    
+    printf("jzm 3 \n");
     
     // --- INTRINSICS OPTIMIZATION ---
     bool optimize_intrinsics =
