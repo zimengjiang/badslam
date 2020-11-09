@@ -583,7 +583,6 @@ void DirectBA::BundleAdjustmentAlternating(
     if (kDebugVerifySurfelCount) {
       DebugVerifySurfelCount(stream, surfel_count_, surfels_size_, *surfels_);
     }
-    printf("jzm 3 \n");
     
     // --- INTRINSICS OPTIMIZATION ---
     bool optimize_intrinsics =

@@ -159,16 +159,8 @@ __global__ void AccumulateSurfelPositionAndDescriptorOptimizationCoeffsCUDAKerne
         const float depth_weight = ComputeDepthResidualWeight(raw_depth_residual);
         
         // Accumulate:
-        // 10.29 shouldn't it be depth_weight^2? 
-        // jzmTODO: s.surfels(kSurfelAccum0, surfel_index) += depth_weight * depth_weight * depth_jacobian * depth_jacobian;
-        // s.surfels(kSurfelAccum0, surfel_index) += depth_weight * depth_jacobian * depth_jacobian;
-        // s.surfels(kSurfelAccum6, surfel_index) += depth_weight * raw_depth_residual * depth_jacobian;
-        // 11.1 
         s.surfels(kSurfelAccum0, surfel_index) += depth_weight * depth_jacobian * depth_jacobian; // H_00
         s.surfels(kSurfelAccum0 + kSurfelAccumHCount, surfel_index) += depth_weight * raw_depth_residual * depth_jacobian;// 13 is the number of kAccums used for H, 4*N+1, N = 3
-        /*if (surfel_index == 0){
-          printf("use depth residual \n");
-        }*/
       }
       // --------------------------------------------------
       
@@ -176,14 +168,14 @@ __global__ void AccumulateSurfelPositionAndDescriptorOptimizationCoeffsCUDAKerne
       float2 color_pxy;
       if (TransformDepthToColorPixelCorner(r.pxy, depth_to_color, &color_pxy)) {
         // --- Descriptor residual ---
-          if (surfel_index == 0){
+          /*if (surfel_index == 0){
             printf("surfel_index: %d \n", surfel_index);
             float x = tex2D<float4>(color_texture, color_pxy.x, color_pxy.y).x;
             float y = tex2D<float4>(color_texture, color_pxy.x, color_pxy.y).y;
             float z = tex2D<float4>(color_texture, color_pxy.x, color_pxy.y).z;
             float i = tex2D<float4>(color_texture, color_pxy.x, color_pxy.y).w;
             printf("(%f, %f, %f, %f) \n",x,y,z,i);
-          }
+          }*/
         float2 t1_pxy, t2_pxy;
         ComputeTangentProjections(
             r.surfel_global_position,
@@ -452,9 +444,9 @@ if (surfel_index < surfels_size) {
   // CudaAssert (x1 != 0);
   // CudaAssert (surfels(kSurfelAccum0 + kSurfelAccumHCount, surfel_index) != 0);
   if (x1 != 0){
-    if (surfel_index == 0){
+    /*if (surfel_index == 0){
       printf("x1 = %f \n", x1);
-    }
+    }*/
     // Update surfel position
     float3 global_position = SurfelGetPosition(surfels, surfel_index);
     float3 surfel_normal = SurfelGetNormal(surfels, surfel_index);
@@ -466,9 +458,9 @@ if (surfel_index < surfels_size) {
     x2[i] = surfels(DiOffset + i, surfel_index) - surfels(BiOffset + i, surfel_index)*x1;
     // CudaAssert(x2[i] != 0);
     if (x2[i] != 0){
-      if (surfel_index == 0){
+      /*if (surfel_index == 0){
         printf("x2[%d] = %f \n", i, x2[i]);
-      }
+      }*/
       float surfel_descriptor = surfels(kSurfelFixedAttributeCount + i, surfel_index);
       surfel_descriptor -= x2[i];
       surfels(kSurfelFixedAttributeCount + i, surfel_index) = ::max(-180.f, ::min(180.f, surfel_descriptor));

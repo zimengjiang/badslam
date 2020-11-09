@@ -91,11 +91,8 @@ void AccumulatePoseEstimationCoeffsCUDA(
     helper_buffers->residual_count_buffer.DownloadAsync(stream, residual_count);
     helper_buffers->residual_buffer.DownloadAsync(stream, residual_sum);
   }
-  printf("jzm5\n");
   helper_buffers->b_buffer.DownloadAsync(stream, b);
-  printf("jzm4\n");
   helper_buffers->H_buffer.DownloadAsync(stream, H);
-  printf("jzm6\n");
   cudaStreamSynchronize(stream);
 }
 
