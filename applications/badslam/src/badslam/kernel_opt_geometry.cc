@@ -176,18 +176,22 @@ void OptimizeGeometryIterationCUDA(
         surfels.ToCUDA(),
         active_surfels.ToCUDA());
     
+    // 11.12 loop over all keyframes
     for (const shared_ptr<Keyframe>& keyframe : keyframes) {
       if (!keyframe || keyframe->activation() == Keyframe::Activation::kInactive) {
         continue;
       }
-      
+      // 11.12 maybe load the features somewhere around here? 
+      // from keyframe ->color_frame_ we can get the timestamp_string, which also refers to a feature map file? 
+      // But if we load from cpu and then copy to GPU each time this will be repeated several times and 
+      // quite slow. Therefore, we need to load the feature maps to GPU once the keyframe is created. 
       AccumulateSurfelPositionAndDescriptorOptimizationCoeffsCUDAKernel(
           stream,
           CreateSurfelProjectionParameters(depth_camera, depth_params, surfels_size, surfels, keyframe.get()),
           CreatePixelCenterUnprojector(depth_camera),
           CreateDepthToColorPixelCorner(depth_camera, color_camera),
           CreatePixelCornerProjector(color_camera),
-          keyframe->color_texture(),
+          keyframe->color_texture(), // 11.12 TODO: instead, using keyframe->feature
           active_surfels.ToCUDA(),
           use_depth_residuals);
     }

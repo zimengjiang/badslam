@@ -77,7 +77,7 @@ class CUDABuffer_ {
     }
 #endif
     return *(reinterpret_cast<const T*>(
-        reinterpret_cast<const int8_t*>(address_) + y*pitch_) + x);
+        reinterpret_cast<const int8_t*>(address_) + y*pitch_) + x); // 11.13 jzmTODO: useful! 
   }
   
   __forceinline__ __device__ T& operator()(const int2& pixel) {
@@ -93,7 +93,7 @@ class CUDABuffer_ {
   }
   
   __forceinline__ __device__ const T& operator()(const uint2& pixel) const {
-    return operator()(pixel.y, pixel.x);
+    return operator()(pixel.y, pixel.x); // 11.13 jzmTODO overload () operation 
   }
 
   __forceinline__ __host__ __device__ T* address() const {

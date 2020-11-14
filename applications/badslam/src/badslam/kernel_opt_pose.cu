@@ -530,7 +530,6 @@ __global__ void MyNewAccumulatePoseEstimationCoeffsCUDAKernel(
     return;
   }
   // CudaAssert(visible); //should be true to be here?
-
   float jacobian[6] = {0,0,0,0,0,0};
   float depth_raw_residual = 0;
   float raw_residual_vec[6] = {0,0,0,0,0,0}; // It's very important to initialize !!!!
@@ -592,10 +591,10 @@ __global__ void MyNewAccumulatePoseEstimationCoeffsCUDAKernel(
     float jacobian_4[6] = {0,0,0,0,0,0};
     float jacobian_5[6] = {0,0,0,0,0,0};
     float jacobian_6[6] = {0,0,0,0,0,0};
-    
     float2 color_pxy;
     float2 t1_pxy, t2_pxy;
-    // 10.30 If visible, compute t1_px1, t2_pxy
+    // 10.30 If visible, compute t1_px1, t2_pxy ( <- 11.12 This statement is false! The transformdepthtocolorpixelcorner function will execute anyway whatever visible is. 
+    // I tried to save this computation by skipping doing the ComputeRawFeatureDescriptorResidual if visible = false, but I got deadlock, which might come from surfels sharing the same keyframe? )
     if (TransformDepthToColorPixelCorner(r.pxy, depth_to_color, &color_pxy)) {
       // CudaAssert(visible);
       ComputeTangentProjections(

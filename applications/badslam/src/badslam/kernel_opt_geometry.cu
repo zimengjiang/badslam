@@ -137,7 +137,6 @@ __global__ void AccumulateSurfelPositionAndDescriptorOptimizationCoeffsCUDAKerne
     if (!(active_surfels(0, surfel_index) & kSurfelActiveFlag)) {
       return;
     }
-    
     SurfelProjectionResult6 r;
     if (SurfelProjectsToAssociatedPixel(surfel_index, s, &r)) {
       float3 rn = s.frame_T_global.Rotate(r.surfel_normal);

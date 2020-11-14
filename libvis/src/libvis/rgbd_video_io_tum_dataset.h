@@ -203,7 +203,7 @@ bool ReadTUMRGBDDatasetAssociatedAndCalibrated(
     string color_filepath =
         string(dataset_folder_path) + "/" + rgb_filename;
     ImageFramePtr<ColorT, SE3f> image_frame(new ImageFrame<ColorT, SE3f>(color_filepath, rgb_timestamp, rgb_time_string));
-    image_frame->SetGlobalTFrame(rgb_global_T_frame);
+    image_frame->SetGlobalTFrame(rgb_global_T_frame); // 11.11 set when the trajectory is known 
     rgbd_video->color_frames_mutable()->push_back(image_frame);
     
     string depth_filepath =
@@ -213,7 +213,7 @@ bool ReadTUMRGBDDatasetAssociatedAndCalibrated(
     rgbd_video->depth_frames_mutable()->push_back(depth_frame);
     
     if (width == 0) {
-      // Get width and height by loading one image file.
+      // Get width and height by loading one image file. // 11.11 this is only for getting image dimensions, images are not all loaded here. 
       shared_ptr<Image<ColorT>> image_ptr =
           image_frame->GetImage();
       if (!image_ptr) {

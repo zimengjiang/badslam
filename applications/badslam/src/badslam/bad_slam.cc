@@ -686,7 +686,7 @@ void BadSlam::PreprocessFrame(
                      config_.pyramid_level_for_color)
             .GetOrComputeResult().get()));
   }
-  
+  // 11.12 color buffer loaded
   // Perform color image preprocessing.
   ComputeBrightnessCUDA(
       stream_,
@@ -964,6 +964,7 @@ shared_ptr<Keyframe> BadSlam::CreateKeyframe(
   size_t free_bytes;
   size_t total_bytes;
   CUDA_CHECKED_CALL(cudaMemGetInfo(&free_bytes, &total_bytes));
+  // 11.12 jzmTODO: be careful with merging keyframes when dealing with feature maps. 
   if (free_bytes < static_cast<usize>(config_.min_free_gpu_memory_mb) * 1024 * 1024 + kApproxKeyframeSize) {
     LOG(WARNING) << "The available GPU memory becomes low. Merging keyframes now, but be aware that this has received little testing and may lead to instability.";
     direct_ba_->Lock();
@@ -988,6 +989,7 @@ shared_ptr<Keyframe> BadSlam::CreateKeyframe(
   // TODO: Should the min/max depth here be extended by the half association
   //       range at these depths?
   direct_ba_->Lock();  // lock here since the Keyframe constructor accesses an RGBDVideo pose
+  // 11.11 TODO: when creating keyframe, add the path to its feature map
   shared_ptr<Keyframe> new_keyframe(new Keyframe(
       stream_,
       frame_index,
@@ -996,7 +998,7 @@ shared_ptr<Keyframe> BadSlam::CreateKeyframe(
       depth_buffer,
       *normals_buffer_,
       *radius_buffer_,
-      *color_buffer_,
+      *color_buffer_, // 11.12 loaded in PreprocessFrame
       rgbd_video_->depth_frame_mutable(frame_index),
       rgbd_video_->color_frame_mutable(frame_index)));
   base_kf_ = new_keyframe.get();

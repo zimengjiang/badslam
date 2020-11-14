@@ -622,6 +622,8 @@ int LIBVIS_QT_MAIN(int argc, char** argv) {
       structure_input.GetNextFrame();
     }
     
+    // 11.11 load image here in case of visualizing the input image, actually the 
+    // the actual thing is done in ProcessFrame(frame_index)
     // Get the current RGB-D frame's RGB and depth images. This may wait for I/O
     // to complete in case it did not complete in the pre-loading thread yet.
     const Image<Vec3u8>* rgb_image =

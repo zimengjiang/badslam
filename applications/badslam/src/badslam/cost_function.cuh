@@ -448,7 +448,7 @@ __forceinline__ __device__ void DescriptorJacobianWrtProjectedPositionOnChannels
   
   float top_left, top_right, bottom_left, bottom_right;
   if (channel == 0){
-    top_left = tex2D<float4>(color_texture, ix + 0.5f, iy + 0.5f).x;
+    top_left = tex2D<float4>(color_texture, ix + 0.5f, iy + 0.5f).x; // 11.12 +0.5 due to texture indexing of CUDA
      top_right = tex2D<float4>(color_texture, ix + 1.5f, iy + 0.5f).x;
      bottom_left = tex2D<float4>(color_texture, ix + 0.5f, iy + 1.5f).x;
      bottom_right = tex2D<float4>(color_texture, ix + 1.5f, iy + 1.5f).x;

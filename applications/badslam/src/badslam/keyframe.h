@@ -198,13 +198,19 @@ class Keyframe {
   inline const CUDABuffer<u16>& radius_buffer() const {
     return radius_buffer_;
   }
-  
   inline const CUDABuffer<uchar4>& color_buffer() const {
     return color_buffer_;
   }
   
   inline cudaTextureObject_t color_texture() const {
-    return color_texture_;
+    return color_texture_; // 11.12 keyframe->color_texture()
+  
+  /*
+  11.13 TODO:
+  inline const CUDABuffer<u16>& feature_buffer() const {
+    return feature_buffer_;
+  }
+  */
   }
   
  private:
@@ -228,8 +234,9 @@ class Keyframe {
   CUDABuffer<u16> normals_buffer_;  // (more or less) derived from the depth. TODO: Re-compute this from the depth buffer, if required, to save memory?
   CUDABuffer<u16> radius_buffer_;  // (more or less) derived from the depth. TODO: Re-compute this from the depth buffer, if required, to save memory?
   CUDABuffer<uchar4> color_buffer_;
-  cudaTextureObject_t color_texture_;
-  
+  cudaTextureObject_t color_texture_; // 11.12 every frame has its own color_texture, jzmTODO: create a feature_texture
+  // 11.13
+  // CUDABuffer<u16> feature_buffer_;
   // Reference to depth data on the CPU / disk
   ImageFramePtr<u16, SE3f> depth_frame_;
   // Reference to color data on the CPU / disk

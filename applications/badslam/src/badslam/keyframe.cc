@@ -48,10 +48,10 @@ Keyframe::Keyframe(
       last_covis_in_ba_iteration_(-1),
       min_depth_(min_depth),
       max_depth_(max_depth),
-      depth_buffer_(depth_buffer.height(), depth_buffer.width()),
+      depth_buffer_(depth_buffer.height(), depth_buffer.width()),// 11.13 jzmTODO can mimic this to create feature_buffer?2D array or 1d?
       normals_buffer_(normals_buffer.height(), normals_buffer.width()),
       radius_buffer_(radius_buffer.height(), radius_buffer.width()),
-      color_buffer_(color_buffer.height(), color_buffer.width()),
+      color_buffer_(color_buffer.height(), color_buffer.width()), // 11.13 jzmTODO can use the height and width of color buffer to initialize feature_buffer, but the width/height needs change?
       depth_frame_(depth_frame),
       color_frame_(color_frame) {
   CHECK_GT(min_depth, 0.f)
@@ -62,15 +62,21 @@ Keyframe::Keyframe(
   depth_buffer_.SetTo(depth_buffer, stream);
   normals_buffer_.SetTo(normals_buffer, stream);
   radius_buffer_.SetTo(radius_buffer, stream);
-  
+  // 11.13 for each frame, color image is loaded to gpu for 
   color_buffer_.SetTo(color_buffer, stream);
   color_buffer_.CreateTextureObject(
       cudaAddressModeClamp,
       cudaAddressModeClamp,
       cudaFilterModeLinear,
-      cudaReadModeNormalizedFloat,
+      cudaReadModeNormalizedFloat, // 11.12 unchar color buffer data is converted to float in color_texture_
       /*use_normalized_coordinates*/ false,
       &color_texture_);
+
+  /* 11.12
+    // 1. pass rgbd_video->name of the current frame to this function
+    // 2. load features to feature buffer. what kind of data structure would you use?
+          Eigen tensor then copy to GPU?
+  */
   
   activation_ = Activation::kActive;
   
