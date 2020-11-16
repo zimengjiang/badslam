@@ -88,7 +88,8 @@ BadSlam::BadSlam(
   filtered_depth_buffer_B_.reset(new CUDABuffer<u16>(depth_height, depth_width));
   normals_buffer_.reset(new CUDABuffer<u16>(depth_height, depth_width));
   radius_buffer_.reset(new CUDABuffer<u16>(depth_height, depth_width));
-  
+  // 11.16 allocate feature buffer
+  feature_buffer_.reset(new CUDABuffer<float>(color_height, color_width*3));
   rgb_buffer_.reset(new CUDABuffer<uchar3>(color_height, color_width));
   color_buffer_.reset(new CUDABuffer<uchar4>(color_height, color_width));
   color_buffer_->CreateTextureObject(
@@ -1004,6 +1005,10 @@ shared_ptr<Keyframe> BadSlam::CreateKeyframe(
   const string file_name = time_stamp.substr(0, time_stamp.size()-3);
   const string path_feature_folder_path = path_feature_folder + file_name + ".npy";
   cnpy::NpyArray arr = cnpy::npy_load(path_feature_folder_path);
+  float* feature_cpu = arr.data<float>();
+  // 11.16 if feature_cpu is not null
+  feature_buffer_->UploadAsync(stream_, feature_cpu);
+  
   shared_ptr<Keyframe> new_keyframe(new Keyframe(
       stream_,
       frame_index,

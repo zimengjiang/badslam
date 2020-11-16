@@ -294,7 +294,9 @@ class BadSlam {
   
   CUDABufferPtr<float> min_max_depth_init_buffer_;
   CUDABufferPtr<float> min_max_depth_result_buffer_;
-  
+  // 11.16 feature buffer
+  CUDABufferPtr<float> feature_buffer_;
+  // 
   PairwiseFrameTrackingBuffers pairwise_tracking_buffers_;
   PairwiseFrameTrackingBuffers pairwise_tracking_buffers_for_loops_;
   PoseEstimationHelperBuffers pose_estimation_helper_buffers_;
