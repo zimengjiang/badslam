@@ -29,7 +29,9 @@
 #include "badslam/keyframe.h"
 
 #include "badslam/surfel_projection.h"
-
+const int H = 458;
+const int W = 739;
+const int C = 3;  
 namespace vis {
 
 Keyframe::Keyframe(
@@ -42,7 +44,8 @@ Keyframe::Keyframe(
     const CUDABuffer<u16>& radius_buffer,
     const CUDABuffer<uchar4>& color_buffer,
     const ImageFramePtr<u16, SE3f>& depth_frame,
-    const ImageFramePtr<Vec3u8, SE3f>& color_frame)
+    const ImageFramePtr<Vec3u8, SE3f>& color_frame,
+    const CUDABuffer<u16>& feature_buffer) // 11.14 jzmTODO: change to <float> when successfully load the floating features
     : frame_index_(frame_index),
       last_active_in_ba_iteration_(-1),
       last_covis_in_ba_iteration_(-1),
@@ -53,7 +56,9 @@ Keyframe::Keyframe(
       radius_buffer_(radius_buffer.height(), radius_buffer.width()),
       color_buffer_(color_buffer.height(), color_buffer.width()), // 11.13 jzmTODO can use the height and width of color buffer to initialize feature_buffer, but the width/height needs change?
       depth_frame_(depth_frame),
-      color_frame_(color_frame) {
+      color_frame_(color_frame),
+      feature_buffer_(H, W)
+       {
   CHECK_GT(min_depth, 0.f)
       << "Keyframe min depth must be larger than 0 since the frustum checks"
           " do not work properly otherwise.";
@@ -77,6 +82,9 @@ Keyframe::Keyframe(
     // 2. load features to feature buffer. what kind of data structure would you use?
           Eigen tensor then copy to GPU?
   */
+ /*
+
+ */
   
   activation_ = Activation::kActive;
   
@@ -98,7 +106,8 @@ Keyframe::Keyframe(
       depth_buffer_(depth_image.height(), depth_image.width()),
       normals_buffer_(depth_image.height(), depth_image.width()),
       radius_buffer_(depth_image.height(), depth_image.width()),
-      color_buffer_(color_image.height(), color_image.width()) {
+      color_buffer_(color_image.height(), color_image.width()),
+      feature_buffer_(depth_image.height(), depth_image.width()*3) {
   // Perform color image preprocessing.
   CUDABuffer<uchar3> rgb_buffer(color_image.height(), color_image.width());
   rgb_buffer.UploadAsync(stream, reinterpret_cast<const Image<uchar3>&>(color_image));

@@ -289,6 +289,7 @@ class BadSlam {
   
   CUDABufferPtr<uchar3> rgb_buffer_;
   CUDABufferPtr<uchar4> color_buffer_;
+  
   cudaTextureObject_t color_texture_;
   
   CUDABufferPtr<float> min_max_depth_init_buffer_;

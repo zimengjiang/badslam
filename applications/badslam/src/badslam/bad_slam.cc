@@ -44,6 +44,9 @@
 #include "badslam/util.cuh"
 #include "badslam/util.h"
 
+// 11.15 for loaidng .npy 
+#include "cnpy.h"
+
 namespace vis {
 
 BadSlam::BadSlam(
@@ -990,6 +993,17 @@ shared_ptr<Keyframe> BadSlam::CreateKeyframe(
   //       range at these depths?
   direct_ba_->Lock();  // lock here since the Keyframe constructor accesses an RGBDVideo pose
   // 11.11 TODO: when creating keyframe, add the path to its feature map
+  /*
+  11.14 jzmTODO:
+  load feature_buffer here
+  */
+  // rgbd_video_->color_frame_mutable(frame_index) 
+  // const char* path_frame_npy = rgbd_video_->color_frame_mutable(frame_index) 
+  const string path_feature_folder = "/local/home/zjiang/data/eth3d/training/plant_1/rgb_normalized_float32/";
+  const string time_stamp = rgbd_video_->color_frame_mutable(frame_index).get()->timestamp_string();
+  const string file_name = time_stamp.substr(0, time_stamp.size()-3);
+  const string path_feature_folder_path = path_feature_folder + file_name + ".npy";
+  cnpy::NpyArray arr = cnpy::npy_load(path_feature_folder_path);
   shared_ptr<Keyframe> new_keyframe(new Keyframe(
       stream_,
       frame_index,
@@ -1000,7 +1014,8 @@ shared_ptr<Keyframe> BadSlam::CreateKeyframe(
       *radius_buffer_,
       *color_buffer_, // 11.12 loaded in PreprocessFrame
       rgbd_video_->depth_frame_mutable(frame_index),
-      rgbd_video_->color_frame_mutable(frame_index)));
+      rgbd_video_->color_frame_mutable(frame_index),
+      depth_buffer));
   base_kf_ = new_keyframe.get();
   // Since the BA thread does not know yet that this frame here will become a
   // keyframe, there is no danger that base_kf_->global_T_frame() gets updated

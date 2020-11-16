@@ -80,7 +80,8 @@ class Keyframe {
       const CUDABuffer<u16>& radius_buffer,
       const CUDABuffer<uchar4>& color_buffer,
       const ImageFramePtr<u16, SE3f>& depth_frame,
-      const ImageFramePtr<Vec3u8, SE3f>& color_frame);
+      const ImageFramePtr<Vec3u8, SE3f>& color_frame,
+      const CUDABuffer<u16>& feature_buffer);
   
   // Creates a keyframe from depth and color data. Derives the normal and radius
   // data from the depth image. This function is slow (since it involves
@@ -204,13 +205,11 @@ class Keyframe {
   
   inline cudaTextureObject_t color_texture() const {
     return color_texture_; // 11.12 keyframe->color_texture()
+  }
   
-  /*
-  11.13 TODO:
+  // 11.14 TODO:
   inline const CUDABuffer<u16>& feature_buffer() const {
     return feature_buffer_;
-  }
-  */
   }
   
  private:
@@ -235,12 +234,13 @@ class Keyframe {
   CUDABuffer<u16> radius_buffer_;  // (more or less) derived from the depth. TODO: Re-compute this from the depth buffer, if required, to save memory?
   CUDABuffer<uchar4> color_buffer_;
   cudaTextureObject_t color_texture_; // 11.12 every frame has its own color_texture, jzmTODO: create a feature_texture
-  // 11.13
-  // CUDABuffer<u16> feature_buffer_;
+
   // Reference to depth data on the CPU / disk
   ImageFramePtr<u16, SE3f> depth_frame_;
   // Reference to color data on the CPU / disk
   ImageFramePtr<Vec3u8, SE3f> color_frame_;
+  CUDABuffer<u16> feature_buffer_; // 11.14 currenty for the first step to know the keyframe class, so just use u16. Since features are not loaded yet
+  // later will change this to <float>
 };
 
 }

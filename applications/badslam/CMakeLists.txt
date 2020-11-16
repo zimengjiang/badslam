@@ -165,7 +165,6 @@ if (CMAKE_CUDA_COMPILER)
       libvis_cuda
   )
   
-  
   # badslam executable.
   set(BADSLAM_SRC
     src/badslam/main.cc
@@ -190,6 +189,9 @@ if (CMAKE_CUDA_COMPILER)
     ${OpenCV_LIBS}
     ${X11_LIBRARIES}
     ${Boost_LIBRARIES}
+    cnpy
+    z
+    -L/usrlocal/lib/libcnpy.so
   )
   
   
