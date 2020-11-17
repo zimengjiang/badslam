@@ -1002,14 +1002,15 @@ shared_ptr<Keyframe> BadSlam::CreateKeyframe(
   */
   // rgbd_video_->color_frame_mutable(frame_index) 
   // const char* path_frame_npy = rgbd_video_->color_frame_mutable(frame_index) 
-  const string path_feature_folder = "/local/home/zjiang/data/eth3d/training/plant_1/rgb_normalized_float32/";
+  const string path_feature_folder = "/local/home/zjiang/data/eth3d/training/plant_2/rgb_normalized_float32/";
   const string time_stamp = rgbd_video_->color_frame_mutable(frame_index).get()->timestamp_string();
   const string file_name = time_stamp.substr(0, time_stamp.size()-3);
   const string path_feature_folder_path = path_feature_folder + file_name + ".npy";
   cnpy::NpyArray feature_arr = cnpy::npy_load(path_feature_folder_path);
   // 11.16 upload feature_arr to GPU, feature_buffer_ is the pointer to CUDABuffer;
   feature_buffer_->UploadAsync(stream_, feature_arr.data<float>());
-  
+  // printf("jzm0: feature arr (400,2000) %f \n", *(feature_arr.data<float>()+400*2217+2000));
+  // printf("jzm0: feature arr (457,2216) %f\n", *(feature_arr.data<float>()+457*2217+2216));
   shared_ptr<Keyframe> new_keyframe(new Keyframe(
       stream_,
       frame_index,

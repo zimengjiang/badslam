@@ -130,5 +130,6 @@ constexpr int kSurfelAccumHAndBCount = 20; // kSurfelAttributeCount - kSurfelDat
 constexpr int kSurfelAccumHCount = 13; // 4N+1
 constexpr int kSurfelAccumBCount = 7; // 2N+1
 constexpr int kSurfelFixedAttributeCount = 6; // 2N+1
-
+// 11.17 add feature channels
+// constexpr int kNumChannels = 3; // N, already defined in cost_function.cuh
 }

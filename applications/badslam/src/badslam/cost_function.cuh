@@ -51,6 +51,10 @@ constexpr float kDepthResidualDefaultTukeyParam = 10.f;
 // process. Determines the final propagated depth uncertainty.
 constexpr float kDepthUncertaintyEmpiricalFactor = 0.1f;
 
+// 11.17 for the number of feature channels
+constexpr int kNumChannels = 3;
+
+
 
 // Computes the "raw" depth (geometric) residual, i.e., without any weighting.
 __forceinline__ __device__ void ComputeRawDepthResidual(
@@ -350,79 +354,78 @@ __forceinline__ __device__ void ColorJacobianWrtProjectedPosition(
   *grad_y_fy = (bottom_right - top_right) * tx + (bottom_left - top_left) * (1 - tx);
 }
 
-// --- 10.24 updates ---
-// --- Computes the "raw" feature-metric residual for each channel, i.e. without any weighting.
-/*__forceinline__ __device__ void ComputeRawFeatureResidual(
-    cudaTextureObject_t feature_texture, // we only use rgb img for now. TODO: use feature maps. 
-    const float2& pxy,
-    const float2& t1_pxy,
-    const float2& t2_pxy,
-    float* surfel_descriptor_vec,
-    float* raw_residual_vec) {
-  
-  // float3 pxy_feature = tex2D<float3>(feature_texture, pxy.x, pxy.y);
-  float pxy_feature1 = tex2D<float4>(feature_texture, pxy.x, pxy.y).x;
-  float pxy_feature2 = tex2D<float4>(feature_texture, pxy.x, pxy.y).y;
-  float pxy_feature3 = tex2D<float4>(feature_texture, pxy.x, pxy.y).z;
+/*11.17: bilinear interpolation, same effect as filtering in tex2D fetching */
+/*https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#texture-fetching*/
+__forceinline__ __device__ void TestFetchFeatureArrBilinearInterpolationVec(
+    const CUDABuffer_<float>& feature_arr,
+    const float& px, /*pixel corner coordinates, -> x, | y*/
+    const float& py,
+    float* result) {
+    int ix = static_cast<int>(::max(0.f, px - 0.5f));      // i = floor(px-0.5)
+    int iy = static_cast<int>(::max(0.f, py - 0.5f));      // j = floor(py-0.5)
+    float alpha = ::max(0.f, ::min(1.f, px - 0.5f - ix));  // alpha = frac(px-0.5) 
+    float beta = ::max(0.f, ::min(1.f, py - 0.5f - iy));   // beta = frac(py-0.5)
+    // printf("jzm2: feat(400,2000)=%f, feat(457,2216)=%f \n",feature_arr(400,2000), feature_arr(457,2216));
+    int2 top_left, top_right, bottom_left, bottom_right;
+    top_left = make_int2(ix,iy);
+    top_right = make_int2(ix+1,iy);
+    bottom_left = make_int2(ix,iy+1);
+    bottom_right = make_int2(ix+1,iy+1);
+    for (int c = 0; c < kNumChannels; ++c){
+      // c does not effect the computation of the interpolated corners. 
+      /// Only px and py decides the corner. c is used to fetch the correct grid of the channel value corresponding to each pixel. 
+      // 11.17 jzmTODO: double check indexing, (py,px), pitch index, Achtung! out of bounds buffer access
+      /*if (x >= width_ || y >= height_) {
+      printf("Out of bounds buffer access at (%i, %i), buffer size (%i, %i)\n",
+             x, y, width_, height_);
+      }*/
+      *(result + c) = (1-alpha)*(1-beta)*feature_arr(top_left.y,top_left.x*kNumChannels+c) \
+                      + alpha*(1-beta)*feature_arr(top_right.y,top_right.x*kNumChannels+c) \
+                      + beta*(1-alpha)*feature_arr(bottom_left.y,bottom_left.x*kNumChannels+c) \
+                      + alpha*beta*feature_arr(bottom_right.y, bottom_right.x*kNumChannels+c);
+    }
+}
 
-  float t1_feature1 = tex2D<float4>(feature_texture, t1_pxy.x, t1_pxy.y).x;
-  float t1_feature2 = tex2D<float4>(feature_texture, t1_pxy.x, t1_pxy.y).y;
-  float t1_feature3 = tex2D<float4>(feature_texture, t1_pxy.x, t1_pxy.y).z;
+/*11.17: bilinear interpolation, when number of channels = 1*/
+/*https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#texture-fetching*/
+__forceinline__ __device__ void TestFetchFeatureArrBilinearInterpolationFloat(
+    const CUDABuffer_<float>& feature_arr,
+    const float& px, /*pixel corner coordinates, -> x, | y*/
+    const float& py,
+    float* result) {
+    int ix = static_cast<int>(::max(0.f, px - 0.5f));      // i = floor(px-0.5)
+    int iy = static_cast<int>(::max(0.f, py - 0.5f));      // j = floor(py-0.5)
+    float alpha = ::max(0.f, ::min(1.f, px - 0.5f - ix));  // alpha = frac(px-0.5) 
+    float beta = ::max(0.f, ::min(1.f, py - 0.5f - iy));   // beta = frac(py-0.5)
+    int2 top_left, top_right, bottom_left, bottom_right;
+    top_left = make_int2(ix,iy);
+    top_right = make_int2(ix+1,iy);
+    bottom_left = make_int2(ix,iy+1);
+    bottom_right = make_int2(ix+1,iy+1);
+    *(result) = (1-alpha)*(1-beta)*feature_arr(top_left.y,top_left.x) \
+                    + alpha*(1-beta)*feature_arr(top_right.y,top_right.x) \
+                    + beta*(1-alpha)*feature_arr(bottom_left.y,bottom_left.x) \
+                    + alpha*beta*feature_arr(bottom_right.y, bottom_right.x);
+}
 
-  float t2_feature1 = tex2D<float4>(feature_texture, t2_pxy.x, t2_pxy.y).x;
-  float t2_feature2 = tex2D<float4>(feature_texture, t2_pxy.x, t2_pxy.y).y;
-  float t2_feature3 = tex2D<float4>(feature_texture, t2_pxy.x, t2_pxy.y).z;
-  
-  *(raw_residual_vec) = (180.f * (t1_feature1 - pxy_feature1)) - surfel_descriptor_vec[0];
-  *(raw_residual_vec+3) = (180.f * (t2_feature1 - pxy_feature1)) - surfel_descriptor_vec[3];
-  *(raw_residual_vec+1) = (180.f * (t1_feature2 - pxy_feature2)) - surfel_descriptor_vec[1];
-  *(raw_residual_vec+4) = (180.f * (t2_feature2 - pxy_feature2)) - surfel_descriptor_vec[4];
-  *(raw_residual_vec+2) = (180.f * (t1_feature3 - pxy_feature3)) - surfel_descriptor_vec[2];
-  *(raw_residual_vec+5) = (180.f * (t2_feature3 - pxy_feature3)) - surfel_descriptor_vec[5];
-
-}*/
-
-
-// --- 10.24 updates ---
-// --- Computes the "raw" feature-metric residual for each channel, i.e. without any weighting.
-/*__forceinline__ __device__ void ComputeRawFeatureResidual(
-    cudaTextureObject_t feature_texture, // we only use rgb img for now. TODO: use feature maps. 
-    const float2& pxy,
-    const float2& t1_pxy,
-    const float2& t2_pxy,
-    float* surfel_descriptor_vec,
-    float* raw_residual_vec) {
-  
-  // float3 pxy_feature = tex2D<float3>(feature_texture, pxy.x, pxy.y);
-  float pxy_feature1 = tex2D<float4>(feature_texture, pxy.x, pxy.y).x;
-  float pxy_feature2 = tex2D<float4>(feature_texture, pxy.x, pxy.y).y;
-  float pxy_feature3 = tex2D<float4>(feature_texture, pxy.x, pxy.y).z;
-
-  float t1_feature1 = tex2D<float4>(feature_texture, t1_pxy.x, t1_pxy.y).x;
-  float t1_feature2 = tex2D<float4>(feature_texture, t1_pxy.x, t1_pxy.y).y;
-  float t1_feature3 = tex2D<float4>(feature_texture, t1_pxy.x, t1_pxy.y).z;
-
-  float t2_feature1 = tex2D<float4>(feature_texture, t2_pxy.x, t2_pxy.y).x;
-  float t2_feature2 = tex2D<float4>(feature_texture, t2_pxy.x, t2_pxy.y).y;
-  float t2_feature3 = tex2D<float4>(feature_texture, t2_pxy.x, t2_pxy.y).z;
-  
-  *(raw_residual_vec) = (180.f * (t1_feature1 - pxy_feature1)) - surfel_descriptor_vec[0];
-  *(raw_residual_vec+3) = (180.f * (t2_feature1 - pxy_feature1)) - surfel_descriptor_vec[3];
-  *(raw_residual_vec+1) = (180.f * (t1_feature2 - pxy_feature2)) - surfel_descriptor_vec[1];
-  *(raw_residual_vec+4) = (180.f * (t2_feature2 - pxy_feature2)) - surfel_descriptor_vec[4];
-  *(raw_residual_vec+2) = (180.f * (t1_feature3 - pxy_feature3)) - surfel_descriptor_vec[2];
-  *(raw_residual_vec+5) = (180.f * (t2_feature3 - pxy_feature3)) - surfel_descriptor_vec[5];
-
-}*/
+__forceinline__ __device__ void TestCheckBilinearInterpolation(
+  float* raw_residual_vec,
+  float* raw_residual_vec_true){
+    printf("check bilinear interpolation\n");
+    for (int i = 0; i < kNumChannels; ++i){
+      printf("difference i: %f \n",*(raw_residual_vec+i)-*(raw_residual_vec_true+i));
+    }
+}
 
 __forceinline__ __device__ void TestComputeRawFeatureDescriptorResidual(
-    const CUDABuffer_<float>& feature_arr,
+    const CUDABuffer_<float> feature_arr,
     cudaTextureObject_t color_texture,
     const float2& pxy, /*pixel corner convention*/
     const float2& t1_pxy,/*pixel corner convention*/
     const float2& t2_pxy,
     float* surfel_descriptor_vec,
     float* raw_residual_vec) {
+      // printf("jzm1: feautre_arr (0,1000) %f \n", feature_arr(0,1000));
   // float intensity = tex2D<float4>(color_texture, pxy.x, pxy.y).w;
   // unsigned int id = blockIdx.x * blockDim.x + threadIdx.x;
   // float t1_intensity = tex2D<float4>(color_texture, t1_pxy.x, t1_pxy.y).w; 
@@ -439,30 +442,48 @@ __forceinline__ __device__ void TestComputeRawFeatureDescriptorResidual(
     printf("intensity = %f\n", intensity);
   }*/
 
-  // ----- the following is checked in my mind ... --- //
-  // since the depth residual dominates the descriptor residual, very litte difference is observed directly using color image to compute residual, even when the color residual jacobian has not been modified yet.
-  
-  // fetching arr object, first try naive code to make sure the fetching and bilinear interpolation is correct, then use for loop
-   
+  float f_pxy[kNumChannels] = {0}; // initialize all to 0, memory allocation
+  float f_t1[kNumChannels] = {0};
+  float f_t2[kNumChannels] = {0};
+  TestFetchFeatureArrBilinearInterpolationVec(feature_arr, pxy.x, pxy.y, f_pxy);
+  TestFetchFeatureArrBilinearInterpolationVec(feature_arr, t1_pxy.x, t1_pxy.y, f_t1);
+  TestFetchFeatureArrBilinearInterpolationVec(feature_arr, t2_pxy.x, t2_pxy.y, f_t2);
+  for (int c = 0; c < kNumChannels; ++c){
+    *(raw_residual_vec+c) = 180.f * (f_t1[c] - f_pxy[c]) - surfel_descriptor_vec[c];
+    *(raw_residual_vec+kNumChannels+c) = 180.f * (f_t2[c] - f_pxy[c]) - surfel_descriptor_vec[kNumChannels+c];
+  }
+
   // fetching texture object (filtering mode: bilinear interpolation)
-  float pxy_feature1 = tex2D<float4>(color_texture, pxy.x, pxy.y).x;
+  /*float pxy_feature1 = tex2D<float4>(color_texture, pxy.x, pxy.y).x;
   float pxy_feature2 = tex2D<float4>(color_texture, pxy.x, pxy.y).y;
   float pxy_feature3 = tex2D<float4>(color_texture, pxy.x, pxy.y).z;
-
+  printf("pxy_feature1 - f_t11: %f, %f\n", pxy_feature1, f_pxy[0]);
+  printf("pxy_feature2 - f_t12: %f, %f\n", pxy_feature2 ,f_pxy[1]);
+  printf("pxy_feature3 - f_t13: %f, %f\n", pxy_feature3 , f_pxy[2]);
+ 
   float t1_feature1 = tex2D<float4>(color_texture, t1_pxy.x, t1_pxy.y).x;
   float t1_feature2 = tex2D<float4>(color_texture, t1_pxy.x, t1_pxy.y).y;
   float t1_feature3 = tex2D<float4>(color_texture, t1_pxy.x, t1_pxy.y).z;
+  printf("t1_feature1 - f_t1: %f, %f\n", t1_feature1 , f_t1[0]);
+  printf("t1_feature2 - f_t2: %f, %f\n", t1_feature2 , f_t1[1]);
+  printf("t1_feature3 - f_t3: %f, %f\n", t1_feature3 , f_t1[2]);
 
   float t2_feature1 = tex2D<float4>(color_texture, t2_pxy.x, t2_pxy.y).x;
   float t2_feature2 = tex2D<float4>(color_texture, t2_pxy.x, t2_pxy.y).y;
   float t2_feature3 = tex2D<float4>(color_texture, t2_pxy.x, t2_pxy.y).z;
+  printf("t2_feature1 - f_t21: %f, %f\n", t2_feature1 , f_t2[0]);
+  printf("t2_feature2 - f_t22: %f, %f\n", t2_feature2 , f_t2[1]);
+  printf("t2_feature3 - f_t23: %f, %f\n", t2_feature3 , f_t2[2]);*/
 
-  *(raw_residual_vec) = (180.f * (t1_feature1 - pxy_feature1)) - surfel_descriptor_vec[0];
-  *(raw_residual_vec+1) = (180.f * (t1_feature2 - pxy_feature2)) - surfel_descriptor_vec[1];
-  *(raw_residual_vec+2) = (180.f * (t1_feature3 - pxy_feature3)) - surfel_descriptor_vec[2];
-  *(raw_residual_vec+3) = (180.f * (t2_feature1 - pxy_feature1)) - surfel_descriptor_vec[3];
-  *(raw_residual_vec+4) = (180.f * (t2_feature2 - pxy_feature2)) - surfel_descriptor_vec[4];
-  *(raw_residual_vec+5) = (180.f * (t2_feature3 - pxy_feature3)) - surfel_descriptor_vec[5];
+  /*float raw_residual_vec_true[kNumChannels*2] = {0};
+  *(raw_residual_vec_true) = (180.f * (t1_feature1 - pxy_feature1)) - surfel_descriptor_vec[0];
+  *(raw_residual_vec_true+1) = (180.f * (t1_feature2 - pxy_feature2)) - surfel_descriptor_vec[1];
+  *(raw_residual_vec_true+2) = (180.f * (t1_feature3 - pxy_feature3)) - surfel_descriptor_vec[2];
+  *(raw_residual_vec_true+3) = (180.f * (t2_feature1 - pxy_feature1)) - surfel_descriptor_vec[3];
+  *(raw_residual_vec_true+4) = (180.f * (t2_feature2 - pxy_feature2)) - surfel_descriptor_vec[4];
+  *(raw_residual_vec_true+5) = (180.f * (t2_feature3 - pxy_feature3)) - surfel_descriptor_vec[5];*/
+
+  // TestCheckBilinearInterpolation(raw_residual_vec, raw_residual_vec_true);
 }
 
 __forceinline__ __device__ void ComputeRawFeatureDescriptorResidual(
@@ -644,5 +665,72 @@ __forceinline__ __device__ void DescriptorJacobianWrtProjectedPositionOnChannels
   *grad_x_2 = 180.f * (t2_dx - center_dx);
   *grad_y_2 = 180.f * (t2_dy - center_dy);
 }
+
+__forceinline__ __device__ void TestDescriptorJacobianWrtProjectedPositionOnChannels(
+    const CUDABuffer_<float> feature_arr, 
+    const float2& color_pxy,
+    const float2& t1_pxy,
+    const float2& t2_pxy,
+    float* grad_x_1,
+    float* grad_y_1,
+    float* grad_x_2,
+    float* grad_y_2,
+    int c) {
+  // 11.16 Texture object fetching and filtering, +-0.5 stuff.
+  // https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#texture-fetching
+  int ix = static_cast<int>(::max(0.f, color_pxy.x - 0.5f)); // refer to libvis/camera.h: 103, convert to pixel center convention??? easier to compute the offsets from te pixel centers -> bilinear interpolation
+  int iy = static_cast<int>(::max(0.f, color_pxy.y - 0.5f));
+  float tx = ::max(0.f, ::min(1.f, color_pxy.x - 0.5f - ix));  // truncated x = trunc(cx + fx*ls.x/ls.z) // frac(xB), xB = x-0.5
+  float ty = ::max(0.f, ::min(1.f, color_pxy.y - 0.5f - iy));  // truncated y = trunc(cy + fy*ls.y/ls.z)
+  
+  float top_left, top_right, bottom_left, bottom_right;
+
+  top_left = feature_arr(iy, ix*kNumChannels+c);
+  top_right = feature_arr(iy, (ix+1)*kNumChannels+c);
+  bottom_left = feature_arr(iy+1, ix*kNumChannels+c);
+  bottom_right = feature_arr(iy+1, (ix+1)*kNumChannels+c);
+
+  float center_dx = (bottom_right - bottom_left) * ty + (top_right - top_left) * (1 - ty);
+  float center_dy = (bottom_right - top_right) * tx + (bottom_left - top_left) * (1 - tx);
+  
+
+  ix = static_cast<int>(::max(0.f, t1_pxy.x - 0.5f));
+  iy = static_cast<int>(::max(0.f, t1_pxy.y - 0.5f));
+  tx = ::max(0.f, ::min(1.f, t1_pxy.x - 0.5f - ix));  // truncated x = trunc(cx + fx*ls.x/ls.z)
+  ty = ::max(0.f, ::min(1.f, t1_pxy.y - 0.5f - iy));  // truncated y = trunc(cy + fy*ls.y/ls.z)
+  
+  top_left = feature_arr(iy, ix*kNumChannels+c);
+  top_right = feature_arr(iy, (ix+1)*kNumChannels+c);
+  bottom_left = feature_arr(iy+1, ix*kNumChannels+c);
+  bottom_right = feature_arr(iy+1, (ix+1)*kNumChannels+c);
+  
+  
+  float t1_dx = (bottom_right - bottom_left) * ty + (top_right - top_left) * (1 - ty);
+  float t1_dy = (bottom_right - top_right) * tx + (bottom_left - top_left) * (1 - tx);
+  
+  
+  ix = static_cast<int>(::max(0.f, t2_pxy.x - 0.5f));
+  iy = static_cast<int>(::max(0.f, t2_pxy.y - 0.5f));
+  tx = ::max(0.f, ::min(1.f, t2_pxy.x - 0.5f - ix));  // truncated x = trunc(cx + fx*ls.x/ls.z)
+  ty = ::max(0.f, ::min(1.f, t2_pxy.y - 0.5f - iy));  // truncated y = trunc(cy + fy*ls.y/ls.z)
+
+  top_left = feature_arr(iy, ix*kNumChannels+c);
+  top_right = feature_arr(iy, (ix+1)*kNumChannels+c);
+  bottom_left = feature_arr(iy+1, ix*kNumChannels+c);
+  bottom_right = feature_arr(iy+1, (ix+1)*kNumChannels+c);
+  
+  float t2_dx = (bottom_right - bottom_left) * ty + (top_right - top_left) * (1 - ty);
+  float t2_dy = (bottom_right - top_right) * tx + (bottom_left - top_left) * (1 - tx);
+  // NOTE: It is approximate to mix all the center, t1, t2 derivatives
+  //       directly since the points would move slightly differently on most
+  //       pose changes. However, the approximation is possibly pretty good since
+  //       the points are all close to each other.
+  
+  *grad_x_1 = 180.f * (t1_dx - center_dx);
+  *grad_y_1 = 180.f * (t1_dy - center_dy);
+  *grad_x_2 = 180.f * (t2_dx - center_dx);
+  *grad_y_2 = 180.f * (t2_dy - center_dy);
+}
+
 
 }
