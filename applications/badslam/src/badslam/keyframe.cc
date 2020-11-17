@@ -45,7 +45,7 @@ Keyframe::Keyframe(
     const CUDABuffer<uchar4>& color_buffer,
     const ImageFramePtr<u16, SE3f>& depth_frame,
     const ImageFramePtr<Vec3u8, SE3f>& color_frame,
-    const CUDABuffer<u16>& feature_buffer) // 11.14 jzmTODO: change to <float> when successfully load the floating features
+    const CUDABuffer<float>& feature_buffer) // 11.14 jzmTODO: change to <float> when successfully load the floating features
     : frame_index_(frame_index),
       last_active_in_ba_iteration_(-1),
       last_covis_in_ba_iteration_(-1),
@@ -57,7 +57,7 @@ Keyframe::Keyframe(
       color_buffer_(color_buffer.height(), color_buffer.width()), // 11.13 jzmTODO can use the height and width of color buffer to initialize feature_buffer, but the width/height needs change?
       depth_frame_(depth_frame),
       color_frame_(color_frame),
-      feature_buffer_(H, W)
+      feature_buffer_(H, W*C)
        {
   CHECK_GT(min_depth, 0.f)
       << "Keyframe min depth must be larger than 0 since the frustum checks"
@@ -67,12 +67,14 @@ Keyframe::Keyframe(
   depth_buffer_.SetTo(depth_buffer, stream);
   normals_buffer_.SetTo(normals_buffer, stream);
   radius_buffer_.SetTo(radius_buffer, stream);
+  // 11.16 set feature buffer
+  feature_buffer_.SetTo(feature_buffer, stream);
   // 11.13 for each frame, color image is loaded to gpu for 
   color_buffer_.SetTo(color_buffer, stream);
   color_buffer_.CreateTextureObject(
       cudaAddressModeClamp,
       cudaAddressModeClamp,
-      cudaFilterModeLinear,
+      cudaFilterModeLinear, /* filter model linear: perform bilinear interpolation during texture fetching*/
       cudaReadModeNormalizedFloat, // 11.12 unchar color buffer data is converted to float in color_texture_
       /*use_normalized_coordinates*/ false,
       &color_texture_);
@@ -107,7 +109,7 @@ Keyframe::Keyframe(
       normals_buffer_(depth_image.height(), depth_image.width()),
       radius_buffer_(depth_image.height(), depth_image.width()),
       color_buffer_(color_image.height(), color_image.width()),
-      feature_buffer_(depth_image.height(), depth_image.width()*3) {
+      feature_buffer_(color_image.height(), color_image.width()*3 /*11.16 jzmTODO: parametrize the '3'*/) {
   // Perform color image preprocessing.
   CUDABuffer<uchar3> rgb_buffer(color_image.height(), color_image.width());
   rgb_buffer.UploadAsync(stream, reinterpret_cast<const Image<uchar3>&>(color_image));

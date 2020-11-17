@@ -381,6 +381,90 @@ __forceinline__ __device__ void ColorJacobianWrtProjectedPosition(
   *(raw_residual_vec+5) = (180.f * (t2_feature3 - pxy_feature3)) - surfel_descriptor_vec[5];
 
 }*/
+
+
+// --- 10.24 updates ---
+// --- Computes the "raw" feature-metric residual for each channel, i.e. without any weighting.
+/*__forceinline__ __device__ void ComputeRawFeatureResidual(
+    cudaTextureObject_t feature_texture, // we only use rgb img for now. TODO: use feature maps. 
+    const float2& pxy,
+    const float2& t1_pxy,
+    const float2& t2_pxy,
+    float* surfel_descriptor_vec,
+    float* raw_residual_vec) {
+  
+  // float3 pxy_feature = tex2D<float3>(feature_texture, pxy.x, pxy.y);
+  float pxy_feature1 = tex2D<float4>(feature_texture, pxy.x, pxy.y).x;
+  float pxy_feature2 = tex2D<float4>(feature_texture, pxy.x, pxy.y).y;
+  float pxy_feature3 = tex2D<float4>(feature_texture, pxy.x, pxy.y).z;
+
+  float t1_feature1 = tex2D<float4>(feature_texture, t1_pxy.x, t1_pxy.y).x;
+  float t1_feature2 = tex2D<float4>(feature_texture, t1_pxy.x, t1_pxy.y).y;
+  float t1_feature3 = tex2D<float4>(feature_texture, t1_pxy.x, t1_pxy.y).z;
+
+  float t2_feature1 = tex2D<float4>(feature_texture, t2_pxy.x, t2_pxy.y).x;
+  float t2_feature2 = tex2D<float4>(feature_texture, t2_pxy.x, t2_pxy.y).y;
+  float t2_feature3 = tex2D<float4>(feature_texture, t2_pxy.x, t2_pxy.y).z;
+  
+  *(raw_residual_vec) = (180.f * (t1_feature1 - pxy_feature1)) - surfel_descriptor_vec[0];
+  *(raw_residual_vec+3) = (180.f * (t2_feature1 - pxy_feature1)) - surfel_descriptor_vec[3];
+  *(raw_residual_vec+1) = (180.f * (t1_feature2 - pxy_feature2)) - surfel_descriptor_vec[1];
+  *(raw_residual_vec+4) = (180.f * (t2_feature2 - pxy_feature2)) - surfel_descriptor_vec[4];
+  *(raw_residual_vec+2) = (180.f * (t1_feature3 - pxy_feature3)) - surfel_descriptor_vec[2];
+  *(raw_residual_vec+5) = (180.f * (t2_feature3 - pxy_feature3)) - surfel_descriptor_vec[5];
+
+}*/
+
+__forceinline__ __device__ void TestComputeRawFeatureDescriptorResidual(
+    const CUDABuffer_<float>& feature_arr,
+    cudaTextureObject_t color_texture,
+    const float2& pxy, /*pixel corner convention*/
+    const float2& t1_pxy,/*pixel corner convention*/
+    const float2& t2_pxy,
+    float* surfel_descriptor_vec,
+    float* raw_residual_vec) {
+  // float intensity = tex2D<float4>(color_texture, pxy.x, pxy.y).w;
+  // unsigned int id = blockIdx.x * blockDim.x + threadIdx.x;
+  // float t1_intensity = tex2D<float4>(color_texture, t1_pxy.x, t1_pxy.y).w; 
+  // float t2_intensity = tex2D<float4>(color_texture, t2_pxy.x, t2_pxy.y).w;
+  // TODO: for feature maps. make feature[N]t1_feature[N], t2_feature[N];
+  
+  /*for (int i = 0; i < 1; ++i){ // here i < 1, the 1 is the number of channels, TODO: make a variable
+    *(raw_residual+i) = (180.f * (t1_intensity - intensity)) - surfel_descriptor[i];
+    *(raw_residual+1+i) = (180.f * (t2_intensity - intensity)) - surfel_descriptor[i];
+  }
+  *raw_residual = (180.f * (t1_intensity - intensity)) - surfel_descriptor[0];
+  *(raw_residual+1) = (180.f * (t2_intensity - intensity)) - surfel_descriptor[1];
+  if (threadIdx.x == 9  && blockIdx.x == 0) { // jzm: 23/10 are you sure the threadIdx.x which you wanna check is correct? acutally it's fine. Only want to print result of an arbitrary thread. 
+    printf("intensity = %f\n", intensity);
+  }*/
+
+  // ----- the following is checked in my mind ... --- //
+  // since the depth residual dominates the descriptor residual, very litte difference is observed directly using color image to compute residual, even when the color residual jacobian has not been modified yet.
+  
+  // fetching arr object, first try naive code to make sure the fetching and bilinear interpolation is correct, then use for loop
+   
+  // fetching texture object (filtering mode: bilinear interpolation)
+  float pxy_feature1 = tex2D<float4>(color_texture, pxy.x, pxy.y).x;
+  float pxy_feature2 = tex2D<float4>(color_texture, pxy.x, pxy.y).y;
+  float pxy_feature3 = tex2D<float4>(color_texture, pxy.x, pxy.y).z;
+
+  float t1_feature1 = tex2D<float4>(color_texture, t1_pxy.x, t1_pxy.y).x;
+  float t1_feature2 = tex2D<float4>(color_texture, t1_pxy.x, t1_pxy.y).y;
+  float t1_feature3 = tex2D<float4>(color_texture, t1_pxy.x, t1_pxy.y).z;
+
+  float t2_feature1 = tex2D<float4>(color_texture, t2_pxy.x, t2_pxy.y).x;
+  float t2_feature2 = tex2D<float4>(color_texture, t2_pxy.x, t2_pxy.y).y;
+  float t2_feature3 = tex2D<float4>(color_texture, t2_pxy.x, t2_pxy.y).z;
+
+  *(raw_residual_vec) = (180.f * (t1_feature1 - pxy_feature1)) - surfel_descriptor_vec[0];
+  *(raw_residual_vec+1) = (180.f * (t1_feature2 - pxy_feature2)) - surfel_descriptor_vec[1];
+  *(raw_residual_vec+2) = (180.f * (t1_feature3 - pxy_feature3)) - surfel_descriptor_vec[2];
+  *(raw_residual_vec+3) = (180.f * (t2_feature1 - pxy_feature1)) - surfel_descriptor_vec[3];
+  *(raw_residual_vec+4) = (180.f * (t2_feature2 - pxy_feature2)) - surfel_descriptor_vec[4];
+  *(raw_residual_vec+5) = (180.f * (t2_feature3 - pxy_feature3)) - surfel_descriptor_vec[5];
+}
+
 __forceinline__ __device__ void ComputeRawFeatureDescriptorResidual(
     cudaTextureObject_t feature_texture,
     const float2& pxy,
@@ -441,9 +525,11 @@ __forceinline__ __device__ void DescriptorJacobianWrtProjectedPositionOnChannels
     float* grad_x_2,
     float* grad_y_2,
     int channel) {
-  int ix = static_cast<int>(::max(0.f, color_pxy.x - 0.5f));
+  // 11.16 Texture object fetching and filtering, +-0.5 stuff.
+  // https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#texture-fetching
+  int ix = static_cast<int>(::max(0.f, color_pxy.x - 0.5f)); // refer to libvis/camera.h: 103, convert to pixel center convention??? easier to compute the offsets from te pixel centers -> bilinear interpolation
   int iy = static_cast<int>(::max(0.f, color_pxy.y - 0.5f));
-  float tx = ::max(0.f, ::min(1.f, color_pxy.x - 0.5f - ix));  // truncated x = trunc(cx + fx*ls.x/ls.z)
+  float tx = ::max(0.f, ::min(1.f, color_pxy.x - 0.5f - ix));  // truncated x = trunc(cx + fx*ls.x/ls.z) // frac(xB), xB = x-0.5
   float ty = ::max(0.f, ::min(1.f, color_pxy.y - 0.5f - iy));  // truncated y = trunc(cy + fy*ls.y/ls.z)
   
   float top_left, top_right, bottom_left, bottom_right;

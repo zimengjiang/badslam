@@ -81,7 +81,7 @@ class Keyframe {
       const CUDABuffer<uchar4>& color_buffer,
       const ImageFramePtr<u16, SE3f>& depth_frame,
       const ImageFramePtr<Vec3u8, SE3f>& color_frame,
-      const CUDABuffer<u16>& feature_buffer);
+      const CUDABuffer<float>& feature_buffer);
   
   // Creates a keyframe from depth and color data. Derives the normal and radius
   // data from the depth image. This function is slow (since it involves
@@ -208,7 +208,7 @@ class Keyframe {
   }
   
   // 11.14 TODO:
-  inline const CUDABuffer<u16>& feature_buffer() const {
+  inline const CUDABuffer<float>& feature_buffer() const {
     return feature_buffer_;
   }
   
@@ -239,7 +239,7 @@ class Keyframe {
   ImageFramePtr<u16, SE3f> depth_frame_;
   // Reference to color data on the CPU / disk
   ImageFramePtr<Vec3u8, SE3f> color_frame_;
-  CUDABuffer<u16> feature_buffer_; // 11.14 currenty for the first step to know the keyframe class, so just use u16. Since features are not loaded yet
+  CUDABuffer<float> feature_buffer_; // 11.14 currenty for the first step to know the keyframe class, so just use u16. Since features are not loaded yet
   // later will change this to <float>
 };
 

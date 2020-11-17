@@ -185,7 +185,7 @@ void OptimizeGeometryIterationCUDA(
       // from keyframe ->color_frame_ we can get the timestamp_string, which also refers to a feature map file? 
       // But if we load from cpu and then copy to GPU each time this will be repeated several times and 
       // quite slow. Therefore, we need to load the feature maps to GPU once the keyframe is created. 
-      AccumulateSurfelPositionAndDescriptorOptimizationCoeffsCUDAKernel(
+      /*AccumulateSurfelPositionAndDescriptorOptimizationCoeffsCUDAKernel(
           stream,
           CreateSurfelProjectionParameters(depth_camera, depth_params, surfels_size, surfels, keyframe.get()),
           CreatePixelCenterUnprojector(depth_camera),
@@ -193,7 +193,27 @@ void OptimizeGeometryIterationCUDA(
           CreatePixelCornerProjector(color_camera),
           keyframe->color_texture(), // 11.12 TODO: instead, using keyframe->feature
           active_surfels.ToCUDA(),
+          use_depth_residuals);*/
+      /*MyAccumulateSurfelPositionAndDescriptorOptimizationCoeffsCUDAKernel(
+          stream,
+          CreateSurfelProjectionParameters(depth_camera, depth_params, surfels_size, surfels, keyframe.get()),
+          CreatePixelCenterUnprojector(depth_camera),
+          CreateDepthToColorPixelCorner(depth_camera, color_camera),
+          CreatePixelCornerProjector(color_camera),
+          keyframe->feature_buffer_().ToCUDA(), // 11.12 TODO: instead, using keyframe->feature
+          active_surfels.ToCUDA(),
+          use_depth_residuals);*/
+        TestAccumulateSurfelPositionAndDescriptorOptimizationCoeffsCUDAKernel(
+          stream,
+          CreateSurfelProjectionParameters(depth_camera, depth_params, surfels_size, surfels, keyframe.get()),
+          CreatePixelCenterUnprojector(depth_camera),
+          CreateDepthToColorPixelCorner(depth_camera, color_camera),
+          CreatePixelCornerProjector(color_camera),
+          keyframe->color_texture(), // 11.12 TODO: instead, using keyframe->feature
+          keyframe->feature_buffer().ToCUDA(), // 11.16 not sure if should use keyframe->feature_buffer()
+          active_surfels.ToCUDA(),
           use_depth_residuals);
+      
     }
     
     CallUpdateSurfelPositionAndDescriptorCUDAKernel(

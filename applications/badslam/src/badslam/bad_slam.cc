@@ -47,6 +47,8 @@
 // 11.15 for loaidng .npy 
 #include "cnpy.h"
 
+const int C = 3;
+
 namespace vis {
 
 BadSlam::BadSlam(
@@ -89,7 +91,7 @@ BadSlam::BadSlam(
   normals_buffer_.reset(new CUDABuffer<u16>(depth_height, depth_width));
   radius_buffer_.reset(new CUDABuffer<u16>(depth_height, depth_width));
   // 11.16 allocate feature buffer
-  feature_buffer_.reset(new CUDABuffer<float>(color_height, color_width*3));
+  feature_buffer_.reset(new CUDABuffer<float>(color_height, color_width*C));
   rgb_buffer_.reset(new CUDABuffer<uchar3>(color_height, color_width));
   color_buffer_.reset(new CUDABuffer<uchar4>(color_height, color_width));
   color_buffer_->CreateTextureObject(
@@ -1004,10 +1006,9 @@ shared_ptr<Keyframe> BadSlam::CreateKeyframe(
   const string time_stamp = rgbd_video_->color_frame_mutable(frame_index).get()->timestamp_string();
   const string file_name = time_stamp.substr(0, time_stamp.size()-3);
   const string path_feature_folder_path = path_feature_folder + file_name + ".npy";
-  cnpy::NpyArray arr = cnpy::npy_load(path_feature_folder_path);
-  float* feature_cpu = arr.data<float>();
-  // 11.16 if feature_cpu is not null
-  feature_buffer_->UploadAsync(stream_, feature_cpu);
+  cnpy::NpyArray feature_arr = cnpy::npy_load(path_feature_folder_path);
+  // 11.16 upload feature_arr to GPU, feature_buffer_ is the pointer to CUDABuffer;
+  feature_buffer_->UploadAsync(stream_, feature_arr.data<float>());
   
   shared_ptr<Keyframe> new_keyframe(new Keyframe(
       stream_,
@@ -1020,7 +1021,7 @@ shared_ptr<Keyframe> BadSlam::CreateKeyframe(
       *color_buffer_, // 11.12 loaded in PreprocessFrame
       rgbd_video_->depth_frame_mutable(frame_index),
       rgbd_video_->color_frame_mutable(frame_index),
-      depth_buffer));
+      *feature_buffer_));
   base_kf_ = new_keyframe.get();
   // Since the BA thread does not know yet that this frame here will become a
   // keyframe, there is no danger that base_kf_->global_T_frame() gets updated
