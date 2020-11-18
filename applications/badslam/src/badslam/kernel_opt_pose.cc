@@ -46,6 +46,7 @@ void AccumulatePoseEstimationCoeffsCUDA(
     const CUDABuffer<u16>& depth_buffer,
     const CUDABuffer<u16>& normals_buffer,
     cudaTextureObject_t color_texture,
+    const CUDABuffer<float>& feature_buffer, /*11.18 in cpu*/ 
     const CUDAMatrix3x4& frame_T_global_estimate,
     u32 surfels_size,
     const CUDABuffer<float>& surfels,
@@ -82,6 +83,7 @@ void AccumulatePoseEstimationCoeffsCUDA(
       CreatePixelCornerProjector(color_camera),
       CreatePixelCenterUnprojector(depth_camera),
       color_texture,
+      feature_buffer.ToCUDA(), /*11.18 cpu to gpu*/
       helper_buffers->residual_count_buffer.ToCUDA(),
       helper_buffers->residual_buffer.ToCUDA(),
       helper_buffers->H_buffer.ToCUDA(),

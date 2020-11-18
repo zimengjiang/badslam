@@ -109,7 +109,7 @@ Keyframe::Keyframe(
       normals_buffer_(depth_image.height(), depth_image.width()),
       radius_buffer_(depth_image.height(), depth_image.width()),
       color_buffer_(color_image.height(), color_image.width()),
-      feature_buffer_(color_image.height(), color_image.width()*3 /*11.16 jzmTODO: parametrize the '3'*/) {
+      feature_buffer_(color_image.height(), color_image.width()*C /*11.16 jzmTODO: parametrize the '3'*/) {
   // Perform color image preprocessing.
   CUDABuffer<uchar3> rgb_buffer(color_image.height(), color_image.width());
   rgb_buffer.UploadAsync(stream, reinterpret_cast<const Image<uchar3>&>(color_image));

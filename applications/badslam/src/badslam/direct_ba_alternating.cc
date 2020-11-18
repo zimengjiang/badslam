@@ -44,6 +44,7 @@ void DirectBA::EstimateFramePose(cudaStream_t stream,
                                  const CUDABuffer<u16>& depth_buffer,
                                  const CUDABuffer<u16>& normals_buffer,
                                  const cudaTextureObject_t color_texture,
+                                 const CUDABuffer<float>& feature_buffer, /*11.18 in cpu*/
                                  SE3f* out_global_T_frame_estimate,
                                  bool called_within_ba) {
   static int call_counter = 0;
@@ -160,6 +161,7 @@ repeat_pose_estimation:;
           depth_buffer,
           normals_buffer,
           color_texture,
+          feature_buffer, /*11.18 in cpu*/
           CUDAMatrix3x4(frame_T_global_estimate.matrix3x4()),
           surfels_size_,
           *surfels_,
@@ -561,6 +563,7 @@ void DirectBA::BundleAdjustmentAlternating(
                           keyframe->depth_buffer(),
                           keyframe->normals_buffer(),
                           keyframe->color_texture(),
+                          keyframe->feature_buffer(),
                           &global_T_frame_estimate,
                           true);
         SE3f pose_difference = keyframe->frame_T_global() * global_T_frame_estimate;
