@@ -352,7 +352,8 @@ __global__ void TestAccumulateSurfelPositionAndDescriptorOptimizationCoeffsCUDAK
     DepthToColorPixelCorner depth_to_color,
     PixelCornerProjector color_corner_projector,
     cudaTextureObject_t color_texture,
-    const CUDABuffer_<float> feature_arr,
+    // ERROR! illegal memory access with 'const CUDABuffer_<float>& feature_arr', /*11.18 global, better to use pointer instead of reference, such that it won't visit cpu memory?*/
+    CUDABuffer_<float> feature_arr, /*pointer to gpu*/
     CUDABuffer_<u8> active_surfels) {
   const unsigned int surfel_index = blockIdx.x * blockDim.x + threadIdx.x;
   // 11.18 debug feature array fetching 
