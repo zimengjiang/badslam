@@ -175,7 +175,7 @@ repeat_pose_estimation:;
         for (int col = row; col < 6; ++ col) {
           H(row, col) = H_temp[index];
           // 11.3 debug
-          printf("H%d%d = %f\n",row, col, H(row,col));
+          // printf("H%d%d = %f\n",row, col, H(row,col));
           ++ index;
         }
       }
@@ -210,7 +210,7 @@ repeat_pose_estimation:;
     if (kDebug) {
       LOG(INFO) << "Debug: x = " << std::endl << x;
     }
-    LOG(INFO) << "Debug: x = " << std::endl << x;
+    // LOG(INFO) << "Debug: x = " << std::endl << x; //11.3 for debugging
     // Apply the (negative) update -x.
     constexpr float kDamping = 1.f;
     global_T_frame_estimate = global_T_frame_estimate * SE3f::exp(-kDamping * x);

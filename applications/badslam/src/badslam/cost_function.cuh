@@ -356,6 +356,8 @@ __forceinline__ __device__ void ColorJacobianWrtProjectedPosition(
 
 /*11.17: bilinear interpolation, same effect as filtering in tex2D fetching */
 /*https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#texture-fetching*/
+/*11.18: always get CUDA error: too many resources requested for launch if I try to print something.
+This function occupies too much resource?*/
 __forceinline__ __device__ void TestFetchFeatureArrBilinearInterpolationVec(
     const CUDABuffer_<float>& feature_arr,
     const float& px, /*pixel corner coordinates, -> x, | y*/
@@ -365,7 +367,10 @@ __forceinline__ __device__ void TestFetchFeatureArrBilinearInterpolationVec(
     int iy = static_cast<int>(::max(0.f, py - 0.5f));      // j = floor(py-0.5)
     float alpha = ::max(0.f, ::min(1.f, px - 0.5f - ix));  // alpha = frac(px-0.5) 
     float beta = ::max(0.f, ::min(1.f, py - 0.5f - iy));   // beta = frac(py-0.5)
-    // printf("jzm2: feat(400,2000)=%f, feat(457,2216)=%f \n",feature_arr(400,2000), feature_arr(457,2216));
+    /*unsigned int surfel_index = blockIdx.x * blockDim.x + threadIdx.x;
+    if (surfel_index == 0){
+    printf("bilinear: feat(400,2000)=%f, feat(457,2216)=%f \n",feature_arr(400,2000), feature_arr(457,2216));
+  }*/
     int2 top_left, top_right, bottom_left, bottom_right;
     top_left = make_int2(ix,iy);
     top_right = make_int2(ix+1,iy);
@@ -425,9 +430,12 @@ __forceinline__ __device__ void TestComputeRawFeatureDescriptorResidual(
     const float2& t2_pxy,
     float* surfel_descriptor_vec,
     float* raw_residual_vec) {
-      // printf("jzm1: feautre_arr (0,1000) %f \n", feature_arr(0,1000));
+  
   // float intensity = tex2D<float4>(color_texture, pxy.x, pxy.y).w;
-  // unsigned int id = blockIdx.x * blockDim.x + threadIdx.x;
+  /*unsigned int surfel_index = blockIdx.x * blockDim.x + threadIdx.x;
+  if (surfel_index == 0){
+    printf("residual: feat(400,2000)=%f, feat(457,2216)=%f \n",feature_arr(400,2000), feature_arr(457,2216));
+  }*/
   // float t1_intensity = tex2D<float4>(color_texture, t1_pxy.x, t1_pxy.y).w; 
   // float t2_intensity = tex2D<float4>(color_texture, t2_pxy.x, t2_pxy.y).w;
   // TODO: for feature maps. make feature[N]t1_feature[N], t2_feature[N];
@@ -676,6 +684,10 @@ __forceinline__ __device__ void TestDescriptorJacobianWrtProjectedPositionOnChan
     float* grad_x_2,
     float* grad_y_2,
     int c) {
+  /*unsigned int surfel_index = blockIdx.x * blockDim.x + threadIdx.x;
+    if (surfel_index == 0){
+    printf("jacobian: feat(400,2000)=%f, feat(457,2216)=%f \n",feature_arr(400,2000), feature_arr(457,2216));
+  }*/
   // 11.16 Texture object fetching and filtering, +-0.5 stuff.
   // https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#texture-fetching
   int ix = static_cast<int>(::max(0.f, color_pxy.x - 0.5f)); // refer to libvis/camera.h: 103, convert to pixel center convention??? easier to compute the offsets from te pixel centers -> bilinear interpolation
@@ -684,7 +696,7 @@ __forceinline__ __device__ void TestDescriptorJacobianWrtProjectedPositionOnChan
   float ty = ::max(0.f, ::min(1.f, color_pxy.y - 0.5f - iy));  // truncated y = trunc(cy + fy*ls.y/ls.z)
   
   float top_left, top_right, bottom_left, bottom_right;
-
+    
   top_left = feature_arr(iy, ix*kNumChannels+c);
   top_right = feature_arr(iy, (ix+1)*kNumChannels+c);
   bottom_left = feature_arr(iy+1, ix*kNumChannels+c);

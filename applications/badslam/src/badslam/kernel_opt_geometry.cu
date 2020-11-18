@@ -355,7 +355,10 @@ __global__ void TestAccumulateSurfelPositionAndDescriptorOptimizationCoeffsCUDAK
     const CUDABuffer_<float> feature_arr,
     CUDABuffer_<u8> active_surfels) {
   const unsigned int surfel_index = blockIdx.x * blockDim.x + threadIdx.x;
-  
+  // 11.18 debug feature array fetching 
+  /*if (surfel_index == 0){
+    printf("jzm1: feat(400,2000)=%f, feat(457,2216)=%f \n",feature_arr(400,2000), feature_arr(457,2216));
+  }*/
   if (surfel_index < s.surfels_size) {
     if (!(active_surfels(0, surfel_index) & kSurfelActiveFlag)) {
       return;
@@ -420,14 +423,21 @@ __global__ void TestAccumulateSurfelPositionAndDescriptorOptimizationCoeffsCUDAK
           surfel_descriptor[i] = s.surfels(6+i, surfel_index); // hard code the kSurfelDescriptorArr
         }
         float raw_descriptor_residual[6];
-        TestComputeRawFeatureDescriptorResidual(
-          feature_arr,
+        /*ComputeRawFeatureDescriptorResidual(
           color_texture, // TODO: use feature_texture and remove this 
           color_pxy,
           t1_pxy,
           t2_pxy,
           surfel_descriptor,
-          raw_descriptor_residual);
+          raw_descriptor_residual);*/
+         TestComputeRawFeatureDescriptorResidual(
+            feature_arr,
+            color_texture, // TODO: use feature_texture and remove this 
+            color_pxy,
+            t1_pxy,
+            t2_pxy,
+            surfel_descriptor,
+            raw_descriptor_residual);
         // 10.30 these are consts for a given surfel
         const float term1 = -color_corner_projector.fx * (rn.x*r.surfel_local_position.z - rn.z*r.surfel_local_position.x);
         const float term2 = -color_corner_projector.fy * (rn.y*r.surfel_local_position.z - rn.z*r.surfel_local_position.y);

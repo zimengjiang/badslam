@@ -648,7 +648,7 @@ int LIBVIS_QT_MAIN(int argc, char** argv) {
     // Let BAD SLAM process the current RGB-D frame. This function does the
     // actual work.
     // jzm: 15/10, work done in ProcessFrame
-    bad_slam->ProcessFrame(frame_index);
+        bad_slam->ProcessFrame(frame_index);
     
     // Update the 3D visualization.
     bad_slam->UpdateOdometryVisualization(frame_index, /*show_current_frame_cloud*/ false);
