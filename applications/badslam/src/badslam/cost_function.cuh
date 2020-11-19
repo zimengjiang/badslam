@@ -54,6 +54,13 @@ constexpr float kDepthUncertaintyEmpiricalFactor = 0.1f;
 // 11.17 for the number of feature channels
 constexpr int kNumChannels = 3;
 
+// 11.18 for clamping indices
+constexpr int max_x = 737; // W - 1 - 1
+constexpr int max_y = 456; // H - 1 - 1
+
+// Macro definition
+#define CudaAssert( X ) if ( !(X) ) { printf( "Thread %d:%d failed assert at %s:%d! \n", blockIdx.x, threadIdx.x, __FILE__, __LINE__ ); return; }
+
 
 
 // Computes the "raw" depth (geometric) residual, i.e., without any weighting.
@@ -365,6 +372,8 @@ __forceinline__ __device__ void TestFetchFeatureArrBilinearInterpolationVec(
     float* result) {
     int ix = static_cast<int>(::max(0.f, px - 0.5f));      // i = floor(px-0.5)
     int iy = static_cast<int>(::max(0.f, py - 0.5f));      // j = floor(py-0.5)
+    ix = ::min(max_x, ix);
+    iy = ::min(max_y, iy);
     float alpha = ::max(0.f, ::min(1.f, px - 0.5f - ix));  // alpha = frac(px-0.5) 
     float beta = ::max(0.f, ::min(1.f, py - 0.5f - iy));   // beta = frac(py-0.5)
     /*unsigned int surfel_index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -400,6 +409,8 @@ __forceinline__ __device__ void TestFetchFeatureArrBilinearInterpolationFloat(
     float* result) {
     int ix = static_cast<int>(::max(0.f, px - 0.5f));      // i = floor(px-0.5)
     int iy = static_cast<int>(::max(0.f, py - 0.5f));      // j = floor(py-0.5)
+    ix = ::min(max_x, ix);
+    iy = ::min(max_y, iy);
     float alpha = ::max(0.f, ::min(1.f, px - 0.5f - ix));  // alpha = frac(px-0.5) 
     float beta = ::max(0.f, ::min(1.f, py - 0.5f - iy));   // beta = frac(py-0.5)
     int2 top_left, top_right, bottom_left, bottom_right;
@@ -691,11 +702,16 @@ __forceinline__ __device__ void TestDescriptorJacobianWrtProjectedPositionOnChan
   // https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#texture-fetching
   int ix = static_cast<int>(::max(0.f, color_pxy.x - 0.5f)); // refer to libvis/camera.h: 103, convert to pixel center convention??? easier to compute the offsets from te pixel centers -> bilinear interpolation
   int iy = static_cast<int>(::max(0.f, color_pxy.y - 0.5f));
+  // 11.19 out of bounds error => clamp it, texture memory handles like this!!! always check if out of bounds when indexing something
+  // see: https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#texture-memory
+  ix = ::min(max_x, ix);
+  iy = ::min(max_y, iy);
   float tx = ::max(0.f, ::min(1.f, color_pxy.x - 0.5f - ix));  // truncated x = trunc(cx + fx*ls.x/ls.z) // frac(xB), xB = x-0.5
   float ty = ::max(0.f, ::min(1.f, color_pxy.y - 0.5f - iy));  // truncated y = trunc(cy + fy*ls.y/ls.z)
   
   float top_left, top_right, bottom_left, bottom_right;
-    
+  // CudaAssert(ix <= 738-1);
+  // CudaAssert(iy <= 457-1);
   top_left = feature_arr(iy, ix*kNumChannels+c);
   top_right = feature_arr(iy, (ix+1)*kNumChannels+c);
   bottom_left = feature_arr(iy+1, ix*kNumChannels+c);
@@ -707,6 +723,8 @@ __forceinline__ __device__ void TestDescriptorJacobianWrtProjectedPositionOnChan
 
   ix = static_cast<int>(::max(0.f, t1_pxy.x - 0.5f));
   iy = static_cast<int>(::max(0.f, t1_pxy.y - 0.5f));
+  ix = ::min(max_x, ix);
+  iy = ::min(max_y, iy);
   tx = ::max(0.f, ::min(1.f, t1_pxy.x - 0.5f - ix));  // truncated x = trunc(cx + fx*ls.x/ls.z)
   ty = ::max(0.f, ::min(1.f, t1_pxy.y - 0.5f - iy));  // truncated y = trunc(cy + fy*ls.y/ls.z)
   
@@ -722,6 +740,8 @@ __forceinline__ __device__ void TestDescriptorJacobianWrtProjectedPositionOnChan
   
   ix = static_cast<int>(::max(0.f, t2_pxy.x - 0.5f));
   iy = static_cast<int>(::max(0.f, t2_pxy.y - 0.5f));
+  ix = ::min(max_x, ix);
+  iy = ::min(max_y, iy);
   tx = ::max(0.f, ::min(1.f, t2_pxy.x - 0.5f - ix));  // truncated x = trunc(cx + fx*ls.x/ls.z)
   ty = ::max(0.f, ::min(1.f, t2_pxy.y - 0.5f - iy));  // truncated y = trunc(cy + fy*ls.y/ls.z)
 

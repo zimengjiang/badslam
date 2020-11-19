@@ -999,7 +999,7 @@ shared_ptr<Keyframe> BadSlam::CreateKeyframe(
   */
   // rgbd_video_->color_frame_mutable(frame_index) 
   // const char* path_frame_npy = rgbd_video_->color_frame_mutable(frame_index) 
-  const string path_feature_folder = "/local/home/zjiang/data/eth3d/training/plant_2/rgb_normalized_float32/";
+  const string path_feature_folder = "/local/home/zjiang/data/eth3d/training/sofa_1/rgb_normalized_float32/";
   const string time_stamp = rgbd_video_->color_frame_mutable(frame_index).get()->timestamp_string();
   const string file_name = time_stamp.substr(0, time_stamp.size()-3);
   const string path_feature_folder_path = path_feature_folder + file_name + ".npy";

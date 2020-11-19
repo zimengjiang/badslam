@@ -167,14 +167,14 @@ __global__ void AccumulateSurfelPositionAndDescriptorOptimizationCoeffsCUDAKerne
       float2 color_pxy;
       if (TransformDepthToColorPixelCorner(r.pxy, depth_to_color, &color_pxy)) {
         // --- Descriptor residual ---
-          if (surfel_index == 0){
+          /*if (surfel_index == 0){
             // printf("surfel_index: %d \n", surfel_index);
             float x = color_pxy.x;
             float y = color_pxy.y;
             // float z = tex2D<float4>(color_texture, color_pxy.x, color_pxy.y).z;
             // float i = tex2D<float4>(color_texture, color_pxy.x, color_pxy.y).w;
             printf("(x: %f, y: %f) \n",x,y);
-          }
+          }*/
         float2 t1_pxy, t2_pxy;
         ComputeTangentProjections(
             r.surfel_global_position,
@@ -412,8 +412,8 @@ __global__ void TestAccumulateSurfelPositionAndDescriptorOptimizationCoeffsCUDAK
             &t1_pxy,
             &t2_pxy);
 
-        CudaAssert(t1_pxy.x > 0.5f && t1_pxy.y > 0.5f);
-        CudaAssert(t2_pxy.x > 0.5f && t2_pxy.y > 0.5f);
+        // CudaAssert(t1_pxy.x > 0.5f && t1_pxy.y > 0.5f);
+        // CudaAssert(t2_pxy.x > 0.5f && t2_pxy.y > 0.5f);
 
         float surfel_descriptor[6]; // problematic with const float array and use for loop to initialize
         // jzmTODO: use # pragma unroll to optimize the following 

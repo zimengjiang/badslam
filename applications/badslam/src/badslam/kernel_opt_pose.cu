@@ -805,6 +805,7 @@ __global__ void TestAccumulatePoseEstimationCoeffsCUDAKernel(
     PixelCenterProjector color_center_projector,
     PixelCornerProjector color_corner_projector,
     PixelCenterUnprojector depth_unprojector,
+    cudaTextureObject_t color_texture,
     CUDABuffer_<float> feature_arr,
     CUDABuffer_<u32> residual_count_buffer,
     CUDABuffer_<float> residual_buffer,
@@ -1058,7 +1059,7 @@ void CallAccumulatePoseEstimationCoeffsCUDAKernel(
           color_center_projector,
           color_corner_projector,
           depth_unprojector,
-          /*color_texture,*/
+          color_texture,
           feature_buffer,
           residual_count_buffer,
           residual_buffer,

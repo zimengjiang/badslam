@@ -97,12 +97,14 @@ void AccumulatePoseEstimationCoeffsCUDA(
   /*11.19 sometimes get errors from DownloadAsync: cudaMemcpy2DAsync error, 
   error message from: libvis/src/libvis/cuda/cuda_buffer_inl.h:139
   => may also return error codes from previous, asynchronous launches. (see https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html#group__CUDART__MEMORY_1g32bd7a39135594788a542ae72217775c)
-  update: too many threads/blocks aquired and their indicies go over bounds? seems to be solved after auto-tuning with current functions. 
-  tuning the block size is important! 
+  update: too many threads/blocks aquired and their indicies go over bounds? Or acquired shared memory goes over limit? 
+  seems to be solved after auto-tuning with current functions. Remeber to tune the block-size!
+  update: actually caused by out of range index in cost_function.cuh for bilinear interpolation. 
+  found by using cuda-memcheck and add compiler flag "-DCMAKE_CUDA_FLAGS": "-lineinfo" to localize the error.
    */
-  helper_buffers->b_buffer.DownloadAsync(stream, b);
-  // printf("jzm7\n"); 
   helper_buffers->H_buffer.DownloadAsync(stream, H);
+  // printf("jzm7\n"); 
+  helper_buffers->b_buffer.DownloadAsync(stream, b);
   // printf("jzm8\n"); 
   cudaStreamSynchronize(stream);
 }
