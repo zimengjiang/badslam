@@ -895,6 +895,8 @@ __global__ void TestAccumulatePoseEstimationCoeffsCUDAKernel(
           color_corner_projector,
           &t1_pxy,
           &t2_pxy);
+      // CudaAssert(t1_pxy.x > 0.5f && t1_pxy.y > 0.5f);
+      // CudaAssert(t2_pxy.x > 0.5f && t2_pxy.y > 0.5f);
       // 10.30 If visible, iterate over all the channels, accumulate H and b for each channel
       // We only need to retrieve current surfel_descriptor value once
       constexpr int kSurfelDescriptorArr[6] = {6,7,8,9,10,11};
@@ -1037,7 +1039,7 @@ void CallAccumulatePoseEstimationCoeffsCUDAKernel(
     const PixelCenterProjector& color_center_projector,
     const PixelCornerProjector& color_corner_projector,
     const PixelCenterUnprojector& depth_unprojector,
-    /*cudaTextureObject_t color_texture,*/
+    cudaTextureObject_t color_texture,
     const CUDABuffer_<float>& feature_buffer,
     const CUDABuffer_<u32>& residual_count_buffer,
     const CUDABuffer_<float>& residual_buffer,
@@ -1056,6 +1058,7 @@ void CallAccumulatePoseEstimationCoeffsCUDAKernel(
           color_center_projector,
           color_corner_projector,
           depth_unprojector,
+          /*color_texture,*/
           feature_buffer,
           residual_count_buffer,
           residual_buffer,

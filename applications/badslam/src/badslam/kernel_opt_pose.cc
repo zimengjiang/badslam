@@ -45,7 +45,7 @@ void AccumulatePoseEstimationCoeffsCUDA(
     const DepthParameters& depth_params,
     const CUDABuffer<u16>& depth_buffer,
     const CUDABuffer<u16>& normals_buffer,
-    /*cudaTextureObject_t color_texture,*/
+    cudaTextureObject_t color_texture,
     const CUDABuffer<float>& feature_buffer, /*11.18 in cpu*/ 
     const CUDAMatrix3x4& frame_T_global_estimate,
     u32 surfels_size,
@@ -82,7 +82,7 @@ void AccumulatePoseEstimationCoeffsCUDA(
       CreatePixelCenterProjector(color_camera),
       CreatePixelCornerProjector(color_camera),
       CreatePixelCenterUnprojector(depth_camera),
-      /*color_texture,*/
+      color_texture,
       feature_buffer.ToCUDA(), /*11.18 cpu to gpu*/
       helper_buffers->residual_count_buffer.ToCUDA(),
       helper_buffers->residual_buffer.ToCUDA(),
@@ -94,8 +94,16 @@ void AccumulatePoseEstimationCoeffsCUDA(
     helper_buffers->residual_buffer.DownloadAsync(stream, residual_sum);
   }
   // printf("jzm6\n"); 
+  /*11.19 sometimes get errors from DownloadAsync: cudaMemcpy2DAsync error, 
+  error message from: libvis/src/libvis/cuda/cuda_buffer_inl.h:139
+  => may also return error codes from previous, asynchronous launches. (see https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html#group__CUDART__MEMORY_1g32bd7a39135594788a542ae72217775c)
+  update: too many threads/blocks aquired and their indicies go over bounds? seems to be solved after auto-tuning with current functions. 
+  tuning the block size is important! 
+   */
   helper_buffers->b_buffer.DownloadAsync(stream, b);
+  // printf("jzm7\n"); 
   helper_buffers->H_buffer.DownloadAsync(stream, H);
+  // printf("jzm8\n"); 
   cudaStreamSynchronize(stream);
 }
 

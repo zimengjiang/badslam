@@ -46,7 +46,7 @@ void CallAccumulatePoseEstimationCoeffsCUDAKernel(
     const PixelCenterProjector& color_center_projector,
     const PixelCornerProjector& color_corner_projector,
     const PixelCenterUnprojector& depth_unprojector,
-    /*cudaTextureObject_t color_texture,*/
+    cudaTextureObject_t color_texture,
     const CUDABuffer_<float>& feature_buffer, /*11.18 in gpu*/ 
     const CUDABuffer_<u32>& residual_count_buffer,
     const CUDABuffer_<float>& residual_buffer,

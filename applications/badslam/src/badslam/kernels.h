@@ -178,7 +178,7 @@ void AccumulatePoseEstimationCoeffsCUDA(
     const DepthParameters& depth_params,
     const CUDABuffer<u16>& depth_buffer,
     const CUDABuffer<u16>& normals_buffer,
-    /*cudaTextureObject_t color_texture,*/
+    cudaTextureObject_t color_texture,
     const CUDABuffer<float>& feature_arr, /*11.18 in cpu*/
     const CUDAMatrix3x4& frame_T_global_estimate,
     u32 surfels_size,
