@@ -43,7 +43,7 @@ void DirectBA::EstimateFramePose(cudaStream_t stream,
                                  const SE3f& global_T_frame_initial_estimate,
                                  const CUDABuffer<u16>& depth_buffer,
                                  const CUDABuffer<u16>& normals_buffer,
-                                 const cudaTextureObject_t color_texture,
+                                 /*const cudaTextureObject_t color_texture,*/
                                  const CUDABuffer<float>& feature_buffer, /*11.18 in cpu*/
                                  SE3f* out_global_T_frame_estimate,
                                  bool called_within_ba) {
@@ -68,7 +68,6 @@ repeat_pose_estimation:;
     Image<u16> depth_buffer_cpu(depth_buffer.width(), depth_buffer.height());
     depth_buffer.DownloadAsync(stream, &depth_buffer_cpu);
     cudaStreamSynchronize(stream);
-    
     Image<float> cfactor_buffer_cpu(cfactor_buffer_->width(), cfactor_buffer_->height());
     cfactor_buffer_->DownloadAsync(stream, &cfactor_buffer_cpu);
     cudaStreamSynchronize(stream);
@@ -160,7 +159,7 @@ repeat_pose_estimation:;
           depth_params_,
           depth_buffer,
           normals_buffer,
-          color_texture,
+          /*color_texture,*/
           feature_buffer, /*11.18 in cpu*/
           CUDAMatrix3x4(frame_T_global_estimate.matrix3x4()),
           surfels_size_,
@@ -208,7 +207,6 @@ repeat_pose_estimation:;
     // Solve for the update x
     // NOTE: Not sure if using double is helpful here
     Eigen::Matrix<float, 6, 1> x = H.cast<double>().selfadjointView<Eigen::Upper>().ldlt().solve(b.cast<double>()).cast<float>();
-    // printf("jzm0 \n");
     if (kDebug) {
       LOG(INFO) << "Debug: x = " << std::endl << x;
     }
@@ -230,7 +228,6 @@ repeat_pose_estimation:;
       }
       std::getchar();
     }
-    // printf("jzm2 \n");
     // Check for convergence
     converged = IsScale1PoseEstimationConverged(x);
     if (!gather_convergence_samples_ && converged) {
@@ -562,7 +559,7 @@ void DirectBA::BundleAdjustmentAlternating(
                           keyframe->global_T_frame(),
                           keyframe->depth_buffer(),
                           keyframe->normals_buffer(),
-                          keyframe->color_texture(),
+                          /*keyframe->color_texture(),*/
                           keyframe->feature_buffer(),
                           &global_T_frame_estimate,
                           true);

@@ -351,9 +351,8 @@ __global__ void TestAccumulateSurfelPositionAndDescriptorOptimizationCoeffsCUDAK
     PixelCenterUnprojector depth_unprojector,
     DepthToColorPixelCorner depth_to_color,
     PixelCornerProjector color_corner_projector,
-    cudaTextureObject_t color_texture,
     // ERROR! illegal memory access with 'const CUDABuffer_<float>& feature_arr', /*11.18 global, better to use pointer instead of reference, such that it won't visit cpu memory?*/
-    CUDABuffer_<float> feature_arr, /*pointer to gpu*/
+    CUDABuffer_<float> feature_arr, /*11.18 pointer to gpu*/
     CUDABuffer_<u8> active_surfels) {
   const unsigned int surfel_index = blockIdx.x * blockDim.x + threadIdx.x;
   // 11.18 debug feature array fetching 
@@ -433,7 +432,6 @@ __global__ void TestAccumulateSurfelPositionAndDescriptorOptimizationCoeffsCUDAK
           raw_descriptor_residual);*/
          TestComputeRawFeatureDescriptorResidual(
             feature_arr,
-            color_texture, // TODO: use feature_texture and remove this 
             color_pxy,
             t1_pxy,
             t2_pxy,
@@ -578,13 +576,13 @@ void AccumulateSurfelPositionAndDescriptorOptimizationCoeffsCUDAKernel(
 }
 
 // 11.16 test feature fetching and bilinear interpolation 
+// this is host function, although the function name is the same as global function. flobal functions is called using <<<>>>, which is defined in CUDA_AUTO_TUNE_1D
 void TestAccumulateSurfelPositionAndDescriptorOptimizationCoeffsCUDAKernel(
   cudaStream_t stream,
   const SurfelProjectionParameters& s,
   const PixelCenterUnprojector& depth_unprojector,
   const DepthToColorPixelCorner& depth_to_color,
   const PixelCornerProjector& color_corner_projector,
-  cudaTextureObject_t color_texture,
   const CUDABuffer_<float>& feature_arr,
   const CUDABuffer_<u8>& active_surfels,
   bool use_depth_residuals) {
@@ -599,7 +597,6 @@ if (use_depth_residuals) {
       depth_unprojector,
       depth_to_color,
       color_corner_projector,
-      color_texture,
       feature_arr, 
       active_surfels);
 } else {
@@ -613,7 +610,6 @@ if (use_depth_residuals) {
       depth_unprojector,
       depth_to_color,
       color_corner_projector,
-      color_texture,
       feature_arr,
       active_surfels);
 }

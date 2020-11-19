@@ -110,7 +110,6 @@ void TestAccumulateSurfelPositionAndDescriptorOptimizationCoeffsCUDAKernel(
     const PixelCenterUnprojector& depth_unprojector,
     const DepthToColorPixelCorner& depth_to_color,
     const PixelCornerProjector& color_corner_projector,
-    cudaTextureObject_t color_texture,
     const CUDABuffer_<float>& feature_arr,
     const CUDABuffer_<u8>& active_surfels,
     bool use_depth_residuals);

@@ -362,14 +362,11 @@ void BadSlam::UpdateOdometryVisualization(
   if (show_current_frame_cloud && final_depth_buffer_) {
     int depth_width = final_depth_buffer_->width();
     int depth_height = final_depth_buffer_->height();
-    
     Image<u16> depth_buffer(depth_width, depth_height);
     final_depth_buffer_->DownloadAsync(stream_, &depth_buffer);
-    
     Image<Vec3u8> color_buffer(rgb_buffer_->width(), rgb_buffer_->height());
     rgb_buffer_->DownloadAsync(stream_, reinterpret_cast<Image<uchar3>*>(&color_buffer));
     cudaStreamSynchronize(stream_);
-    
     Image<float> cfactor_buffer_cpu(direct_ba_->cfactor_buffer()->width(), direct_ba_->cfactor_buffer()->height());
     direct_ba_->cfactor_buffer()->DownloadAsync(stream_, &cfactor_buffer_cpu);
     cudaStreamSynchronize(stream_);
@@ -1002,7 +999,7 @@ shared_ptr<Keyframe> BadSlam::CreateKeyframe(
   */
   // rgbd_video_->color_frame_mutable(frame_index) 
   // const char* path_frame_npy = rgbd_video_->color_frame_mutable(frame_index) 
-  const string path_feature_folder = "/local/home/zjiang/data/eth3d/training/plant_1/rgb_normalized_float32/";
+  const string path_feature_folder = "/local/home/zjiang/data/eth3d/training/plant_2/rgb_normalized_float32/";
   const string time_stamp = rgbd_video_->color_frame_mutable(frame_index).get()->timestamp_string();
   const string file_name = time_stamp.substr(0, time_stamp.size()-3);
   const string path_feature_folder_path = path_feature_folder + file_name + ".npy";

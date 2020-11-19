@@ -424,7 +424,6 @@ __forceinline__ __device__ void TestCheckBilinearInterpolation(
 
 __forceinline__ __device__ void TestComputeRawFeatureDescriptorResidual(
     const CUDABuffer_<float>& feature_arr,
-    cudaTextureObject_t color_texture,
     const float2& pxy, /*pixel corner convention*/
     const float2& t1_pxy,/*pixel corner convention*/
     const float2& t2_pxy,
@@ -684,7 +683,7 @@ __forceinline__ __device__ void TestDescriptorJacobianWrtProjectedPositionOnChan
     float* grad_x_2,
     float* grad_y_2,
     int c) {
-  /*nsigned int surfel_index = blockIdx.x * blockDim.x + threadIdx.x;
+  /*unsigned int surfel_index = blockIdx.x * blockDim.x + threadIdx.x;
     if (surfel_index == 0){
     printf("jacobian: feat(400,2000)=%f, feat(457,2216)=%f \n",feature_arr(400,2000), feature_arr(457,2216));
   }*/

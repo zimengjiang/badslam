@@ -209,8 +209,7 @@ void OptimizeGeometryIterationCUDA(
           CreatePixelCenterUnprojector(depth_camera),
           CreateDepthToColorPixelCorner(depth_camera, color_camera),
           CreatePixelCornerProjector(color_camera),
-          keyframe->color_texture(), // 11.12 TODO: instead, using keyframe->feature
-          keyframe->feature_buffer().ToCUDA(), // 11.16 not sure if should use keyframe->feature_buffer()
+          keyframe->feature_buffer().ToCUDA(), // 11.16 not sure if should use keyframe->feature_buffer() 11.18 update: should use .ToCUDA() to move from cpu to gpu. 
           active_surfels.ToCUDA(),
           use_depth_residuals);
       
