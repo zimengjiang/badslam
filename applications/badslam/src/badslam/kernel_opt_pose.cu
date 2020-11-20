@@ -41,11 +41,9 @@
 
 
 
-
 namespace vis {
 // Macro definition
 #define CudaAssert( X ) if ( !(X) ) { printf( "Thread %d:%d failed assert at %s:%d! \n", blockIdx.x, threadIdx.x, __FILE__, __LINE__ ); return; }
-
 __forceinline__ __device__ void ComputeRawDepthResidualAndJacobian(
     const PixelCenterUnprojector& unprojector,
     int px,
@@ -199,15 +197,9 @@ CudaAssert(jacobian_2[3] == jacobian_2[3]);
 jacobian_2[4] = -((ls.x * ls.x + ls_z_sq) * grad_x_fx_2 + ls_x_y * grad_y_fy_2) * inv_ls_z_sq;
 CudaAssert(jacobian_2[4] == jacobian_2[4]);
 jacobian_2[5] = -(ls.x * grad_y_fy_2 - ls.y * grad_x_fx_2) * inv_ls_z;
-/*if (surfel_index == 0){
-  printf("grad_x_fx_1: %f, grad_y_fy_1: %f\n", grad_x_fx_1,grad_y_fy_1);
-  printf("grad_x_fx_2: %f, grad_y_fy_2: %f\n", grad_x_fx_2,grad_y_fy_2);
-  printf("j10, j11, j12, j13, j14, j15  = \n %f, %f, %f, %f, %f, %f \n",jacobian_1[0], jacobian_1[1], jacobian_1[2],jacobian_1[3], jacobian_1[4], jacobian_1[5]);
-  printf("j20, j21, j22, j23, j24, j25  = \n %f, %f, %f, %f, %f, %f \n",jacobian_2[0], jacobian_2[1], jacobian_2[2],jacobian_2[3], jacobian_2[4], jacobian_2[5]);
-}*/
 }
 
-__forceinline__ __device__ void TestComputeRawDescriptorFeatureJacobian(
+__forceinline__ __device__ void BackupTestComputeRawDescriptorFeatureJacobian(
   const CUDABuffer_<float>& feature_arr,
   const PixelCenterProjector& color_center_projector,
   const float2& pxy,
@@ -274,6 +266,62 @@ jacobian_2[5] = -(ls.x * grad_y_fy_2 - ls.y * grad_x_fx_2) * inv_ls_z;
 }*/
 }
 
+__forceinline__ __device__ void TestComputeRawDescriptorFeatureJacobian(
+  const CUDABuffer_<float>& feature_arr,
+  const PixelCenterProjector& color_center_projector,
+  const float2& pxy,
+  const float2& t1_pxy,
+  const float2& t2_pxy,
+  const float3& ls,  // surfel_local_position
+  float* jacobian_all,
+  int channel) {
+  /*  unsigned int surfel_index = blockIdx.x * blockDim.x + threadIdx.x;
+  if (surfel_index == 0){
+    printf("pose_jacobian: feat(400,2000)=%f, feat(457,2216)=%f \n",feature_arr(400,2000), feature_arr(457,2216));
+  }*/
+
+  CudaAssert(ls.x == ls.x);
+  CudaAssert(ls.y == ls.y);
+  CudaAssert(ls.z == ls.z);
+// 11.3 jzmTODO: reuse computation. here the derivative of the projected position w.r.t. pose is the same for all the channels.
+float grad_x_fx_1;
+float grad_y_fy_1;
+float grad_x_fx_2;
+float grad_y_fy_2;
+TestDescriptorJacobianWrtProjectedPositionOnChannels(
+    feature_arr, pxy, t1_pxy, t2_pxy, &grad_x_fx_1, &grad_y_fy_1, &grad_x_fx_2, &grad_y_fy_2, channel);
+grad_x_fx_1 *= color_center_projector.fx;
+grad_x_fx_2 *= color_center_projector.fx;
+grad_y_fy_1 *= color_center_projector.fy;
+grad_y_fy_2 *= color_center_projector.fy;
+// 11.3 jzmTODO: for debugging , delete it after debugging
+// unsigned int surfel_index = blockIdx.x * blockDim.x + threadIdx.x;
+
+float inv_ls_z = 1.f / ls.z;
+CudaAssert(inv_ls_z == inv_ls_z);
+float ls_z_sq = ls.z * ls.z;
+CudaAssert(ls_z_sq == ls_z_sq);
+float inv_ls_z_sq = inv_ls_z * inv_ls_z;
+CudaAssert(inv_ls_z_sq == inv_ls_z_sq)
+// 11.20 jacobian_1, depending on channel, channel is 0-based index.
+*(jacobian_all+6*channel) = -grad_x_fx_1 * inv_ls_z; // jacobian_1[0] = -grad_x_fx_1 * inv_ls_z;
+*(jacobian_all+6*channel+1) = -grad_y_fy_1 * inv_ls_z; // jacobian_1[1] = -grad_y_fy_1 * inv_ls_z;
+*(jacobian_all+6*channel+2) = (ls.x * grad_x_fx_1 + ls.y * grad_y_fy_1) * inv_ls_z_sq; // jacobian_1[2] = (ls.x * grad_x_fx_1 + ls.y * grad_y_fy_1) * inv_ls_z_sq;
+
+float ls_x_y = ls.x * ls.y;
+//CudaAssert(ls_x_y == ls_x_y);
+*(jacobian_all+6*channel+3) = ((ls.y * ls.y + ls_z_sq) * grad_y_fy_1 + ls_x_y * grad_x_fx_1) * inv_ls_z_sq; // jacobian_1[3] =  ((ls.y * ls.y + ls_z_sq) * grad_y_fy_1 + ls_x_y * grad_x_fx_1) * inv_ls_z_sq;
+*(jacobian_all+6*channel+4) = -((ls.x * ls.x + ls_z_sq) * grad_x_fx_1 + ls_x_y * grad_y_fy_1) * inv_ls_z_sq; // jacobian_1[4] = -((ls.x * ls.x + ls_z_sq) * grad_x_fx_1 + ls_x_y * grad_y_fy_1) * inv_ls_z_sq;
+*(jacobian_all+6*channel+5) = -(ls.x * grad_y_fy_1 - ls.y * grad_x_fx_1) * inv_ls_z; //jacobian_1[5] = -(ls.x * grad_y_fy_1 - ls.y * grad_x_fx_1) * inv_ls_z;
+
+// 11.20 jacobian_2, depending on channel, channel is 0-based index.
+*(jacobian_all + 6*kNumChannels + 6*channel) = -grad_x_fx_2 * inv_ls_z; // jacobian_2[0] = -grad_x_fx_2 * inv_ls_z;
+*(jacobian_all + 6*kNumChannels + 6*channel+1) = -grad_y_fy_2 * inv_ls_z; // jacobian_2[1] = -grad_y_fy_2 * inv_ls_z;
+*(jacobian_all + 6*kNumChannels + 6*channel+2) = (ls.x * grad_x_fx_2 + ls.y * grad_y_fy_2) * inv_ls_z_sq; // jacobian_2[2] = (ls.x * grad_x_fx_2 + ls.y * grad_y_fy_2) * inv_ls_z_sq;
+*(jacobian_all + 6*kNumChannels + 6*channel+3) = ((ls.y * ls.y + ls_z_sq) * grad_y_fy_2 + ls_x_y * grad_x_fx_2) * inv_ls_z_sq; // jacobian_2[3] =  ((ls.y * ls.y + ls_z_sq) * grad_y_fy_2 + ls_x_y * grad_x_fx_2) * inv_ls_z_sq;
+*(jacobian_all + 6*kNumChannels + 6*channel+4) = -((ls.x * ls.x + ls_z_sq) * grad_x_fx_2 + ls_x_y * grad_y_fy_2) * inv_ls_z_sq; // jacobian_2[4] = -((ls.x * ls.x + ls_z_sq) * grad_x_fx_2 + ls_x_y * grad_y_fy_2) * inv_ls_z_sq;
+*(jacobian_all + 6*kNumChannels + 6*channel+5) = -(ls.x * grad_y_fy_2 - ls.y * grad_x_fx_2) * inv_ls_z; // jacobian_2[5] = -(ls.x * grad_y_fy_2 - ls.y * grad_x_fx_2) * inv_ls_z;
+}
 
 __forceinline__ __device__ void ComputeRawDescriptorFeatureResidualAndJacobian(
   const PixelCenterProjector& color_center_projector,
@@ -876,12 +924,7 @@ __global__ void TestAccumulatePoseEstimationCoeffsCUDAKernel(
   // --- Descriptor residual ---
   if (use_descriptor_residuals) {
     // float raw_residual_2;
-    // jzmTODO 11.9: how do you arrange the jacobians if you have 128 channels of features? 
-    float jacobian_2[6] = {0};
-    float jacobian_3[6] = {0};
-    float jacobian_4[6] = {0};
-    float jacobian_5[6] = {0};
-    float jacobian_6[6] = {0};
+    float jacobian_all[6*kNumChannels] = {0}; 
     float2 color_pxy;
     float2 t1_pxy, t2_pxy;
     // 10.30 If visible, compute t1_px1, t2_pxy ( <- 11.12 This statement is false! The transformdepthtocolorpixelcorner function will execute anyway whatever visible is. 
@@ -910,13 +953,6 @@ __global__ void TestAccumulatePoseEstimationCoeffsCUDAKernel(
       // jzmTODO: maybe when we change the data structure from color_texture to feature_texture, we can learn from intensity implementation and 
       // loop over all the feature maps, for each feature map, we do exactly the same thing for intensity based approach, just to change the 
       // indices of H and b (in geometry optimization). For pose optimization, we just loop over all the feature maps and accumulate H and b.
-      /*ComputeRawFeatureDescriptorResidual(
-        color_texture, // TODO: use feature_texture
-        color_pxy,
-        t1_pxy,
-        t2_pxy,
-        surfel_descriptor,
-        raw_residual_vec);*/
         TestComputeRawFeatureDescriptorResidual(
           feature_arr,
           color_pxy,
@@ -924,100 +960,39 @@ __global__ void TestAccumulatePoseEstimationCoeffsCUDAKernel(
           t2_pxy,
           surfel_descriptor,
           raw_residual_vec);
-      // 11.3 debug weight, why jacobian is not nan but H is nan
-      /*if (surfel_index == 0){
-        for (int debugi=0; debugi < 6; ++debugi){
-          printf("residual_weight %d: %f \n", debugi,ComputeDescriptorResidualWeight(raw_residual_vec[debugi]));
+        for (int channel = 0; channel < kNumChannels; ++channel){
+          TestComputeRawDescriptorFeatureJacobian(
+            feature_arr,
+            color_center_projector,
+            color_pxy,
+            t1_pxy, t2_pxy,
+            r.surfel_local_position,
+            jacobian_all,
+            channel /* channel*/);
         }
-      }*/
-      TestComputeRawDescriptorFeatureJacobian( /*11.18 only compute the jacobian, the residual is computed already*/
-        feature_arr,
-        color_center_projector,
-        color_pxy,
-        t1_pxy, t2_pxy,
-        r.surfel_local_position,
-        jacobian,
-        jacobian_2,
-        0 /* channel*/);
-      TestComputeRawDescriptorFeatureJacobian(
-        feature_arr,
-        color_center_projector,
-        color_pxy,
-        t1_pxy, t2_pxy,
-        r.surfel_local_position,
-        jacobian_3,
-        jacobian_4,
-        1 /* channel*/);
-      TestComputeRawDescriptorFeatureJacobian(
-        feature_arr,
-        color_center_projector,
-        color_pxy,
-        t1_pxy, t2_pxy,
-        r.surfel_local_position,
-        jacobian_5,
-        jacobian_6,
-        2 /* channel*/);
     }
     else{
       visible = false; // nothing is done if not visible 
     }
-    
-    AccumulateGaussNewtonHAndB<6, block_width, block_height>(
+    for (int channel = 0; channel < kNumChannels; ++channel){
+      AccumulateGaussNewtonHAndB<6, block_width, block_height>(
         visible,
-        raw_residual_vec[0],
-        ComputeDescriptorResidualWeight(raw_residual_vec[0]),
-        jacobian,
+        raw_residual_vec[channel],
+        ComputeDescriptorResidualWeight(raw_residual_vec[channel]),
+        jacobian_all+6*channel, // pass the address of jacobian_c_1[0]
         H_buffer,
         b_buffer,
         &temp_storage.float_storage);
-    
-    AccumulateGaussNewtonHAndB<6, block_width, block_height>(
+      
+      AccumulateGaussNewtonHAndB<6, block_width, block_height>(
         visible,
-        raw_residual_vec[0 + 3], // channel_i + N is residual_2 for each channel
-        ComputeDescriptorResidualWeight(raw_residual_vec[0 + 3]),
-        jacobian_2,
+        raw_residual_vec[channel + kNumChannels], // channel_i + N is residual_2 for each channel
+        ComputeDescriptorResidualWeight(raw_residual_vec[channel + kNumChannels]),
+        jacobian_all + 6*kNumChannels + 6*channel, // pass the address of jacobian_c_2[0]
         H_buffer,
         b_buffer,
         &temp_storage.float_storage);
-    
-    AccumulateGaussNewtonHAndB<6, block_width, block_height>(
-        visible,
-        raw_residual_vec[1],
-        ComputeDescriptorResidualWeight(raw_residual_vec[1]),
-        jacobian_3,
-        H_buffer,
-        b_buffer,
-        &temp_storage.float_storage);
-    
-    AccumulateGaussNewtonHAndB<6, block_width, block_height>(
-        visible,
-        raw_residual_vec[1 + 3], // channel_i + N is residual_2 for each channel
-        ComputeDescriptorResidualWeight(raw_residual_vec[1 + 3]),
-        jacobian_4,
-        H_buffer,
-        b_buffer,
-        &temp_storage.float_storage);
-    
-    AccumulateGaussNewtonHAndB<6, block_width, block_height>(
-        visible,
-        raw_residual_vec[2],
-        ComputeDescriptorResidualWeight(raw_residual_vec[2]),
-        jacobian_5,
-        H_buffer,
-        b_buffer,
-        &temp_storage.float_storage);
-    
-    AccumulateGaussNewtonHAndB<6, block_width, block_height>(
-        visible,
-        raw_residual_vec[2 + 3], // channel_i + N is residual_2 for each channel
-        ComputeDescriptorResidualWeight(raw_residual_vec[2 + 3]),
-        jacobian_6,
-        H_buffer,
-        b_buffer,
-        &temp_storage.float_storage);
-    
-  
-    
+    }
     // 10.30 Put the debug within the for loop above?
     if (debug) {
       AccumulatePoseResidualAndCount<block_width, block_height>(
