@@ -29,9 +29,9 @@
 #include "badslam/keyframe.h"
 
 #include "badslam/surfel_projection.h"
-const int H = 458;
-const int W = 739;
+
 const int C = 3;  
+
 namespace vis {
 
 Keyframe::Keyframe(
@@ -57,7 +57,7 @@ Keyframe::Keyframe(
       color_buffer_(color_buffer.height(), color_buffer.width()), // 11.13 jzmTODO can use the height and width of color buffer to initialize feature_buffer, but the width/height needs change?
       depth_frame_(depth_frame),
       color_frame_(color_frame),
-      feature_buffer_(H, W*C)
+      feature_buffer_(color_buffer.height(), color_buffer.width()*C) // 11.20 feature buffer has the same dim as color frame (original image shape)
        {
   CHECK_GT(min_depth, 0.f)
       << "Keyframe min depth must be larger than 0 since the frustum checks"

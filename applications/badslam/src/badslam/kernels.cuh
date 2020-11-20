@@ -26,7 +26,7 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#pragma once
+#pragma once // 11.20 include guard
 
 #include <cuda_runtime.h>
 #include <libvis/libvis.h>
@@ -60,6 +60,9 @@ constexpr float cos_normal_compatibility_threshold = 0.76604f;  // = cosf(M_PI /
 
 // Scalar type used in the PCG-based Gauss-Newton optimization (float or double).
 typedef float PCGScalar;
+
+// 11.20 number of channels, cost_function.cuh also needs this const, #include this file?
+constexpr int kTotalChannels = 3;
 
 
 // The surfel structure is stored in large buffers. It is organized
@@ -106,8 +109,8 @@ constexpr int kSurfelAccum8 = 16+4;  // float
 // This first number of attributes will be copied if a surfel is copied to a
 // different index.
 // constexpr int kSurfelDataAttributeCount = 8;
-constexpr int kSurfelDataAttributeCount = 12; // 6+2N, N channels
-// Total surfel attribute count, including temporary attributes (which are not
+// constexpr int kSurfelDataAttributeCount = 12; // 6+2N, 6 is for kSurfelX/Y/Z, kSurfelNormal, kSurfelRadiusSquared, kSurfelColor, N channels => 2N descriptor residuals
+// Total surfel attribute count, including temporary attributes (i.e. H and b) (which are not
 // preserved during copies).
 // constexpr int kSurfelAttributeCount = 17;
 // 11.1 we only need to keep non-zero entries of H:4N+1 and b: 2N+1, in total:6N+2
@@ -115,7 +118,9 @@ constexpr int kSurfelDataAttributeCount = 12; // 6+2N, N channels
 H is symmetric. split it into 3 parts: NOTICE: ensure that A and D are invertable. 
 [A, C^T, diag(D)], A: top left part of H, C^T: top right part of H, D: bottom right part of H.
 */
-constexpr int kSurfelAttributeCount = 32; 
+// constexpr int kSurfelAttributeCount = 32; 
+
+/*---------Explanation for k's----------*/
 /*
 1. fixed attributes: 6, [0,1,2,3,4,5]
 2. descriptors: 2N, [6, ..., 2N+5]
@@ -126,10 +131,18 @@ constexpr int kSurfelAttributeCount = 32;
 7. in totol: 8N+8
 */
 // 11.1 
-constexpr int kSurfelAccumHAndBCount = 20; // kSurfelAttributeCount - kSurfelDataAttributeCount
+/*constexpr int kSurfelAccumHAndBCount = 20; // kSurfelAttributeCount - kSurfelDataAttributeCount
 constexpr int kSurfelAccumHCount = 13; // 4N+1
 constexpr int kSurfelAccumBCount = 7; // 2N+1
-constexpr int kSurfelFixedAttributeCount = 6; // 2N+1
+constexpr int kSurfelFixedAttributeCount = 6; */
 // 11.17 add feature channels
 // constexpr int kNumChannels = 3; // N, already defined in cost_function.cuh
+// 11.20 parametrize things
+constexpr int kSurfelAccumHAndBCount = 6*kTotalChannels+2; // 6N+2
+constexpr int kSurfelAccumHCount = 4*kTotalChannels+1; // 4N+1
+constexpr int kSurfelAccumBCount = 2*kTotalChannels+1; // 2N+1 
+constexpr int kSurfelDataAttributeCount = 6+2*kTotalChannels; // 6+2N, 6 is for kSurfelX/Y/Z, kSurfelNormal, kSurfelRadiusSquared, kSurfelColor, N channels => 2N descriptor residuals
+constexpr int kSurfelAttributeCount = 8*kTotalChannels+8; 
+constexpr int kSurfelFixedAttributeCount = 6;
+constexpr int kSurfelNumDescriptor = 2*kTotalChannels; // 2N
 }

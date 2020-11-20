@@ -924,7 +924,7 @@ __global__ void TestAccumulatePoseEstimationCoeffsCUDAKernel(
   // --- Descriptor residual ---
   if (use_descriptor_residuals) {
     // float raw_residual_2;
-    float jacobian_all[6*kNumChannels] = {0}; 
+    float jacobian_all[6*kSurfelNumDescriptor] = {0}; 
     float2 color_pxy;
     float2 t1_pxy, t2_pxy;
     // 10.30 If visible, compute t1_px1, t2_pxy ( <- 11.12 This statement is false! The transformdepthtocolorpixelcorner function will execute anyway whatever visible is. 
@@ -943,10 +943,11 @@ __global__ void TestAccumulatePoseEstimationCoeffsCUDAKernel(
       // CudaAssert(t2_pxy.x > 0.5f && t2_pxy.y > 0.5f);
       // 10.30 If visible, iterate over all the channels, accumulate H and b for each channel
       // We only need to retrieve current surfel_descriptor value once
-      constexpr int kSurfelDescriptorArr[6] = {6,7,8,9,10,11};
+      
       float surfel_descriptor[6]; // problematic with const float array and use for loop to initialize
-      for (int i = 0; i< 6; ++i){
-          surfel_descriptor[i] = s.surfels(kSurfelDescriptorArr[i], surfel_index);
+      #pragma unroll
+      for (int i = 0; i< kSurfelNumDescriptor; ++i){
+          surfel_descriptor[i] = s.surfels(kSurfelFixedAttributeCount + i, surfel_index); // constexpr int kSurfelDescriptorArr[] = {6,7,8,9,10,11};
           CudaAssert(surfel_descriptor[i] == surfel_descriptor[i]);
         }
       // we only need to compute the descriptor residual in vector form once. 

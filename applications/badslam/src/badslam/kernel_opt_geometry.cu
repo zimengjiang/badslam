@@ -385,7 +385,7 @@ __global__ void TestAccumulateSurfelPositionAndDescriptorOptimizationCoeffsCUDAK
         
         // Accumulate:
         s.surfels(kSurfelAccum0, surfel_index) += depth_weight * depth_jacobian * depth_jacobian; // H_00
-        s.surfels(kSurfelAccum0 + kSurfelAccumHCount, surfel_index) += depth_weight * raw_depth_residual * depth_jacobian;// 13 is the number of kAccums used for H, 4*N+1, N = 3
+        s.surfels(kSurfelAccum0 + kSurfelAccumHCount, surfel_index) += depth_weight * raw_depth_residual * depth_jacobian;// b0 is the number of kAccums used for H, 4*N+1, N = 3
       }
       // --------------------------------------------------
       float2 color_pxy;
@@ -397,11 +397,6 @@ __global__ void TestAccumulateSurfelPositionAndDescriptorOptimizationCoeffsCUDAK
             float y = color_pxy.y;
             printf("(x: %f, y: %f) \n",x,y);
           }*/
-        //float x = tex2D<float4>(color_texture, color_pxy.x, color_pxy.y).x;
-        //float y = tex2D<float4>(color_texture, color_pxy.x, color_pxy.y).y;
-        //float z = tex2D<float4>(color_texture, color_pxy.x, color_pxy.y).z;
-        //float w = tex2D<float4>(color_texture, color_pxy.x, color_pxy.y).w;
-        // printf("r:%f g:%f b:%f i:%f norm of xyz:%f norm all:%f \n", x,y,z,w,x*x+y*y+z*z, x*x+y*y+z*z+w*w);
         float2 t1_pxy, t2_pxy;
         ComputeTangentProjections(
             r.surfel_global_position,
@@ -415,21 +410,14 @@ __global__ void TestAccumulateSurfelPositionAndDescriptorOptimizationCoeffsCUDAK
         // CudaAssert(t1_pxy.x > 0.5f && t1_pxy.y > 0.5f);
         // CudaAssert(t2_pxy.x > 0.5f && t2_pxy.y > 0.5f);
 
-        float surfel_descriptor[6]; // problematic with const float array and use for loop to initialize
+        float surfel_descriptor[kSurfelNumDescriptor]; // problematic with const float array and use for loop to initialize
         // jzmTODO: use # pragma unroll to optimize the following 
         // 11.1
-        // #pragma unroll
-        for (int i = 0; i < 6; ++i){ // constexpr int kSurfelDescriptorArr[6] = {6,7,8,9,10,11};
-          surfel_descriptor[i] = s.surfels(6+i, surfel_index); // hard code the kSurfelDescriptorArr
+        #pragma unroll
+        for (int i = 0; i < kSurfelNumDescriptor; ++i){ // constexpr int kSurfelDescriptorArr[6] = {6,7,8,9,10,11};
+          surfel_descriptor[i] = s.surfels(kSurfelFixedAttributeCount+i, surfel_index); // hard code the kSurfelDescriptorArr
         }
         float raw_descriptor_residual[6];
-        /*ComputeRawFeatureDescriptorResidual(
-          color_texture, // TODO: use feature_texture and remove this 
-          color_pxy,
-          t1_pxy,
-          t2_pxy,
-          surfel_descriptor,
-          raw_descriptor_residual);*/
          TestComputeRawFeatureDescriptorResidual(
             feature_arr,
             color_pxy,
@@ -634,7 +622,7 @@ if (surfel_index < surfels_size) {
   float Di_inverse;
   float Bi;
   float x1; // delta_t
-  float x2[6] = {0,0,0,0,0,0}; // delta_descriptor 2N
+  float x2[kSurfelNumDescriptor] = {0}; // delta_descriptor 2N
   // Make sure that the matrix is positive definite
   // (instead of only semi-positive definite).
   constexpr float kEpsilon = 1e-6f; // jzmTODO: not clear to use 1e-6 or 1e-12, related to weight^2 or weight?
@@ -647,12 +635,12 @@ if (surfel_index < surfels_size) {
   // x1 = b1/A corresponds to surfel position t
   // x2[i] = D_inverse*b2(i) - D_inverse*B(i), because D is diagnal.
   // jzmTODO: double check the indices
-  const int DiOffset = kSurfelAccum0 + 7;
+  const int DiOffset = kSurfelAccum0 + 2*kNumChannels + 1;// + 2*N+1
   const int BiOffset = kSurfelAccum0 + 1;
   const int b2iOffset = kSurfelAccum0 + kSurfelAccumHCount + 1;
   // A needs to be well-defined
   surfels(kSurfelAccum0, surfel_index) = surfels(kSurfelAccum0, surfel_index) + kEpsilon; // should + epsilon here, if in computing x1, couse very large x2
-  for (int i = 0; i < 2*3; ++i){ // i < 2N
+  for (int i = 0; i < kSurfelNumDescriptor; ++i){ // i < 2N
     // D_inverse = 1.0/D(i)
     Di_inverse = 1.0f / (surfels(DiOffset + i, surfel_index)+kEpsilon); // 7 = 2N+1
     Bi = surfels(BiOffset + i, surfel_index); // A occupies 1 space, so here b starts from kSurfelAccum0+1
@@ -685,8 +673,8 @@ if (surfel_index < surfels_size) {
     float3 surfel_normal = SurfelGetNormal(surfels, surfel_index);
     SurfelSetPosition(&surfels, surfel_index, global_position - x1 * surfel_normal);
   }
-  
-  for (int i = 0; i < 6; ++i){
+  // program unroll?
+  for (int i = 0; i < kSurfelNumDescriptor; ++i){
     // since we have done in-placement for D_inverse*B(i) and D_inverse*b2(i)
     x2[i] = surfels(DiOffset + i, surfel_index) - surfels(BiOffset + i, surfel_index)*x1;
     // CudaAssert(x2[i] != 0);
