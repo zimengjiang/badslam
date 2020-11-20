@@ -47,6 +47,8 @@ bool SaveState(
 // SaveState()).
 // TODO: Use a well-defined endianness.
 bool LoadState(
+    const std::string& feature_folder,
+    const std::string& dataset_folder_path,
     BadSlam* slam,
     const std::string& path,
     std::function<bool (int, int)> progress_function = nullptr);

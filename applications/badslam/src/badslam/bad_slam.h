@@ -77,7 +77,7 @@ class BadSlam {
   ~BadSlam();
   
   // Processes a new RGB-D frame.
-  void ProcessFrame(int frame_index, bool force_keyframe = false);
+  void ProcessFrame(const std::string& feature_folder, const std::string& dataset_folder_path, int frame_index, bool force_keyframe = false);
   
   // Updates the 3D visualization.
   void UpdateOdometryVisualization(int frame_index,
@@ -157,6 +157,8 @@ class BadSlam {
   // Create a keyframe from the given video frame and returns it. Normally, this
   // function does not need to be called externally.
   shared_ptr<Keyframe> CreateKeyframe(
+      const std::string& feature_folder,
+      const std::string& dataset_folder_path,
       int frame_index,
       const Image<Vec3u8>* rgb_image,
       const shared_ptr<Image<u16>>& depth_image,

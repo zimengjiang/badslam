@@ -86,6 +86,7 @@ void ShowMainWindow(
     bool start_paused,
     BadSlamConfig& config,
     const string& program_path,
+    const string& feature_folder,
     const string& dataset_folder_path,
     const string& import_calibration_path,
     float depth_scaling,
@@ -101,6 +102,7 @@ void ShowMainWindow(
       start_paused,
       config,
       program_path,
+      feature_folder,
       dataset_folder_path,
       import_calibration_path,
       depth_scaling,
@@ -121,6 +123,7 @@ MainWindow::MainWindow(
     bool start_paused,
     BadSlamConfig& config,
     const string& program_path,
+    const string& feature_folder,
     const string& dataset_folder_path,
     const string& import_calibration_path,
     float depth_scaling,
@@ -132,6 +135,7 @@ MainWindow::MainWindow(
     Qt::WindowFlags flags)
     : QMainWindow(parent, flags),
       program_path_(program_path),
+      feature_folder_(feature_folder),
       dataset_folder_path_(dataset_folder_path),
       import_calibration_path_(import_calibration_path),
       depth_scaling_(depth_scaling),
@@ -507,7 +511,7 @@ void MainWindow::LoadState() {
     }
   };
   
-  if (vis::LoadState(bad_slam_.get(), path.toStdString(), progress_function)) {
+  if (vis::LoadState(feature_folder_, dataset_folder_path_, bad_slam_.get(), path.toStdString(), progress_function)) {
     frame_index_ = bad_slam_->last_frame_index();
     
     bad_slam_->UpdateOdometryVisualization(
@@ -1831,7 +1835,7 @@ void MainWindow::WorkerThreadMain() {
       // Preprocess the frame such that its point cloud visualization will be available
       bad_slam_->PreprocessFrame(frame_index_, &bad_slam_->final_depth_buffer(), nullptr);
     } else {
-      bad_slam_->ProcessFrame(frame_index_, create_kf_);
+      bad_slam_->ProcessFrame(feature_folder_,dataset_folder_path_, frame_index_, create_kf_);
       create_kf_ = false;
     }
     

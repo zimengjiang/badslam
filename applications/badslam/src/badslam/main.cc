@@ -401,11 +401,17 @@ int LIBVIS_QT_MAIN(int argc, char** argv) {
       bad_slam_config.structure_visible_exposure_time_help);
   
   
+  
   // These sequential parameters must be specified last (in code).
   string dataset_folder_path;
   cmd_parser.SequentialParameter(
       &dataset_folder_path, "dataset_folder_path", false,
       "Path to the dataset in TUM RGB-D format.");
+  // 11.20 for parsing feature folder
+  string feature_folder;
+  cmd_parser.SequentialParameter(
+      &feature_folder, "feature_folder", false,
+      "Name of the feature folder");
   
   string trajectory_path;
   cmd_parser.SequentialParameter(
@@ -488,6 +494,7 @@ int LIBVIS_QT_MAIN(int argc, char** argv) {
         start_paused,
         bad_slam_config,
         argv[0],
+        feature_folder,
         dataset_folder_path,
         import_calibration_path,
         depth_scaling,
@@ -648,7 +655,7 @@ int LIBVIS_QT_MAIN(int argc, char** argv) {
     // Let BAD SLAM process the current RGB-D frame. This function does the
     // actual work.
     // jzm: 15/10, work done in ProcessFrame
-        bad_slam->ProcessFrame(frame_index);
+    bad_slam->ProcessFrame(feature_folder, dataset_folder_path,frame_index);
     
     // Update the 3D visualization.
     bad_slam->UpdateOdometryVisualization(frame_index, /*show_current_frame_cloud*/ false);

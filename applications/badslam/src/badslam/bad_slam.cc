@@ -173,7 +173,7 @@ BadSlam::BadSlam(
   }
 }
 
-void BadSlam::ProcessFrame(int frame_index, bool force_keyframe) {
+void BadSlam::ProcessFrame(const std::string& feature_folder, const std::string& dataset_folder_path, int frame_index, bool force_keyframe) {
   // Get the images. This should be before starting the "without I/O" timer
   // since it can lead to the images being loaded from disk (in case they are
   // not cached yet).
@@ -209,7 +209,9 @@ void BadSlam::ProcessFrame(int frame_index, bool force_keyframe) {
     // 11.2 debugging
     printf("**********\n");
     printf("frame index:%d\n",frame_index );
-    CreateKeyframe(frame_index,
+    CreateKeyframe(feature_folder,
+                   dataset_folder_path,
+                   frame_index,
                    rgb_image,
                    final_cpu_depth_map,
                    *final_depth_buffer_);
@@ -958,6 +960,8 @@ void BadSlam::RunOdometry(int frame_index) {
 
 //jzm 15/10
 shared_ptr<Keyframe> BadSlam::CreateKeyframe(
+    const std::string& feature_folder, 
+    const std::string& dataset_folder_path, 
     int frame_index,
     const Image<Vec3u8>* rgb_image,
     const shared_ptr<Image<u16>>& depth_image,
@@ -999,11 +1003,11 @@ shared_ptr<Keyframe> BadSlam::CreateKeyframe(
   */
   // rgbd_video_->color_frame_mutable(frame_index) 
   // const char* path_frame_npy = rgbd_video_->color_frame_mutable(frame_index) 
-  const string path_feature_folder = "/local/home/zjiang/data/eth3d/training/sofa_1/rgb_normalized_float32/";
-  const string time_stamp = rgbd_video_->color_frame_mutable(frame_index).get()->timestamp_string();
-  const string file_name = time_stamp.substr(0, time_stamp.size()-3);
-  const string path_feature_folder_path = path_feature_folder + file_name + ".npy";
-  cnpy::NpyArray feature_arr = cnpy::npy_load(path_feature_folder_path);
+  // const string dataset_folder_path = "/local/home/zjiang/data/eth3d/training/plant_1/rgb_normalized_float32/";
+  const std::string time_stamp = rgbd_video_->color_frame_mutable(frame_index).get()->timestamp_string();
+  const std::string file_name = time_stamp.substr(0, time_stamp.size()-3);
+  const std::string feature_file_path = dataset_folder_path + "/" + feature_folder + "/" + file_name +  +".npy";
+  cnpy::NpyArray feature_arr = cnpy::npy_load(feature_file_path);
   // 11.16 upload feature_arr to GPU, feature_buffer_ is the pointer to CUDABuffer;
   feature_buffer_->UploadAsync(stream_, feature_arr.data<float>());
   // printf("jzm0: feature arr (400,2000) %f \n", *(feature_arr.data<float>()+400*2217+2000));

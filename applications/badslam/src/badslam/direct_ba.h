@@ -124,7 +124,7 @@ class DirectBA {
       const SE3f& global_T_frame_initial_estimate,
       const CUDABuffer<u16>& depth_buffer,
       const CUDABuffer<u16>& normals_buffer,
-      const cudaTextureObject_t color_texture,
+      /*const cudaTextureObject_t color_texture,*/
       const CUDABuffer<float>& feature_buffer, /*11.18 in cpu*/
       SE3f* out_global_T_frame_estimate,
       bool called_within_ba);

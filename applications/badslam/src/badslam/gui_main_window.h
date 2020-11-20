@@ -53,6 +53,7 @@ void ShowMainWindow(
     bool start_paused,
     BadSlamConfig& config,
     const string& program_path,
+    const string& feature_folder,
     const string& dataset_folder_path,
     const string& import_calibration_path,
     float depth_scaling,
@@ -76,6 +77,7 @@ class MainWindow : public QMainWindow {
       bool start_paused,
       BadSlamConfig& config,
       const string& program_path,
+      const string& feature_folder,
       const string& dataset_folder_path,
       const string& import_calibration_path,
       float depth_scaling,
@@ -267,6 +269,7 @@ class MainWindow : public QMainWindow {
   
   // Settings
   string program_path_;
+  string feature_folder_; // 11.20
   string dataset_folder_path_;
   string import_calibration_path_;
   float depth_scaling_;
