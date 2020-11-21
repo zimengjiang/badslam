@@ -107,6 +107,7 @@ __device__ __forceinline__ void CreateNewSurfel(
     const CUDABuffer_<u16>& normals_buffer,
     const CUDABuffer_<u16>& radius_buffer,
     cudaTextureObject_t color_texture,
+    const CUDABuffer_<float>& feature_buffer,
     CUDABuffer_<float>& surfels) {
   float calibrated_depth = RawToCalibratedDepth(
       depth_params.a,
@@ -141,8 +142,8 @@ __device__ __forceinline__ void CreateNewSurfel(
   // float descriptor_1;
   // float descriptor_2;
   // 10.29 first, use array to see if values are passed correctly
-  float descriptor[6];
-  float surfel_descriptor[6] = {0,0,0,0,0,0}; // only for initialization
+  float descriptor[kSurfelNumDescriptor]={0};
+  float surfel_descriptor[kSurfelNumDescriptor] = {0}; // only for initialization
   //ComputeRawDescriptorResidual(
     //  color_texture,
       //color_pxy,
@@ -152,13 +153,20 @@ __device__ __forceinline__ void CreateNewSurfel(
       ///*surfel_descriptor_2*/ 0,
       //&descriptor_1,
       //&descriptor_2);
-  ComputeRawFeatureDescriptorResidual(
+  /*ComputeRawFeatureDescriptorResidual(
         color_texture, // TODO: use feature_texture
         color_pxy,
         t1_pxy,
         t2_pxy,
         surfel_descriptor,
-        descriptor);
+        descriptor);*/
+    TestComputeRawFeatureDescriptorResidual(
+      feature_buffer,
+      color_pxy,
+      t1_pxy,
+      t2_pxy,
+      surfel_descriptor,
+      descriptor);
   
   SurfelSetColor(&surfels, surfel_index, make_uchar4(
       255.f * color.x,
@@ -168,9 +176,10 @@ __device__ __forceinline__ void CreateNewSurfel(
   
   //surfels(kSurfelDescriptor1, surfel_index) = descriptor_1;
   //surfels(kSurfelDescriptor2, surfel_index) = descriptor_2;
-  constexpr int kSurfelDescriptorArr[6] = {6,7,8,9,10,11};
-  for (int i = 0; i<6; ++i){
-    surfels(kSurfelDescriptorArr[i], surfel_index) = descriptor[i];
+  // constexpr int kSurfelDescriptorArr[6] = {6,7,8,9,10,11};
+  # pragma unroll
+  for (int i = 0; i<kSurfelNumDescriptor; ++i){
+    surfels(kSurfelFixedAttributeCount+i, surfel_index) = descriptor[i];
   }
 }
 
@@ -379,6 +388,7 @@ __global__ void CreateSurfelsForKeyframeCUDACreationAppendKernel(
     CUDABuffer_<u16> normals_buffer,
     CUDABuffer_<u16> radius_buffer,
     cudaTextureObject_t color_texture,
+    CUDABuffer_<float> feature_buffer,
     CUDABuffer_<u8> new_surfel_flag_vector,
     CUDABuffer_<u32> new_surfel_indices,
     u32 surfels_size,
@@ -400,7 +410,7 @@ __global__ void CreateSurfelsForKeyframeCUDACreationAppendKernel(
     
     CreateNewSurfel(x, y, surfel_index, unprojector, depth_to_color, color_corner_projector, global_T_frame, frame_T_global,
                     depth_params, depth_buffer, normals_buffer, radius_buffer,
-                    color_texture, surfels);
+                    color_texture, feature_buffer,surfels);
   }
 }
 
@@ -416,6 +426,7 @@ void CallCreateSurfelsForKeyframeCUDACreationAppendKernel(
     const CUDABuffer_<u16>& normals_buffer,
     const CUDABuffer_<u16>& radius_buffer,
     cudaTextureObject_t color_texture,
+    const CUDABuffer_<float>& feature_buffer,
     const CUDABuffer_<u8>& new_surfel_flag_vector,
     const CUDABuffer_<u32>& new_surfel_indices,
     u32 surfels_size,
@@ -436,6 +447,7 @@ void CallCreateSurfelsForKeyframeCUDACreationAppendKernel(
       normals_buffer,
       radius_buffer,
       color_texture,
+      feature_buffer,
       new_surfel_flag_vector,
       new_surfel_indices,
       surfels_size,

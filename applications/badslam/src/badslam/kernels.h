@@ -150,6 +150,7 @@ void CreateSurfelsForKeyframeCUDA(
     const CUDABuffer<u16>& radius_buffer,
     const CUDABuffer<uchar4>& color_buffer,
     cudaTextureObject_t color_texture,
+    const CUDABuffer<float>& feature_buffer,
     CUDABuffer<u32>** supporting_surfels,
     void** new_surfels_temp_storage,
     usize* new_surfels_temp_storage_bytes,

@@ -47,7 +47,6 @@
 // 11.15 for loaidng .npy 
 #include "cnpy.h"
 
-const int C = 3;
 
 namespace vis {
 
@@ -91,7 +90,7 @@ BadSlam::BadSlam(
   normals_buffer_.reset(new CUDABuffer<u16>(depth_height, depth_width));
   radius_buffer_.reset(new CUDABuffer<u16>(depth_height, depth_width));
   // 11.16 allocate feature buffer
-  feature_buffer_.reset(new CUDABuffer<float>(color_height, color_width*C));
+  feature_buffer_.reset(new CUDABuffer<float>(color_height, color_width*kTotalChannels));
   rgb_buffer_.reset(new CUDABuffer<uchar3>(color_height, color_width));
   color_buffer_.reset(new CUDABuffer<uchar4>(color_height, color_width));
   color_buffer_->CreateTextureObject(

@@ -62,7 +62,7 @@ constexpr float cos_normal_compatibility_threshold = 0.76604f;  // = cosf(M_PI /
 typedef float PCGScalar;
 
 // 11.20 number of channels, cost_function.cuh also needs this const, #include this file?
-constexpr int kTotalChannels = 3;
+constexpr int kTotalChannels = 12;
 
 
 // The surfel structure is stored in large buffers. It is organized
@@ -87,7 +87,7 @@ constexpr int kSurfelDescriptor2 = 7;  // float
 // 10.30 some steps only uses few kSurfelAccum
 // kernel_assign_colors: kSurfelAccum0-2N [observation count, descriptors]
 // kernel_opt_geometry: kSurfelAccum0-(2N+1)*(N+1)+2N [H, b ]
-constexpr int kSurfelAccum0 = 8+4;  // float
+/*constexpr int kSurfelAccum0 = 8+4;  // float
 constexpr int kSurfelAccum1 = 9+4;  // float
 constexpr int kSurfelAccum2 = 10+4;  // float
 constexpr int kSurfelAccum3 = 11+4;  // float
@@ -95,7 +95,7 @@ constexpr int kSurfelAccum4 = 12+4;  // float
 constexpr int kSurfelAccum5 = 13+4;  // float
 constexpr int kSurfelAccum6 = 14+4;  // float
 constexpr int kSurfelAccum7 = 15+4;  // float
-constexpr int kSurfelAccum8 = 16+4;  // float
+constexpr int kSurfelAccum8 = 16+4;  // float*/
 
 
 // 10.29, construct kSurfelDescriptorArr
@@ -145,4 +145,15 @@ constexpr int kSurfelDataAttributeCount = 6+2*kTotalChannels; // 6+2N, 6 is for 
 constexpr int kSurfelAttributeCount = 8*kTotalChannels+8; 
 constexpr int kSurfelFixedAttributeCount = 6;
 constexpr int kSurfelNumDescriptor = 2*kTotalChannels; // 2N
+
+constexpr int kSurfelAccum0 = kSurfelFixedAttributeCount + kSurfelNumDescriptor;// 8+4;  // float
+constexpr int kSurfelAccum1 = kSurfelAccum0 + 1;  // 13 float
+constexpr int kSurfelAccum2 = kSurfelAccum0 + 2;  // 14 float
+constexpr int kSurfelAccum3 = kSurfelAccum0 + 3;  // 15 float
+constexpr int kSurfelAccum4 = kSurfelAccum0 + 4;  // 16 float
+constexpr int kSurfelAccum5 = kSurfelAccum0 + 5;  // 17 float
+constexpr int kSurfelAccum6 = kSurfelAccum0 + 6;  // 18 float
+constexpr int kSurfelAccum7 = kSurfelAccum0 + 7;  // 19 float
+constexpr int kSurfelAccum8 = kSurfelAccum0 + 8;  // 20 float
+
 }

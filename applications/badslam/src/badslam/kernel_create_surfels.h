@@ -65,6 +65,7 @@ void CallCreateSurfelsForKeyframeCUDACreationAppendKernel(
     const CUDABuffer_<u16>& normals_buffer,
     const CUDABuffer_<u16>& radius_buffer,
     cudaTextureObject_t color_texture,
+    const CUDABuffer_<float>& feature_buffer,
     const CUDABuffer_<u8>& new_surfel_flag_vector,
     const CUDABuffer_<u32>& new_surfel_indices,
     u32 surfels_size,

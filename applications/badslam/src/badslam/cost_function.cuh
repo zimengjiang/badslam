@@ -35,7 +35,7 @@
 #include "badslam/cuda_util.cuh"
 #include "badslam/util.cuh"
 #include "badslam/robust_weighting.cuh"
-
+#include "badslam/kernels.cuh"
 namespace vis {
 
 // --- Depth (geometric) residual ---
@@ -52,7 +52,7 @@ constexpr float kDepthResidualDefaultTukeyParam = 10.f;
 constexpr float kDepthUncertaintyEmpiricalFactor = 0.1f;
 
 // 11.17 for the number of feature channels
-constexpr int kNumChannels = 3;
+// constexpr int kTotalChannels = 9;
 
 // 11.18 for clamping indices
 constexpr int max_x = 737; // W - 1 - 1
@@ -385,7 +385,7 @@ __forceinline__ __device__ void TestFetchFeatureArrBilinearInterpolationVec(
     top_right = make_int2(ix+1,iy);
     bottom_left = make_int2(ix,iy+1);
     bottom_right = make_int2(ix+1,iy+1);
-    for (int c = 0; c < kNumChannels; ++c){
+    for (int c = 0; c < kTotalChannels; ++c){
       // c does not effect the computation of the interpolated corners. 
       /// Only px and py decides the corner. c is used to fetch the correct grid of the channel value corresponding to each pixel. 
       // 11.17 jzmTODO: double check indexing, (py,px), pitch index, Achtung! out of bounds buffer access
@@ -393,10 +393,10 @@ __forceinline__ __device__ void TestFetchFeatureArrBilinearInterpolationVec(
       printf("Out of bounds buffer access at (%i, %i), buffer size (%i, %i)\n",
              x, y, width_, height_);
       }*/
-      *(result + c) = (1-alpha)*(1-beta)*feature_arr(top_left.y,top_left.x*kNumChannels+c) \
-                      + alpha*(1-beta)*feature_arr(top_right.y,top_right.x*kNumChannels+c) \
-                      + beta*(1-alpha)*feature_arr(bottom_left.y,bottom_left.x*kNumChannels+c) \
-                      + alpha*beta*feature_arr(bottom_right.y, bottom_right.x*kNumChannels+c);
+      *(result + c) = (1-alpha)*(1-beta)*feature_arr(top_left.y,top_left.x*kTotalChannels+c) \
+                      + alpha*(1-beta)*feature_arr(top_right.y,top_right.x*kTotalChannels+c) \
+                      + beta*(1-alpha)*feature_arr(bottom_left.y,bottom_left.x*kTotalChannels+c) \
+                      + alpha*beta*feature_arr(bottom_right.y, bottom_right.x*kTotalChannels+c);
     }
 }
 
@@ -428,7 +428,7 @@ __forceinline__ __device__ void TestCheckBilinearInterpolation(
   float* raw_residual_vec,
   float* raw_residual_vec_true){
     printf("check bilinear interpolation\n");
-    for (int i = 0; i < kNumChannels; ++i){
+    for (int i = 0; i < kTotalChannels; ++i){
       printf("difference i: %f \n",*(raw_residual_vec+i)-*(raw_residual_vec_true+i));
     }
 }
@@ -460,15 +460,15 @@ __forceinline__ __device__ void TestComputeRawFeatureDescriptorResidual(
     printf("intensity = %f\n", intensity);
   }*/
 
-  float f_pxy[kNumChannels] = {0}; // initialize all to 0, memory allocation
-  float f_t1[kNumChannels] = {0};
-  float f_t2[kNumChannels] = {0};
+  float f_pxy[kTotalChannels] = {0}; // initialize all to 0, memory allocation
+  float f_t1[kTotalChannels] = {0};
+  float f_t2[kTotalChannels] = {0};
   TestFetchFeatureArrBilinearInterpolationVec(feature_arr, pxy.x, pxy.y, f_pxy);
   TestFetchFeatureArrBilinearInterpolationVec(feature_arr, t1_pxy.x, t1_pxy.y, f_t1);
   TestFetchFeatureArrBilinearInterpolationVec(feature_arr, t2_pxy.x, t2_pxy.y, f_t2);
-  for (int c = 0; c < kNumChannels; ++c){
+  for (int c = 0; c < kTotalChannels; ++c){
     *(raw_residual_vec+c) = 180.f * (f_t1[c] - f_pxy[c]) - surfel_descriptor_vec[c];
-    *(raw_residual_vec+kNumChannels+c) = 180.f * (f_t2[c] - f_pxy[c]) - surfel_descriptor_vec[kNumChannels+c];
+    *(raw_residual_vec+kTotalChannels+c) = 180.f * (f_t2[c] - f_pxy[c]) - surfel_descriptor_vec[kTotalChannels+c];
   }
 
   // fetching texture object (filtering mode: bilinear interpolation)
@@ -493,7 +493,7 @@ __forceinline__ __device__ void TestComputeRawFeatureDescriptorResidual(
   printf("t2_feature2 - f_t22: %f, %f\n", t2_feature2 , f_t2[1]);
   printf("t2_feature3 - f_t23: %f, %f\n", t2_feature3 , f_t2[2]);*/
 
-  /*float raw_residual_vec_true[kNumChannels*2] = {0};
+  /*float raw_residual_vec_true[kTotalChannels*2] = {0};
   *(raw_residual_vec_true) = (180.f * (t1_feature1 - pxy_feature1)) - surfel_descriptor_vec[0];
   *(raw_residual_vec_true+1) = (180.f * (t1_feature2 - pxy_feature2)) - surfel_descriptor_vec[1];
   *(raw_residual_vec_true+2) = (180.f * (t1_feature3 - pxy_feature3)) - surfel_descriptor_vec[2];
@@ -712,10 +712,10 @@ __forceinline__ __device__ void TestDescriptorJacobianWrtProjectedPositionOnChan
   float top_left, top_right, bottom_left, bottom_right;
   // CudaAssert(ix <= 738-1);
   // CudaAssert(iy <= 457-1);
-  top_left = feature_arr(iy, ix*kNumChannels+c);
-  top_right = feature_arr(iy, (ix+1)*kNumChannels+c);
-  bottom_left = feature_arr(iy+1, ix*kNumChannels+c);
-  bottom_right = feature_arr(iy+1, (ix+1)*kNumChannels+c);
+  top_left = feature_arr(iy, ix*kTotalChannels+c);
+  top_right = feature_arr(iy, (ix+1)*kTotalChannels+c);
+  bottom_left = feature_arr(iy+1, ix*kTotalChannels+c);
+  bottom_right = feature_arr(iy+1, (ix+1)*kTotalChannels+c);
 
   float center_dx = (bottom_right - bottom_left) * ty + (top_right - top_left) * (1 - ty);
   float center_dy = (bottom_right - top_right) * tx + (bottom_left - top_left) * (1 - tx);
@@ -728,10 +728,10 @@ __forceinline__ __device__ void TestDescriptorJacobianWrtProjectedPositionOnChan
   tx = ::max(0.f, ::min(1.f, t1_pxy.x - 0.5f - ix));  // truncated x = trunc(cx + fx*ls.x/ls.z)
   ty = ::max(0.f, ::min(1.f, t1_pxy.y - 0.5f - iy));  // truncated y = trunc(cy + fy*ls.y/ls.z)
   
-  top_left = feature_arr(iy, ix*kNumChannels+c);
-  top_right = feature_arr(iy, (ix+1)*kNumChannels+c);
-  bottom_left = feature_arr(iy+1, ix*kNumChannels+c);
-  bottom_right = feature_arr(iy+1, (ix+1)*kNumChannels+c);
+  top_left = feature_arr(iy, ix*kTotalChannels+c);
+  top_right = feature_arr(iy, (ix+1)*kTotalChannels+c);
+  bottom_left = feature_arr(iy+1, ix*kTotalChannels+c);
+  bottom_right = feature_arr(iy+1, (ix+1)*kTotalChannels+c);
   
   
   float t1_dx = (bottom_right - bottom_left) * ty + (top_right - top_left) * (1 - ty);
@@ -745,10 +745,10 @@ __forceinline__ __device__ void TestDescriptorJacobianWrtProjectedPositionOnChan
   tx = ::max(0.f, ::min(1.f, t2_pxy.x - 0.5f - ix));  // truncated x = trunc(cx + fx*ls.x/ls.z)
   ty = ::max(0.f, ::min(1.f, t2_pxy.y - 0.5f - iy));  // truncated y = trunc(cy + fy*ls.y/ls.z)
 
-  top_left = feature_arr(iy, ix*kNumChannels+c);
-  top_right = feature_arr(iy, (ix+1)*kNumChannels+c);
-  bottom_left = feature_arr(iy+1, ix*kNumChannels+c);
-  bottom_right = feature_arr(iy+1, (ix+1)*kNumChannels+c);
+  top_left = feature_arr(iy, ix*kTotalChannels+c);
+  top_right = feature_arr(iy, (ix+1)*kTotalChannels+c);
+  bottom_left = feature_arr(iy+1, ix*kTotalChannels+c);
+  bottom_right = feature_arr(iy+1, (ix+1)*kTotalChannels+c);
   
   float t2_dx = (bottom_right - bottom_left) * ty + (top_right - top_left) * (1 - ty);
   float t2_dy = (bottom_right - top_right) * tx + (bottom_left - top_left) * (1 - tx);

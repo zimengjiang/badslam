@@ -197,8 +197,8 @@ __global__ void AccumulateDescriptorColorObservationsCUDAKernel(
       
       //float descriptor_1;
       //float descriptor_2;
-      float descriptor[6];
-      float surfel_descriptor[6] = {0,0,0,0,0,0}; // only for initialization
+      float descriptor[kSurfelNumDescriptor];
+      float surfel_descriptor[kSurfelNumDescriptor] = {0}; // only for initialization
       //ComputeRawDescriptorResidual(
         //  color_texture,
         //  color_pxy,
@@ -218,11 +218,12 @@ __global__ void AccumulateDescriptorColorObservationsCUDAKernel(
         descriptor);
       // constexpr int kSurfelAccumuArr[7] = {12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39};
       // 10.29: Although there're several accumulate indices we can use, we only use the indices 1 and 2. Because 0 is already used for observation count.
-      constexpr int kSurfelAccumuArr[6] = {13,14,15,16,17,18};// because 12 is used for observation count, here we only update the descirptor
+      // constexpr int kSurfelAccumuArr[6] = {13,14,15,16,17,18};// because 12 is used for observation count, here we only update the descirptor
       //s.surfels(kSurfelAccum1, surfel_index) += descriptor_1;
       //s.surfels(kSurfelAccum2, surfel_index) += descriptor_2;
-      for (int i = 0; i<6; ++i){
-        s.surfels(kSurfelAccumuArr[i], surfel_index) = descriptor[i];
+      #pragma unroll
+      for (int i = 0; i<kSurfelNumDescriptor; ++i){
+        s.surfels(kSurfelFixedAttributeCount+i, surfel_index) = descriptor[i];
       }
       
     }

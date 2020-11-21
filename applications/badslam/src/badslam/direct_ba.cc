@@ -390,6 +390,7 @@ void DirectBA::CreateSurfelsForKeyframe(
       keyframe->radius_buffer(),
       keyframe->color_buffer(),
       keyframe->color_texture(),
+      keyframe->feature_buffer(),
       supporting_surfels,
       &new_surfels_temp_storage_,
       &new_surfels_temp_storage_bytes_,

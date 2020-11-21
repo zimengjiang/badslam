@@ -315,12 +315,12 @@ float ls_x_y = ls.x * ls.y;
 *(jacobian_all+6*channel+5) = -(ls.x * grad_y_fy_1 - ls.y * grad_x_fx_1) * inv_ls_z; //jacobian_1[5] = -(ls.x * grad_y_fy_1 - ls.y * grad_x_fx_1) * inv_ls_z;
 
 // 11.20 jacobian_2, depending on channel, channel is 0-based index.
-*(jacobian_all + 6*kNumChannels + 6*channel) = -grad_x_fx_2 * inv_ls_z; // jacobian_2[0] = -grad_x_fx_2 * inv_ls_z;
-*(jacobian_all + 6*kNumChannels + 6*channel+1) = -grad_y_fy_2 * inv_ls_z; // jacobian_2[1] = -grad_y_fy_2 * inv_ls_z;
-*(jacobian_all + 6*kNumChannels + 6*channel+2) = (ls.x * grad_x_fx_2 + ls.y * grad_y_fy_2) * inv_ls_z_sq; // jacobian_2[2] = (ls.x * grad_x_fx_2 + ls.y * grad_y_fy_2) * inv_ls_z_sq;
-*(jacobian_all + 6*kNumChannels + 6*channel+3) = ((ls.y * ls.y + ls_z_sq) * grad_y_fy_2 + ls_x_y * grad_x_fx_2) * inv_ls_z_sq; // jacobian_2[3] =  ((ls.y * ls.y + ls_z_sq) * grad_y_fy_2 + ls_x_y * grad_x_fx_2) * inv_ls_z_sq;
-*(jacobian_all + 6*kNumChannels + 6*channel+4) = -((ls.x * ls.x + ls_z_sq) * grad_x_fx_2 + ls_x_y * grad_y_fy_2) * inv_ls_z_sq; // jacobian_2[4] = -((ls.x * ls.x + ls_z_sq) * grad_x_fx_2 + ls_x_y * grad_y_fy_2) * inv_ls_z_sq;
-*(jacobian_all + 6*kNumChannels + 6*channel+5) = -(ls.x * grad_y_fy_2 - ls.y * grad_x_fx_2) * inv_ls_z; // jacobian_2[5] = -(ls.x * grad_y_fy_2 - ls.y * grad_x_fx_2) * inv_ls_z;
+*(jacobian_all + 6*kTotalChannels + 6*channel) = -grad_x_fx_2 * inv_ls_z; // jacobian_2[0] = -grad_x_fx_2 * inv_ls_z;
+*(jacobian_all + 6*kTotalChannels + 6*channel+1) = -grad_y_fy_2 * inv_ls_z; // jacobian_2[1] = -grad_y_fy_2 * inv_ls_z;
+*(jacobian_all + 6*kTotalChannels + 6*channel+2) = (ls.x * grad_x_fx_2 + ls.y * grad_y_fy_2) * inv_ls_z_sq; // jacobian_2[2] = (ls.x * grad_x_fx_2 + ls.y * grad_y_fy_2) * inv_ls_z_sq;
+*(jacobian_all + 6*kTotalChannels + 6*channel+3) = ((ls.y * ls.y + ls_z_sq) * grad_y_fy_2 + ls_x_y * grad_x_fx_2) * inv_ls_z_sq; // jacobian_2[3] =  ((ls.y * ls.y + ls_z_sq) * grad_y_fy_2 + ls_x_y * grad_x_fx_2) * inv_ls_z_sq;
+*(jacobian_all + 6*kTotalChannels + 6*channel+4) = -((ls.x * ls.x + ls_z_sq) * grad_x_fx_2 + ls_x_y * grad_y_fy_2) * inv_ls_z_sq; // jacobian_2[4] = -((ls.x * ls.x + ls_z_sq) * grad_x_fx_2 + ls_x_y * grad_y_fy_2) * inv_ls_z_sq;
+*(jacobian_all + 6*kTotalChannels + 6*channel+5) = -(ls.x * grad_y_fy_2 - ls.y * grad_x_fx_2) * inv_ls_z; // jacobian_2[5] = -(ls.x * grad_y_fy_2 - ls.y * grad_x_fx_2) * inv_ls_z;
 }
 
 __forceinline__ __device__ void ComputeRawDescriptorFeatureResidualAndJacobian(
@@ -722,10 +722,11 @@ __global__ void MyNewAccumulatePoseEstimationCoeffsCUDAKernel(
           &t2_pxy);
       // 10.30 If visible, iterate over all the channels, accumulate H and b for each channel
       // We only need to retrieve current surfel_descriptor value once
-      constexpr int kSurfelDescriptorArr[6] = {6,7,8,9,10,11};
-      float surfel_descriptor[6]; // problematic with const float array and use for loop to initialize
-      for (int i = 0; i< 6; ++i){
-          surfel_descriptor[i] = s.surfels(kSurfelDescriptorArr[i], surfel_index);
+      // constexpr int kSurfelDescriptorArr[6] = {6,7,8,9,10,11};
+      float surfel_descriptor[kSurfelNumDescriptor]; // problematic with const float array and use for loop to initialize
+      #pragma unroll
+      for (int i = 0; i< kSurfelNumDescriptor; ++i){
+          surfel_descriptor[i] = s.surfels(kSurfelFixedAttributeCount+i, surfel_index);
           CudaAssert(surfel_descriptor[i] == surfel_descriptor[i]);
         }
       // we only need to compute the descriptor residual in vector form once. 
@@ -871,7 +872,7 @@ __global__ void TestAccumulatePoseEstimationCoeffsCUDAKernel(
   // CudaAssert(visible); //should be true to be here?
   float jacobian[6] = {0};
   float depth_raw_residual = 0;
-  float raw_residual_vec[6] = {0}; // It's very important to initialize !!!!
+  float raw_residual_vec[kSurfelNumDescriptor] = {0}; // It's very important to initialize !!!!
   
   constexpr int block_height = 1;
   typedef cub::BlockReduce<float, block_width, cub::BLOCK_REDUCE_RAKING_COMMUTATIVE_ONLY, block_height> BlockReduceFloat;
@@ -944,7 +945,7 @@ __global__ void TestAccumulatePoseEstimationCoeffsCUDAKernel(
       // 10.30 If visible, iterate over all the channels, accumulate H and b for each channel
       // We only need to retrieve current surfel_descriptor value once
       
-      float surfel_descriptor[6]; // problematic with const float array and use for loop to initialize
+      float surfel_descriptor[kSurfelNumDescriptor]; 
       #pragma unroll
       for (int i = 0; i< kSurfelNumDescriptor; ++i){
           surfel_descriptor[i] = s.surfels(kSurfelFixedAttributeCount + i, surfel_index); // constexpr int kSurfelDescriptorArr[] = {6,7,8,9,10,11};
@@ -961,7 +962,7 @@ __global__ void TestAccumulatePoseEstimationCoeffsCUDAKernel(
           t2_pxy,
           surfel_descriptor,
           raw_residual_vec);
-        for (int channel = 0; channel < kNumChannels; ++channel){
+        for (int channel = 0; channel < kTotalChannels; ++channel){
           TestComputeRawDescriptorFeatureJacobian(
             feature_arr,
             color_center_projector,
@@ -975,7 +976,7 @@ __global__ void TestAccumulatePoseEstimationCoeffsCUDAKernel(
     else{
       visible = false; // nothing is done if not visible 
     }
-    for (int channel = 0; channel < kNumChannels; ++channel){
+    for (int channel = 0; channel < kTotalChannels; ++channel){
       AccumulateGaussNewtonHAndB<6, block_width, block_height>(
         visible,
         raw_residual_vec[channel],
@@ -987,9 +988,9 @@ __global__ void TestAccumulatePoseEstimationCoeffsCUDAKernel(
       
       AccumulateGaussNewtonHAndB<6, block_width, block_height>(
         visible,
-        raw_residual_vec[channel + kNumChannels], // channel_i + N is residual_2 for each channel
-        ComputeDescriptorResidualWeight(raw_residual_vec[channel + kNumChannels]),
-        jacobian_all + 6*kNumChannels + 6*channel, // pass the address of jacobian_c_2[0]
+        raw_residual_vec[channel + kTotalChannels], // channel_i + N is residual_2 for each channel
+        ComputeDescriptorResidualWeight(raw_residual_vec[channel + kTotalChannels]),
+        jacobian_all + 6*kTotalChannels + 6*channel, // pass the address of jacobian_c_2[0]
         H_buffer,
         b_buffer,
         &temp_storage.float_storage);
