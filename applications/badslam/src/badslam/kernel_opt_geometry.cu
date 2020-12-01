@@ -385,7 +385,7 @@ __global__ void TestAccumulateSurfelPositionAndDescriptorOptimizationCoeffsCUDAK
         
         // Accumulate:
         s.surfels(kSurfelAccum0, surfel_index) += depth_weight * depth_jacobian * depth_jacobian; // H_00
-        s.surfels(kSurfelAccum0 + kSurfelAccumHCount, surfel_index) += depth_weight * raw_depth_residual * depth_jacobian;// b0 is the number of kAccums used for H, 4*N+1, N = 3
+        s.surfels(kSurfelAccum0 + kSurfelAccumHCount, surfel_index) += depth_weight * raw_depth_residual * depth_jacobian;// b0
       }
       // --------------------------------------------------
       float2 color_pxy;
@@ -410,12 +410,11 @@ __global__ void TestAccumulateSurfelPositionAndDescriptorOptimizationCoeffsCUDAK
         // CudaAssert(t1_pxy.x > 0.5f && t1_pxy.y > 0.5f);
         // CudaAssert(t2_pxy.x > 0.5f && t2_pxy.y > 0.5f);
 
-        float surfel_descriptor[kSurfelNumDescriptor]; // problematic with const float array and use for loop to initialize
-        // jzmTODO: use # pragma unroll to optimize the following 
+        float surfel_descriptor[kSurfelNumDescriptor]; 
         // 11.1
         #pragma unroll
-        for (int i = 0; i < kSurfelNumDescriptor; ++i){ // constexpr int kSurfelDescriptorArr[6] = {6,7,8,9,10,11};
-          surfel_descriptor[i] = s.surfels(kSurfelFixedAttributeCount+i, surfel_index); // hard code the kSurfelDescriptorArr
+        for (int i = 0; i < kSurfelNumDescriptor; ++i){
+          surfel_descriptor[i] = s.surfels(kSurfelFixedAttributeCount+i, surfel_index); 
         }
         float raw_descriptor_residual[kSurfelNumDescriptor];
          TestComputeRawFeatureDescriptorResidual(
@@ -456,8 +455,7 @@ __global__ void TestAccumulateSurfelPositionAndDescriptorOptimizationCoeffsCUDAK
         for (int channel_i = 0; channel_i < kTotalChannels; ++channel_i){
           
           // --- Descriptor residual change wrt. position change ---
-          // 10.30 gradients varies form channel to channel
-          // DescriptorJacobianWrtProjectedPositionOnChannels(color_texture, color_pxy, t1_pxy, t2_pxy, &grad_x_1, &grad_y_1, &grad_x_2, &grad_y_2, channel_i);
+          // 10.30 gradients varies from channel to channel
           TestDescriptorJacobianWrtProjectedPositionOnChannels(feature_arr, color_pxy, t1_pxy, t2_pxy, &grad_x_1, &grad_y_1, &grad_x_2, &grad_y_2, channel_i);
           jacobian_wrt_position_1 = -(grad_x_1 * term1 + grad_y_1 * term2) * term3;
           jacobian_wrt_position_2 = -(grad_x_2 * term1 + grad_y_2 * term2) * term3;
@@ -500,11 +498,12 @@ __global__ void TestAccumulateSurfelPositionAndDescriptorOptimizationCoeffsCUDAK
           // H(0,0)
           s.surfels(kSurfelAccum0, surfel_index) += weight_1 * jacobian_wrt_position_1 * jacobian_wrt_position_1 + 
                                                     weight_2  * jacobian_wrt_position_2 * jacobian_wrt_position_2;  // from residual 2
-          // H(0,channel_i), from residual_1 H(0,0) reserves a spot and channel_i starts from 1 to 3
+          // H(0,channel_i), from residual_1
+          // H(0,0) reserves a spot and channel_i starts from 0 to kTotalChannels-1
           s.surfels(kSurfelAccum0 + channel_i + 1, surfel_index) += weight_1 * jacobian_wrt_position_1 * jacobian_wrt_descriptor;
           // H(0,1+channel_i+N), from residual_2
           s.surfels(kSurfelAccum0 + channel_i + 1 + kTotalChannels, surfel_index) += weight_2 * jacobian_wrt_position_2 * jacobian_wrt_descriptor;
-          // H(k,k), update two entries in the diagnal. kSurfelAccum0 + 2N + channel_i, kSurfelAccum0 + 2N + channel_i + N
+          // H(k,k), update two entries in the diagnal. kSurfelAccum0 +1 + 2N + channel_i, kSurfelAccum0 +1 + 2N + channel_i + N
           // 11.17 jzmTODO:check index, previous:  s.surfels(kSurfelAccum0 + 7 + channel_i, surfel_index) += weight_1 * jacobian_wrt_descriptor * jacobian_wrt_descriptor;
           s.surfels(kSurfelAccum0 + 2*kTotalChannels+1 + channel_i, surfel_index) += weight_1 * jacobian_wrt_descriptor * jacobian_wrt_descriptor; // from residual_1
           s.surfels(kSurfelAccum0 + 2*kTotalChannels+1 + channel_i + kTotalChannels, surfel_index) += weight_2 * jacobian_wrt_descriptor * jacobian_wrt_descriptor; // from residual_2
@@ -638,12 +637,13 @@ if (surfel_index < surfels_size) {
   const int DiOffset = kSurfelAccum0 + 2*kTotalChannels + 1;// + 2*N+1
   const int BiOffset = kSurfelAccum0 + 1;
   const int b2iOffset = kSurfelAccum0 + kSurfelAccumHCount + 1;
-  // A needs to be well-defined
+  // 'A' needs to be well-defined
   surfels(kSurfelAccum0, surfel_index) = surfels(kSurfelAccum0, surfel_index) + kEpsilon; // should + epsilon here, if in computing x1, couse very large x2
+  #pragma unroll
   for (int i = 0; i < kSurfelNumDescriptor; ++i){ // i < 2N
     // D_inverse = 1.0/D(i)
     Di_inverse = 1.0f / (surfels(DiOffset + i, surfel_index)+kEpsilon); // 7 = 2N+1
-    Bi = surfels(BiOffset + i, surfel_index); // A occupies 1 space, so here b starts from kSurfelAccum0+1
+    Bi = surfels(BiOffset + i, surfel_index); // 'A' occupies 1 space, so here b starts from kSurfelAccum0+1
     // CudaAssert(Bi!=0);
     // CudaAssert (surfels(kSurfelAccum0 + kSurfelAccumHCount, surfel_index) != 0);
     // A = A - B(i)^2*D_inverse
@@ -656,7 +656,7 @@ if (surfel_index < surfels_size) {
     // D(i) <- D_inverse*b2(i)
     surfels(DiOffset + i, surfel_index) = Di_inverse*surfels(b2iOffset + i, surfel_index);
   }
-  // x1 = b1/A corresponds to surfel position t, A needs to be well-defined
+  // x1 = b1/A corresponds to surfel position t, A needs to be well-defined, this has been handled already
   x1 =  surfels(kSurfelAccum0 + kSurfelAccumHCount, surfel_index)/surfels(kSurfelAccum0, surfel_index);
   
   /*if (x1 == 0){
@@ -673,7 +673,7 @@ if (surfel_index < surfels_size) {
     float3 surfel_normal = SurfelGetNormal(surfels, surfel_index);
     SurfelSetPosition(&surfels, surfel_index, global_position - x1 * surfel_normal);
   }
-  // program unroll?
+  #pragma unroll
   for (int i = 0; i < kSurfelNumDescriptor; ++i){
     // since we have done in-placement for D_inverse*B(i) and D_inverse*b2(i)
     x2[i] = surfels(DiOffset + i, surfel_index) - surfels(BiOffset + i, surfel_index)*x1;

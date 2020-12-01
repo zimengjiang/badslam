@@ -62,7 +62,7 @@ constexpr float cos_normal_compatibility_threshold = 0.76604f;  // = cosf(M_PI /
 typedef float PCGScalar;
 
 // 11.20 number of channels, cost_function.cuh also needs this const, #include this file?
-constexpr int kTotalChannels = 12;
+constexpr int kTotalChannels = 128;
 
 
 // The surfel structure is stored in large buffers. It is organized
@@ -155,5 +155,9 @@ constexpr int kSurfelAccum5 = kSurfelAccum0 + 5;  // 17 float
 constexpr int kSurfelAccum6 = kSurfelAccum0 + 6;  // 18 float
 constexpr int kSurfelAccum7 = kSurfelAccum0 + 7;  // 19 float
 constexpr int kSurfelAccum8 = kSurfelAccum0 + 8;  // 20 float
+
+// 12.1 paprameters related to feature shape
+constexpr int kFeatureW = 739;  
+constexpr int kFeatureH = 458;  
 
 }

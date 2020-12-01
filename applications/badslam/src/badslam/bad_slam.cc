@@ -966,7 +966,8 @@ shared_ptr<Keyframe> BadSlam::CreateKeyframe(
     const shared_ptr<Image<u16>>& depth_image,
     const CUDABuffer<u16>& depth_buffer) {
   // Merge keyframes if not enough free memory left.
-  constexpr u32 kApproxKeyframeSize = 4 * 1024 * 1024;
+  // constexpr u32 kApproxKeyframeSize = 4 * 1024 * 1024; // 11.28 jzmTODO: This is the source of out of CUDA memory error? adjust this to 128*1024*1024?
+  constexpr u32 kApproxKeyframeSize = kTotalChannels * 1024 * 1024;
   size_t free_bytes;
   size_t total_bytes;
   CUDA_CHECKED_CALL(cudaMemGetInfo(&free_bytes, &total_bytes));
@@ -995,14 +996,10 @@ shared_ptr<Keyframe> BadSlam::CreateKeyframe(
   // TODO: Should the min/max depth here be extended by the half association
   //       range at these depths?
   direct_ba_->Lock();  // lock here since the Keyframe constructor accesses an RGBDVideo pose
-  // 11.11 TODO: when creating keyframe, add the path to its feature map
   /*
-  11.14 jzmTODO:
+  11.14 jzm:
   load feature_buffer here
   */
-  // rgbd_video_->color_frame_mutable(frame_index) 
-  // const char* path_frame_npy = rgbd_video_->color_frame_mutable(frame_index) 
-  // const string dataset_folder_path = "/local/home/zjiang/data/eth3d/training/plant_1/rgb_normalized_float32/";
   const std::string time_stamp = rgbd_video_->color_frame_mutable(frame_index).get()->timestamp_string();
   const std::string file_name = time_stamp.substr(0, time_stamp.size()-3);
   const std::string feature_file_path = dataset_folder_path + "/" + feature_folder + "/" + file_name +  +".npy";

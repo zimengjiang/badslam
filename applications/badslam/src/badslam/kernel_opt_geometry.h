@@ -92,17 +92,6 @@ void AccumulateSurfelPositionAndDescriptorOptimizationCoeffsCUDAKernel(
     const CUDABuffer_<u8>& active_surfels,
     bool use_depth_residuals);
 
-// 11.16 take features as input
-void MyAccumulateSurfelPositionAndDescriptorOptimizationCoeffsCUDAKernel(
-    cudaStream_t stream,
-    const SurfelProjectionParameters& s,
-    const PixelCenterUnprojector& depth_unprojector,
-    const DepthToColorPixelCorner& depth_to_color,
-    const PixelCornerProjector& color_corner_projector,
-    const CUDABuffer_<float>& features,
-    const CUDABuffer_<u8>& active_surfels,
-    bool use_depth_residuals);
-
 // 11.16 to test feature fetching and bilinear interpolation 
 void TestAccumulateSurfelPositionAndDescriptorOptimizationCoeffsCUDAKernel(
     cudaStream_t stream,

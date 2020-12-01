@@ -128,7 +128,7 @@ struct BadSlamConfig {
       "Maximum number of surfels (given in advance for being able to allocate"
       " surfel buffers only once, avoiding re-allocation).";
   // 10.29 changed due to huge memory allocation when stack N feature channels
-  int max_surfel_count = 5 * 1000 * 1000;  // previsouly default: 25 million.
+  int max_surfel_count = 0.5*1000*1000; //11.23 5 * 1000 * 1000;  // previsouly default: 25 million.
   
   static constexpr const char* sparse_surfel_cell_size_help =
       "Surfel sparsification grid cell size. A cell size of 1 leads to fully"

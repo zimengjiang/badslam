@@ -55,8 +55,9 @@ constexpr float kDepthUncertaintyEmpiricalFactor = 0.1f;
 // constexpr int kTotalChannels = 9;
 
 // 11.18 for clamping indices
-constexpr int max_x = 737; // W - 1 - 1
-constexpr int max_y = 456; // H - 1 - 1
+// 12.1 jzmTODO: adjust this to match the actual input size. Remember to modify this when the feature is scaled. 
+constexpr int max_x = kFeatureW-1-1; // W - 1 - 1
+constexpr int max_y = kFeatureH-1-1; // H - 1 - 1
 
 // Macro definition
 #define CudaAssert( X ) if ( !(X) ) { printf( "Thread %d:%d failed assert at %s:%d! \n", blockIdx.x, threadIdx.x, __FILE__, __LINE__ ); return; }
@@ -363,8 +364,6 @@ __forceinline__ __device__ void ColorJacobianWrtProjectedPosition(
 
 /*11.17: bilinear interpolation, same effect as filtering in tex2D fetching */
 /*https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#texture-fetching*/
-/*11.18: always get CUDA error: too many resources requested for launch if I try to print something.
-This function occupies too much resource?*/
 __forceinline__ __device__ void TestFetchFeatureArrBilinearInterpolationVec(
     const CUDABuffer_<float>& feature_arr,
     const float& px, /*pixel corner coordinates, -> x, | y*/
@@ -385,9 +384,10 @@ __forceinline__ __device__ void TestFetchFeatureArrBilinearInterpolationVec(
     top_right = make_int2(ix+1,iy);
     bottom_left = make_int2(ix,iy+1);
     bottom_right = make_int2(ix+1,iy+1);
+    #pragma unroll
     for (int c = 0; c < kTotalChannels; ++c){
-      // c does not effect the computation of the interpolated corners. 
-      /// Only px and py decides the corner. c is used to fetch the correct grid of the channel value corresponding to each pixel. 
+      // c does not affect the computation of the interpolated corners. 
+      // Only px and py decide the corner. c is used to fetch the correct grid of the channel value corresponding to each pixel. 
       // 11.17 jzmTODO: double check indexing, (py,px), pitch index, Achtung! out of bounds buffer access
       /*if (x >= width_ || y >= height_) {
       printf("Out of bounds buffer access at (%i, %i), buffer size (%i, %i)\n",
@@ -400,7 +400,7 @@ __forceinline__ __device__ void TestFetchFeatureArrBilinearInterpolationVec(
     }
 }
 
-/*11.17: bilinear interpolation, when number of channels = 1*/
+/*11.17: bilinear interpolation, when the number of channels = 1*/
 /*https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#texture-fetching*/
 __forceinline__ __device__ void TestFetchFeatureArrBilinearInterpolationFloat(
     const CUDABuffer_<float>& feature_arr,
@@ -441,31 +441,18 @@ __forceinline__ __device__ void TestComputeRawFeatureDescriptorResidual(
     float* surfel_descriptor_vec,
     float* raw_residual_vec) {
   
-  // float intensity = tex2D<float4>(color_texture, pxy.x, pxy.y).w;
   /*unsigned int surfel_index = blockIdx.x * blockDim.x + threadIdx.x;
   if (surfel_index == 0){
     printf("residual: feat(400,2000)=%f, feat(457,2216)=%f \n",feature_arr(400,2000), feature_arr(457,2216));
   }*/
-  // float t1_intensity = tex2D<float4>(color_texture, t1_pxy.x, t1_pxy.y).w; 
-  // float t2_intensity = tex2D<float4>(color_texture, t2_pxy.x, t2_pxy.y).w;
-  // TODO: for feature maps. make feature[N]t1_feature[N], t2_feature[N];
-  
-  /*for (int i = 0; i < 1; ++i){ // here i < 1, the 1 is the number of channels, TODO: make a variable
-    *(raw_residual+i) = (180.f * (t1_intensity - intensity)) - surfel_descriptor[i];
-    *(raw_residual+1+i) = (180.f * (t2_intensity - intensity)) - surfel_descriptor[i];
-  }
-  *raw_residual = (180.f * (t1_intensity - intensity)) - surfel_descriptor[0];
-  *(raw_residual+1) = (180.f * (t2_intensity - intensity)) - surfel_descriptor[1];
-  if (threadIdx.x == 9  && blockIdx.x == 0) { // jzm: 23/10 are you sure the threadIdx.x which you wanna check is correct? acutally it's fine. Only want to print result of an arbitrary thread. 
-    printf("intensity = %f\n", intensity);
-  }*/
-
+  // feature vectors
   float f_pxy[kTotalChannels] = {0}; // initialize all to 0, memory allocation
   float f_t1[kTotalChannels] = {0};
   float f_t2[kTotalChannels] = {0};
   TestFetchFeatureArrBilinearInterpolationVec(feature_arr, pxy.x, pxy.y, f_pxy);
   TestFetchFeatureArrBilinearInterpolationVec(feature_arr, t1_pxy.x, t1_pxy.y, f_t1);
   TestFetchFeatureArrBilinearInterpolationVec(feature_arr, t2_pxy.x, t2_pxy.y, f_t2);
+  #pragma unroll
   for (int c = 0; c < kTotalChannels; ++c){
     *(raw_residual_vec+c) = 180.f * (f_t1[c] - f_pxy[c]) - surfel_descriptor_vec[c];
     *(raw_residual_vec+kTotalChannels+c) = 180.f * (f_t2[c] - f_pxy[c]) - surfel_descriptor_vec[kTotalChannels+c];

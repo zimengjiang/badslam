@@ -199,73 +199,6 @@ CudaAssert(jacobian_2[4] == jacobian_2[4]);
 jacobian_2[5] = -(ls.x * grad_y_fy_2 - ls.y * grad_x_fx_2) * inv_ls_z;
 }
 
-__forceinline__ __device__ void BackupTestComputeRawDescriptorFeatureJacobian(
-  const CUDABuffer_<float>& feature_arr,
-  const PixelCenterProjector& color_center_projector,
-  const float2& pxy,
-  const float2& t1_pxy,
-  const float2& t2_pxy,
-  const float3& ls,  // surfel_local_position
-  float* jacobian_1,
-  float* jacobian_2,
-  int channel) {
-  /*  unsigned int surfel_index = blockIdx.x * blockDim.x + threadIdx.x;
-  if (surfel_index == 0){
-    printf("pose_jacobian: feat(400,2000)=%f, feat(457,2216)=%f \n",feature_arr(400,2000), feature_arr(457,2216));
-  }*/
-
-  CudaAssert(ls.x == ls.x);
-  CudaAssert(ls.y == ls.y);
-  CudaAssert(ls.z == ls.z);
-// 11.3 jzmTODO: reuse computation. here the derivative of the projected position w.r.t. pose is the same for all the channels.
-float grad_x_fx_1;
-float grad_y_fy_1;
-float grad_x_fx_2;
-float grad_y_fy_2;
-TestDescriptorJacobianWrtProjectedPositionOnChannels(
-    feature_arr, pxy, t1_pxy, t2_pxy, &grad_x_fx_1, &grad_y_fy_1, &grad_x_fx_2, &grad_y_fy_2, channel);
-grad_x_fx_1 *= color_center_projector.fx;
-grad_x_fx_2 *= color_center_projector.fx;
-grad_y_fy_1 *= color_center_projector.fy;
-grad_y_fy_2 *= color_center_projector.fy;
-// 11.3 jzmTODO: for debugging , delete it after debugging
-// unsigned int surfel_index = blockIdx.x * blockDim.x + threadIdx.x;
-
-float inv_ls_z = 1.f / ls.z;
-CudaAssert(inv_ls_z == inv_ls_z);
-float ls_z_sq = ls.z * ls.z;
-CudaAssert(ls_z_sq == ls_z_sq);
-float inv_ls_z_sq = inv_ls_z * inv_ls_z;
-CudaAssert(inv_ls_z_sq == inv_ls_z_sq)
-
-jacobian_1[0] = -grad_x_fx_1 * inv_ls_z;
-jacobian_1[1] = -grad_y_fy_1 * inv_ls_z;
-jacobian_1[2] = (ls.x * grad_x_fx_1 + ls.y * grad_y_fy_1) * inv_ls_z_sq;
-
-float ls_x_y = ls.x * ls.y;
-CudaAssert(ls_x_y == ls_x_y);
-jacobian_1[3] =  ((ls.y * ls.y + ls_z_sq) * grad_y_fy_1 + ls_x_y * grad_x_fx_1) * inv_ls_z_sq;
-CudaAssert(jacobian_1[3] == jacobian_1[3]);
-jacobian_1[4] = -((ls.x * ls.x + ls_z_sq) * grad_x_fx_1 + ls_x_y * grad_y_fy_1) * inv_ls_z_sq;
-CudaAssert(jacobian_1[4] == jacobian_1[4]);
-jacobian_1[5] = -(ls.x * grad_y_fy_1 - ls.y * grad_x_fx_1) * inv_ls_z;
-
-jacobian_2[0] = -grad_x_fx_2 * inv_ls_z;
-jacobian_2[1] = -grad_y_fy_2 * inv_ls_z;
-jacobian_2[2] = (ls.x * grad_x_fx_2 + ls.y * grad_y_fy_2) * inv_ls_z_sq;
-jacobian_2[3] =  ((ls.y * ls.y + ls_z_sq) * grad_y_fy_2 + ls_x_y * grad_x_fx_2) * inv_ls_z_sq;
-CudaAssert(jacobian_2[3] == jacobian_2[3]);
-jacobian_2[4] = -((ls.x * ls.x + ls_z_sq) * grad_x_fx_2 + ls_x_y * grad_y_fy_2) * inv_ls_z_sq;
-CudaAssert(jacobian_2[4] == jacobian_2[4]);
-jacobian_2[5] = -(ls.x * grad_y_fy_2 - ls.y * grad_x_fx_2) * inv_ls_z;
-/*if (surfel_index == 0){
-  printf("grad_x_fx_1: %f, grad_y_fy_1: %f\n", grad_x_fx_1,grad_y_fy_1);
-  printf("grad_x_fx_2: %f, grad_y_fy_2: %f\n", grad_x_fx_2,grad_y_fy_2);
-  printf("j10, j11, j12, j13, j14, j15  = \n %f, %f, %f, %f, %f, %f \n",jacobian_1[0], jacobian_1[1], jacobian_1[2],jacobian_1[3], jacobian_1[4], jacobian_1[5]);
-  printf("j20, j21, j22, j23, j24, j25  = \n %f, %f, %f, %f, %f, %f \n",jacobian_2[0], jacobian_2[1], jacobian_2[2],jacobian_2[3], jacobian_2[4], jacobian_2[5]);
-}*/
-}
-
 __forceinline__ __device__ void TestComputeRawDescriptorFeatureJacobian(
   const CUDABuffer_<float>& feature_arr,
   const PixelCenterProjector& color_center_projector,
@@ -942,9 +875,9 @@ __global__ void TestAccumulatePoseEstimationCoeffsCUDAKernel(
           &t2_pxy);
       // CudaAssert(t1_pxy.x > 0.5f && t1_pxy.y > 0.5f);
       // CudaAssert(t2_pxy.x > 0.5f && t2_pxy.y > 0.5f);
+
       // 10.30 If visible, iterate over all the channels, accumulate H and b for each channel
       // We only need to retrieve current surfel_descriptor value once
-      
       float surfel_descriptor[kSurfelNumDescriptor]; 
       #pragma unroll
       for (int i = 0; i< kSurfelNumDescriptor; ++i){
