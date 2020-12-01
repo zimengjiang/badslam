@@ -9,4 +9,5 @@ build*/
 .project
 .cproject
 core 
+*.txt
 

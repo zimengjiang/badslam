@@ -552,7 +552,8 @@ bool SavePoses(
     return false;
   }
   poses_file << std::setprecision(numeric_limits<double>::digits10 + 1);
-  
+  // 12.1 should be acutally frame to global pose, but using the pose of the first
+  // frame as the global frame for the following frames.
   poses_file << "# Format: Each line gives one global_T_frame pose with values: tx ty tz qx qy qz qw" << std::endl;
   
   for (usize frame_index = 0; frame_index < rgbd_video.frame_count(); ++ frame_index) {
