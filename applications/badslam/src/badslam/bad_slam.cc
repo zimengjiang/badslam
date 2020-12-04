@@ -90,7 +90,7 @@ BadSlam::BadSlam(
   normals_buffer_.reset(new CUDABuffer<u16>(depth_height, depth_width));
   radius_buffer_.reset(new CUDABuffer<u16>(depth_height, depth_width));
   // 11.16 allocate feature buffer
-  feature_buffer_.reset(new CUDABuffer<float>(color_height, color_width*kTotalChannels));
+  feature_buffer_.reset(new CUDABuffer<float>(kFeatureH, kFeatureW*kTotalChannels));
   rgb_buffer_.reset(new CUDABuffer<uchar3>(color_height, color_width));
   color_buffer_.reset(new CUDABuffer<uchar4>(color_height, color_width));
   color_buffer_->CreateTextureObject(
@@ -967,7 +967,7 @@ shared_ptr<Keyframe> BadSlam::CreateKeyframe(
     const CUDABuffer<u16>& depth_buffer) {
   // Merge keyframes if not enough free memory left.
   // constexpr u32 kApproxKeyframeSize = 4 * 1024 * 1024; // 11.28 jzmTODO: This is the source of out of CUDA memory error? adjust this to 128*1024*1024?
-  constexpr u32 kApproxKeyframeSize = kTotalChannels * 1024 * 1024;
+  constexpr u32 kApproxKeyframeSize = kTotalChannels * 1024 * 1024 / (kScale*kScale);
   size_t free_bytes;
   size_t total_bytes;
   CUDA_CHECKED_CALL(cudaMemGetInfo(&free_bytes, &total_bytes));

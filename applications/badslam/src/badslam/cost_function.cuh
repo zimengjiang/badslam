@@ -440,18 +440,19 @@ __forceinline__ __device__ void TestComputeRawFeatureDescriptorResidual(
     const float2& t2_pxy,
     float* surfel_descriptor_vec,
     float* raw_residual_vec) {
-  
   /*unsigned int surfel_index = blockIdx.x * blockDim.x + threadIdx.x;
   if (surfel_index == 0){
-    printf("residual: feat(400,2000)=%f, feat(457,2216)=%f \n",feature_arr(400,2000), feature_arr(457,2216));
+    // printf("residual: feat(400,2000)=%f, feat(457,2216)=%f \n",feature_arr(400,2000), feature_arr(457,2216));
+    printf("pxy.x/kScale: %f", pxy.x/kScale);
   }*/
   // feature vectors
   float f_pxy[kTotalChannels] = {0}; // initialize all to 0, memory allocation
   float f_t1[kTotalChannels] = {0};
   float f_t2[kTotalChannels] = {0};
-  TestFetchFeatureArrBilinearInterpolationVec(feature_arr, pxy.x, pxy.y, f_pxy);
-  TestFetchFeatureArrBilinearInterpolationVec(feature_arr, t1_pxy.x, t1_pxy.y, f_t1);
-  TestFetchFeatureArrBilinearInterpolationVec(feature_arr, t2_pxy.x, t2_pxy.y, f_t2);
+  
+  TestFetchFeatureArrBilinearInterpolationVec(feature_arr, pxy.x/kScale, pxy.y/kScale, f_pxy);
+  TestFetchFeatureArrBilinearInterpolationVec(feature_arr, t1_pxy.x/kScale, t1_pxy.y/kScale, f_t1);
+  TestFetchFeatureArrBilinearInterpolationVec(feature_arr, t2_pxy.x/kScale, t2_pxy.y/kScale, f_t2);
   #pragma unroll
   for (int c = 0; c < kTotalChannels; ++c){
     *(raw_residual_vec+c) = 180.f * (f_t1[c] - f_pxy[c]) - surfel_descriptor_vec[c];
@@ -750,5 +751,83 @@ __forceinline__ __device__ void TestDescriptorJacobianWrtProjectedPositionOnChan
   *grad_y_2 = 180.f * (t2_dy - center_dy);
 }
 
+__forceinline__ __device__ void TestDescriptorJacobianWrtProjectedPositionOnChannelsScaled(
+    const CUDABuffer_<float>& feature_arr, 
+    const float2& color_pxy,
+    const float2& t1_pxy,
+    const float2& t2_pxy,
+    float* grad_x_1,
+    float* grad_y_1,
+    float* grad_x_2,
+    float* grad_y_2,
+    int c) {
+  /*unsigned int surfel_index = blockIdx.x * blockDim.x + threadIdx.x;
+    if (surfel_index == 0){
+    printf("jacobian: feat(400,2000)=%f, feat(457,2216)=%f \n",feature_arr(400,2000), feature_arr(457,2216));
+  }*/
+  // 11.16 Texture object fetching and filtering, +-0.5 stuff.
+  // https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#texture-fetching
+  int ix = static_cast<int>(::max(0.f, color_pxy.x/kScale - 0.5f)); // refer to libvis/camera.h: 103, convert to pixel center convention??? easier to compute the offsets from te pixel centers -> bilinear interpolation
+  int iy = static_cast<int>(::max(0.f, color_pxy.y/kScale - 0.5f));
+  // 11.19 out of bounds error => clamp it, texture memory handles like this!!! always check if out of bounds when indexing something
+  // see: https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#texture-memory
+  ix = ::min(max_x, ix);
+  iy = ::min(max_y, iy);
+  float tx = ::max(0.f, ::min(1.f, color_pxy.x/kScale - 0.5f - ix));  // truncated x = trunc(cx + fx*ls.x/ls.z) // frac(xB), xB = x-0.5
+  float ty = ::max(0.f, ::min(1.f, color_pxy.y/kScale - 0.5f - iy));  // truncated y = trunc(cy + fy*ls.y/ls.z)
+  
+  float top_left, top_right, bottom_left, bottom_right;
+  // CudaAssert(ix <= 738-1);
+  // CudaAssert(iy <= 457-1);
+  top_left = feature_arr(iy, ix*kTotalChannels+c);
+  top_right = feature_arr(iy, (ix+1)*kTotalChannels+c);
+  bottom_left = feature_arr(iy+1, ix*kTotalChannels+c);
+  bottom_right = feature_arr(iy+1, (ix+1)*kTotalChannels+c);
+
+  float center_dx = (bottom_right - bottom_left) * ty + (top_right - top_left) * (1 - ty);
+  float center_dy = (bottom_right - top_right) * tx + (bottom_left - top_left) * (1 - tx);
+  
+
+  ix = static_cast<int>(::max(0.f, t1_pxy.x/kScale - 0.5f));
+  iy = static_cast<int>(::max(0.f, t1_pxy.y/kScale - 0.5f));
+  ix = ::min(max_x, ix);
+  iy = ::min(max_y, iy);
+  tx = ::max(0.f, ::min(1.f, t1_pxy.x/kScale - 0.5f - ix));  // truncated x = trunc(cx + fx*ls.x/ls.z)
+  ty = ::max(0.f, ::min(1.f, t1_pxy.y/kScale - 0.5f - iy));  // truncated y = trunc(cy + fy*ls.y/ls.z)
+  
+  top_left = feature_arr(iy, ix*kTotalChannels+c);
+  top_right = feature_arr(iy, (ix+1)*kTotalChannels+c);
+  bottom_left = feature_arr(iy+1, ix*kTotalChannels+c);
+  bottom_right = feature_arr(iy+1, (ix+1)*kTotalChannels+c);
+  
+  
+  float t1_dx = (bottom_right - bottom_left) * ty + (top_right - top_left) * (1 - ty);
+  float t1_dy = (bottom_right - top_right) * tx + (bottom_left - top_left) * (1 - tx);
+  
+  
+  ix = static_cast<int>(::max(0.f, t2_pxy.x/kScale - 0.5f));
+  iy = static_cast<int>(::max(0.f, t2_pxy.y/kScale - 0.5f));
+  ix = ::min(max_x, ix);
+  iy = ::min(max_y, iy);
+  tx = ::max(0.f, ::min(1.f, t2_pxy.x/kScale - 0.5f - ix));  // truncated x = trunc(cx + fx*ls.x/ls.z)
+  ty = ::max(0.f, ::min(1.f, t2_pxy.y/kScale - 0.5f - iy));  // truncated y = trunc(cy + fy*ls.y/ls.z)
+
+  top_left = feature_arr(iy, ix*kTotalChannels+c);
+  top_right = feature_arr(iy, (ix+1)*kTotalChannels+c);
+  bottom_left = feature_arr(iy+1, ix*kTotalChannels+c);
+  bottom_right = feature_arr(iy+1, (ix+1)*kTotalChannels+c);
+  
+  float t2_dx = (bottom_right - bottom_left) * ty + (top_right - top_left) * (1 - ty);
+  float t2_dy = (bottom_right - top_right) * tx + (bottom_left - top_left) * (1 - tx);
+  // NOTE: It is approximate to mix all the center, t1, t2 derivatives
+  //       directly since the points would move slightly differently on most
+  //       pose changes. However, the approximation is possibly pretty good since
+  //       the points are all close to each other.
+  
+  *grad_x_1 = 180.f * (t1_dx - center_dx);
+  *grad_y_1 = 180.f * (t1_dy - center_dy);
+  *grad_x_2 = 180.f * (t2_dx - center_dx);
+  *grad_y_2 = 180.f * (t2_dy - center_dy);
+}
 
 }

@@ -456,7 +456,7 @@ __global__ void TestAccumulateSurfelPositionAndDescriptorOptimizationCoeffsCUDAK
           
           // --- Descriptor residual change wrt. position change ---
           // 10.30 gradients varies from channel to channel
-          TestDescriptorJacobianWrtProjectedPositionOnChannels(feature_arr, color_pxy, t1_pxy, t2_pxy, &grad_x_1, &grad_y_1, &grad_x_2, &grad_y_2, channel_i);
+          TestDescriptorJacobianWrtProjectedPositionOnChannelsScaled(feature_arr, color_pxy, t1_pxy, t2_pxy, &grad_x_1, &grad_y_1, &grad_x_2, &grad_y_2, channel_i);
           jacobian_wrt_position_1 = -(grad_x_1 * term1 + grad_y_1 * term2) * term3;
           jacobian_wrt_position_2 = -(grad_x_2 * term1 + grad_y_2 * term2) * term3;
           //CudaAssert(grad_x_1 != 0 );

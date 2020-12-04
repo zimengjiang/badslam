@@ -31,7 +31,6 @@
 #include "badslam/surfel_projection.h"
 
 #include "badslam/kernels.h"
-// const int C = 9;  
 
 namespace vis {
 
@@ -58,7 +57,7 @@ Keyframe::Keyframe(
       color_buffer_(color_buffer.height(), color_buffer.width()), // 11.13 jzmTODO can use the height and width of color buffer to initialize feature_buffer, but the width/height needs change?
       depth_frame_(depth_frame),
       color_frame_(color_frame),
-      feature_buffer_(color_buffer.height(), color_buffer.width()*kTotalChannels) // 11.20 feature buffer has the same dim as color frame (original image shape)
+      feature_buffer_(kFeatureH, kFeatureW*kTotalChannels) // 11.20 feature buffer has the same dim as color frame (original image shape)
        {
   CHECK_GT(min_depth, 0.f)
       << "Keyframe min depth must be larger than 0 since the frustum checks"
@@ -110,7 +109,7 @@ Keyframe::Keyframe(
       normals_buffer_(depth_image.height(), depth_image.width()),
       radius_buffer_(depth_image.height(), depth_image.width()),
       color_buffer_(color_image.height(), color_image.width()),
-      feature_buffer_(color_image.height(), color_image.width()*kTotalChannels /*11.16 jzmTODO: parametrize the '3'*/) {
+      feature_buffer_(kFeatureH, kFeatureW*kTotalChannels /*11.16 jzmTODO: parametrize the '3'*/) {
   // Perform color image preprocessing.
   CUDABuffer<uchar3> rgb_buffer(color_image.height(), color_image.width());
   rgb_buffer.UploadAsync(stream, reinterpret_cast<const Image<uchar3>&>(color_image));

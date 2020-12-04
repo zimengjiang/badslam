@@ -221,7 +221,7 @@ float grad_x_fx_1;
 float grad_y_fy_1;
 float grad_x_fx_2;
 float grad_y_fy_2;
-TestDescriptorJacobianWrtProjectedPositionOnChannels(
+TestDescriptorJacobianWrtProjectedPositionOnChannelsScaled(
     feature_arr, pxy, t1_pxy, t2_pxy, &grad_x_fx_1, &grad_y_fy_1, &grad_x_fx_2, &grad_y_fy_2, channel);
 grad_x_fx_1 *= color_center_projector.fx;
 grad_x_fx_2 *= color_center_projector.fx;

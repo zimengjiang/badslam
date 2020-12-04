@@ -9,5 +9,5 @@ build*/
 .project
 .cproject
 core 
-*.txt
+auto_tuning_iteration*.txt
 
