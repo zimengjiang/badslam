@@ -62,7 +62,7 @@ constexpr float cos_normal_compatibility_threshold = 0.76604f;  // = cosf(M_PI /
 typedef float PCGScalar;
 
 // 11.20 number of channels, cost_function.cuh also needs this const, #include this file?
-constexpr int kTotalChannels = 128;
+constexpr int kTotalChannels = 8;
 
 
 // The surfel structure is stored in large buffers. It is organized

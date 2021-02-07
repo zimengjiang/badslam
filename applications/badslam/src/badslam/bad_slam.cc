@@ -88,9 +88,9 @@ BadSlam::BadSlam(
   filtered_depth_buffer_A_.reset(new CUDABuffer<u16>(depth_height, depth_width));
   filtered_depth_buffer_B_.reset(new CUDABuffer<u16>(depth_height, depth_width));
   normals_buffer_.reset(new CUDABuffer<u16>(depth_height, depth_width));
-  radius_buffer_.reset(new CUDABuffer<u16>(depth_height, depth_width));
+  radius_buffer_.reset(new CUDABuffer<u16>(kFeatureH, kFeatureW));
   // 11.16 allocate feature buffer
-  feature_buffer_.reset(new CUDABuffer<float>(color_height, color_width*kTotalChannels));
+  feature_buffer_.reset(new CUDABuffer<float>(kFeatureH, kFeatureW*kTotalChannels));
   rgb_buffer_.reset(new CUDABuffer<uchar3>(color_height, color_width));
   color_buffer_.reset(new CUDABuffer<uchar4>(color_height, color_width));
   color_buffer_->CreateTextureObject(
