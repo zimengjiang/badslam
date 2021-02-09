@@ -57,6 +57,10 @@ class ImageFrame : public ImageCache<T> {
   inline ImageFrame(const string& image_path, double timestamp, const string& timestamp_string)
       : Base(image_path), pose_valid_(false), timestamp_(timestamp), timestamp_string_(timestamp_string) {}
   
+  // 2.9 togther with feature_path 
+  inline ImageFrame(const string& feature_path, const string& image_path, double timestamp, const string& timestamp_string)
+      : Base(feature_path, image_path), pose_valid_(false), timestamp_(timestamp), timestamp_string_(timestamp_string) {}
+  
 //   inline ImageFrame(const string& image_path, const PoseType& pose)
 //       : Base(image_path), pose_valid_(true), pose_(pose), timestamp_(-1) {}
 //   

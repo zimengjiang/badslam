@@ -212,11 +212,11 @@ void ComputeCostAndResidualCountFromImagesCUDA(
     const PinholeCamera4f& depth_camera,
     float baseline_fx,
     float threshold_factor,
-    const CUDABuffer<float>& downsampled_depth,
+    const CUDABuffer<float>& downsampled_depth, //2.7 tracked_depth[scale]
     const CUDABuffer<u16>& downsampled_normals,
     cudaTextureObject_t downsampled_color,
-    const CUDAMatrix3x4& estimate_frame_T_surfel_frame,
-    const CUDABuffer<float>& surfel_depth,
+    const CUDAMatrix3x4& estimate_frame_T_surfel_frame, // 2.7 base frame w.r.t. last scale of traked frame
+    const CUDABuffer<float>& surfel_depth, // 2.7 base_depth[scale]
     const CUDABuffer<u16>& surfel_normals,
     const CUDABuffer<uchar>& surfel_color,
     u32* residual_count,
@@ -259,10 +259,10 @@ void ComputeCostAndResidualCountFromImagesCUDA(
         CreateDepthToColorPixelCorner(depth_camera, color_camera),
         threshold_factor,
         estimate_frame_T_surfel_frame,
-        surfel_depth.ToCUDA(),
+        surfel_depth.ToCUDA(), //2.7 base_depth[scale]
         surfel_normals.ToCUDA(),
         surfel_color.ToCUDA(),
-        downsampled_depth.ToCUDA(),
+        downsampled_depth.ToCUDA(), // 2.7 tracked_depth[scale]
         downsampled_normals.ToCUDA(),
         downsampled_color,
         helper_buffers->residual_count_buffer.ToCUDA(),

@@ -47,7 +47,7 @@ class BadSlamRenderWindow;
 // allocated over subsequent calls to avoid repeated GPU memory allocations.
 struct PairwiseFrameTrackingBuffers {
   PairwiseFrameTrackingBuffers(int depth_width, int depth_height, int num_scales);
-  
+  // 2.8 jzmTODO: feature_buffer?
   vector<CUDABufferPtr<float>> tracked_depth;
   vector<CUDABufferPtr<u16>> tracked_normals;
   vector<CUDABufferPtr<uchar>> tracked_color;

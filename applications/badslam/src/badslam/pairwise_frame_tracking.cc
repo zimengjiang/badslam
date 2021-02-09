@@ -260,19 +260,19 @@ repeat_pose_estimation:;
   vector<CUDABuffer<u16>*> base_normals(num_scales);
   vector<CUDABuffer<uchar>*> base_color(num_scales);
   vector<cudaTextureObject_t*> base_color_textures(num_scales);
-  
+  // 2.8 vector of pointers
   vector<CUDABuffer<float>*> tracked_depth(num_scales);
   vector<CUDABuffer<u16>*> tracked_normals(num_scales);
   vector<CUDABuffer<uchar>*> tracked_color(num_scales);
   vector<cudaTextureObject_t*> tracked_color_textures(num_scales);
-  
+  // 2.8 jzmTODO: how the color image is scaled?
   for (u32 scale = 0; scale < num_scales; ++ scale) {
     base_depth[scale] = buffers->base_depth[scale].get();
     base_normals[scale] = buffers->base_normals[scale].get();
     base_color[scale] = buffers->base_color[scale].get();
     base_color_textures[scale] = &buffers->base_color_texture[scale];
     
-    tracked_depth[scale] = buffers->tracked_depth[scale].get();
+    tracked_depth[scale] = buffers->tracked_depth[scale].get(); //2.8 Only get the pointer, not the scaled depth
     tracked_normals[scale] = (scale >= 1) ? buffers->tracked_normals[scale].get() : const_cast<CUDABuffer<u16>*>(&tracked_normals_buffer);  // TODO: avoid const_cast
     tracked_color[scale] = buffers->tracked_color[scale].get();
     tracked_color_textures[scale] = &buffers->tracked_color_texture[scale];
@@ -364,6 +364,7 @@ repeat_pose_estimation:;
   
   // Iterate over scales
 //   bool converged;
+// 2.8 from coarse to fine
   for (int scale = num_scales - 1; scale >= (use_pyramid_level_0 ? 0 : 1); -- scale) {
     if (kDebug) {
       LOG(INFO) << "Debug: scale " << scale;
@@ -475,6 +476,7 @@ repeat_pose_estimation:;
           helper_buffers,
           use_gradmag);
       
+      // 2.8 TODO: why residual count as the selection criterion of highest priority?
       // Selection heuristic based on residual count and cost:
       if (residual_count_last_scale > 2 * residual_count_initial_estimate) {
   //       if (scale != num_scales - 1) {

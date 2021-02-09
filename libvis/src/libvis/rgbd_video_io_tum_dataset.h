@@ -126,6 +126,7 @@ bool ReadTUMRGBDTrajectory(
 // The trajectory filename can be left empty to not load a trajectory.
 template<typename ColorT, typename DepthT>
 bool ReadTUMRGBDDatasetAssociatedAndCalibrated(
+    const char* feature_folder, // 2.9 name of the feature folder
     const char* dataset_folder_path,
     const char* trajectory_filename,
     RGBDVideo<ColorT, DepthT>* rgbd_video) {
@@ -200,12 +201,17 @@ bool ReadTUMRGBDDatasetAssociatedAndCalibrated(
       }
     }
     
+    // 2.9 for feature loading
+    const std::string time_stamp = rgb_time_string;
+    const std::string file_name = time_stamp.substr(0, time_stamp.size()-3);
+    const std::string feature_file_path = string(dataset_folder_path) + "/" + feature_folder + "/" + file_name +".npy";
+    
     string color_filepath =
         string(dataset_folder_path) + "/" + rgb_filename;
-    ImageFramePtr<ColorT, SE3f> image_frame(new ImageFrame<ColorT, SE3f>(color_filepath, rgb_timestamp, rgb_time_string));
+    ImageFramePtr<ColorT, SE3f> image_frame(new ImageFrame<ColorT, SE3f>(feature_file_path, color_filepath, rgb_timestamp, rgb_time_string));
     image_frame->SetGlobalTFrame(rgb_global_T_frame); // 11.11 set when the trajectory is known 
     rgbd_video->color_frames_mutable()->push_back(image_frame);
-    
+
     string depth_filepath =
         string(dataset_folder_path) + "/" + depth_filename;
     ImageFramePtr<DepthT, SE3f> depth_frame(new ImageFrame<DepthT, SE3f>(depth_filepath, depth_timestamp, depth_time_string));

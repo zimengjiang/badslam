@@ -108,6 +108,16 @@ class ImageCache : public ImageCacheElement<T> {
   // Creates an empty image cache. The path and / or image need to be set later.
   inline ImageCache() {}
   
+  // 2.9
+  // Creates an image cache with the given image path and feature path.
+  // The image is only loaded
+  // from disk if it is accessed (or the loading is triggered directly with
+  // EnsureImageIsLoaded()).
+  // The feature is only loaded from disk if it is accessed. or the loading is triggered directly with
+  // EnsureFeatureIsLoaded()
+  inline ImageCache(const string& feature_path, const string& image_path)
+      : feature_path_(feature_path), image_path_(image_path) {}
+  
   // Creates an image cache with the given image path. The image is only loaded
   // from disk if it is accessed (or the loading is triggered directly with
   // EnsureImageIsLoaded()).
@@ -130,6 +140,31 @@ class ImageCache : public ImageCacheElement<T> {
     image_ = image;
   }
   
+  // 2.9 load feature as an array
+  bool EnsureFeatureIsLoaded() {
+    if (feature_){
+      return true;
+    }
+    if (feature_path_.empty()) {
+      return false;
+    }
+    feature_.reset(new Feature<float>());
+    if (feature_->Read(feature_path_)){
+      return true;
+    }
+    feature_.reset();
+    return false;
+  }
+  // 2.9 load feature
+  inline const shared_ptr<Feature<float>>& GetFeature() {
+    if (!EnsureFeatureIsLoaded()) {
+      // Make sure that feature_ is not a valid pointer.
+      feature_.reset();
+    }
+    return feature_;
+  }
+  
+
   // Tries to read the image from disk if it is not loaded. Returns true if the
   // image is loaded after the function executed, false otherwise.
   bool EnsureImageIsLoaded() {
@@ -167,6 +202,8 @@ class ImageCache : public ImageCacheElement<T> {
   inline void ClearImageAndDerivedData() {
     ClearDerivedData();
     image_.reset();
+    // 2.9 do the same for feature
+    feature_.reset();
   }
   
   // Alias for GetImage() which allows the ImageCache to be used as the first
@@ -191,9 +228,13 @@ class ImageCache : public ImageCacheElement<T> {
  private:
   // First level of the operation tree.
   map<string, shared_ptr<ImageCacheElement<T>>> element_map_;
-  
+  // 2.9 corresponding feature path
+  string feature_path_;
+  shared_ptr<Feature<float>> feature_; 
+  //
   string image_path_;
   shared_ptr<Image<T>> image_;
+  
 };
 
 

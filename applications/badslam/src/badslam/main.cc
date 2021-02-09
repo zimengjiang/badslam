@@ -524,6 +524,7 @@ int LIBVIS_QT_MAIN(int argc, char** argv) {
     live_input = 2;
   } else {
     if (!ReadTUMRGBDDatasetAssociatedAndCalibrated(
+                feature_folder.c_str(), // 2.9 for loading features
                 dataset_folder_path.c_str(),
                 trajectory_path.empty() ? nullptr : trajectory_path.c_str(),
                 &rgbd_video)) {
@@ -633,10 +634,13 @@ int LIBVIS_QT_MAIN(int argc, char** argv) {
     // the actual thing is done in ProcessFrame(frame_index)
     // Get the current RGB-D frame's RGB and depth images. This may wait for I/O
     // to complete in case it did not complete in the pre-loading thread yet.
+    const Feature<float>* feature = 
+        rgbd_video.color_frame_mutable(frame_index)->GetFeature().get();
     const Image<Vec3u8>* rgb_image =
         rgbd_video.color_frame_mutable(frame_index)->GetImage().get();
     const Image<u16>* depth_image =
         rgbd_video.depth_frame_mutable(frame_index)->GetImage().get();
+    
     
     // Pre-load the next frame.
     if (frame_index < rgbd_video.frame_count() - 1) {

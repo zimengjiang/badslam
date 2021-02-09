@@ -81,9 +81,10 @@ void PreLoadThread::ThreadMain() {
     preload_frame_index_ = -1;
     input_lock.unlock();
     // ### Input data lock end ###
-    
-    rgbd_video_->color_frame_mutable(preload_frame_index)->GetImage().get();
+    // 2.8 jzmTODO: preload features here? shared_ptr???
+    rgbd_video_->color_frame_mutable(preload_frame_index)->GetImage().get(); // 2.8 ->GetImage() returns the image shared ptr if the image is loaded..get() returns the stored image ptr. wrapped in the shared ptr.  
     rgbd_video_->depth_frame_mutable(preload_frame_index)->GetImage().get();
+    rgbd_video_->color_frame_mutable(preload_frame_index)->GetFeature().get();
   }
 }
 

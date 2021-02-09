@@ -1524,6 +1524,7 @@ __global__ void ComputeCostAndResidualCountFromImagesCUDAKernel_GradientXY(
     float surfel_calibrated_depth = surfel_depth(y, x);
     if (surfel_calibrated_depth > 0) {
       float3 surfel_local_position;
+      // 2.8 project sufels (in its own local frame, i.e. base kf) to the estimated frame (current tracking frame)
       if (estimate_frame_T_surfel_frame.MultiplyIfResultZIsPositive(depth_unprojector.UnprojectPoint(x, y, surfel_calibrated_depth), &surfel_local_position)) {
         int px, py;
         float2 pxy;
@@ -1567,8 +1568,8 @@ __global__ void ComputeCostAndResidualCountFromImagesCUDAKernel_GradientXY(
               if (use_descriptor_residuals) {
                 if (x < surfel_depth.width() - 1 &&  // NOTE: These conditions are only necessary since we compute descriptors in the input image and always go right / down
                     y < surfel_depth.height() - 1) {
-                  // Compute descriptor in surfel image
-                  const float intensity = 1 / 255.f * surfel_color(y, x);
+                  // Compute descriptor in surfel image // 2.7 jzmTODO:
+                  const float intensity = 1 / 255.f * surfel_color(y, x); //2.7 TODO: use features of base kf
                   const float t1_intensity = 1 / 255.f * surfel_color(y, x + 1);
                   const float t2_intensity = 1 / 255.f * surfel_color(y + 1, x);
                   
@@ -1612,7 +1613,7 @@ __global__ void ComputeCostAndResidualCountFromImagesCUDAKernel_GradientXY(
                       TransformDepthToColorPixelCorner(pxy, depth_to_color, &color_pxy) &&
                       TransformDepthToColorPixelCorner(pxy_t1, depth_to_color, &color_pxy_t1) &&
                       TransformDepthToColorPixelCorner(pxy_t2, depth_to_color, &color_pxy_t2)) {
-                    ComputeRawDescriptorResidualWithFloatTexture(
+                    ComputeRawDescriptorResidualWithFloatTexture( // 2.8 jzmTODO: use feature descriptors
                         frame_color,
                         color_pxy,
                         color_pxy_t1,

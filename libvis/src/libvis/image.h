@@ -44,8 +44,46 @@
 #include "libvis/image_io_qt.h"
 #include "libvis/libvis.h"
 #include "libvis/qt_thread.h"
+#include "cnpy.h"
 
 namespace vis {
+
+// 2.9 
+template<typename T>
+class Feature {
+  public:
+
+    inline Feature(): width_(0), height_(0), channels_(0), data_(nullptr) {}
+    
+    ~Feature(){}
+    
+    bool Read(const string& feature_path){
+      data_ = cnpy::npy_load(feature_path).data<T>();
+      if (data_) {
+          /*for (int i = 0; i<10; ++i){
+            cout<< data_[i]<< std::endl;
+        }
+        cout << "----------------"<<endl;*/ // 2.9 for debugging
+        return true;
+      }
+      return false;
+    }
+
+  private:
+  u32 width_;
+  u32 height_;
+  u32 channels_;
+  T* data_;
+
+  /*void FreeData(){
+    if(!data_){
+      delete[] data_;
+    }else{
+      free(data_);
+    }
+  }*/
+};
+///////////////////////////////////
 
 // Vector type for image sizes.
 typedef Matrix<u32, 2, 1> ImageSize;

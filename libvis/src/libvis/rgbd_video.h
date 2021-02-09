@@ -42,7 +42,7 @@ class RGBDVideo {
   typedef ImageFrameConstPtr<ColorT, SE3f> ConstColorFrame;
   typedef ImageFramePtr<ColorT, SE3f> ColorFrame;
   typedef vector<ColorFrame> ColorFramesVector;
-  
+
   typedef ImageFrameConstPtr<DepthT, SE3f> ConstDepthFrame;
   typedef ImageFramePtr<DepthT, SE3f> DepthFrame;
   typedef vector<DepthFrame> DepthFramesVector;

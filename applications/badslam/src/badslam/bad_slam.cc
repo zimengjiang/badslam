@@ -181,6 +181,8 @@ void BadSlam::ProcessFrame(const std::string& feature_folder, const std::string&
   /*const shared_ptr<Image<u16>>& depth_image =*/
       rgbd_video_->depth_frame_mutable(frame_index)->GetImage();
   
+  // 2.9 jzmTODO: load features for the current frame here, for both RunOdometry and BA. Avoid loading feaatures twice. 
+  
   // After I/O is done, start the "no I/O" frame timer.
   frame_timer_.Start();
   
@@ -193,7 +195,7 @@ void BadSlam::ProcessFrame(const std::string& feature_folder, const std::string&
   
   // Estimate the frame's pose (unless it is the first frame).
   pose_estimated_ = false;
-  if (config_.estimate_poses && base_kf_) {
+  if (config_.estimate_poses && base_kf_) { // 2.8 For the first frame, no kf has been created, base_kf_ = NULL
     RunOdometry(frame_index);
     pose_estimated_ = true;
   }
@@ -794,6 +796,9 @@ void BadSlam::PredictFramePose(
           base_kf_tr_frame_[stored_frames - 1] *
           frame_tr_base_kf_[stored_frames - 2] *
           base_kf_tr_frame_[stored_frames - 1];
+          // 2.8 constant motion model. Assume kf_base, tr_1, tr_2, tr_new
+          // Initial estimation of T_{bnew} = T_{b2} @  T_{2new} = T_{b2} @ T_{12} = T_{b2} @ T_{1b} @ T_{b2} 
+          /*constant motion model, T_{2new} = T_{12}*/ 
     } else {
       CHECK_EQ(base_kf_tr_frame_.size(), 1);
       *base_kf_tr_frame_initial_estimate = base_kf_tr_frame_[stored_frames - 1];
@@ -807,7 +812,7 @@ void BadSlam::PredictFramePose(
           base_kf_tr_frame_[stored_frames - 2];
       *base_kf_tr_frame_initial_estimate_2 =
           base_kf_tr_frame_[stored_frames - 2] *
-          prev_frame_T_last_frame * prev_frame_T_last_frame;
+          prev_frame_T_last_frame * prev_frame_T_last_frame; // 2.8 Two time stamps. 
     } else {
       *base_kf_tr_frame_initial_estimate_2 = *base_kf_tr_frame_initial_estimate;
     }
@@ -1081,7 +1086,7 @@ shared_ptr<Keyframe> BadSlam::CreateKeyframe(
     base_kf_tr_frame_[i] = frame_tr_base_kf_.back() * base_kf_tr_frame_[i];
   }
   if (frame_tr_base_kf_.empty()) {
-    base_kf_tr_frame_.push_back(SE3f());
+    base_kf_tr_frame_.push_back(SE3f()); // 2.8 If frame_tr_base_kf_ is empty (e.g. the first frame to track), base_kf_tr_frame is identity
     frame_tr_base_kf_.push_back(SE3f());
   } else {
     base_kf_tr_frame_.back() = SE3f();
