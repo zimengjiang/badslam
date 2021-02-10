@@ -182,9 +182,10 @@ void BadSlam::ProcessFrame(const std::string& feature_folder, const std::string&
   /*const shared_ptr<Image<u16>>& depth_image =*/
       rgbd_video_->depth_frame_mutable(frame_index)->GetImage();
   
-  // 2.9 jzmTODO: load features for the current frame here, for both RunOdometry and BA. Avoid loading feaatures twice. 
-  /* const cnpy::NpyArray* current_feature = 
-      rgbd_video_->color_frame_mutable(frame_index)->GetFeature().get();*/ 
+  // 2.9: load features for the current frame here, for both RunOdometry and BA. Avoid loading feaatures twice. 
+  cnpy::NpyArray* current_feature = 
+      rgbd_video_->color_frame_mutable(frame_index)->GetFeature().get();
+  feature_buffer_->UploadAsync(stream_,  (*current_feature).data<float>());
 
   // After I/O is done, start the "no I/O" frame timer.
   frame_timer_.Start();
@@ -1017,11 +1018,6 @@ shared_ptr<Keyframe> BadSlam::CreateKeyframe(
   printf("jzm0: feature arr (400,2000) %f \n", *(feature_arr.data<float>()+400*2217+2000));
   // printf("jzm0: feature arr (457,2216) %f\n", *(feature_arr.data<float>()+457*2217+2216));
   */
- 
-  // 2.9: load features for the current frame here, for both RunOdometry and BA. Avoid loading feaatures twice. 
-  cnpy::NpyArray* current_feature = 
-      rgbd_video_->color_frame_mutable(frame_index)->GetFeature().get();
-  feature_buffer_->UploadAsync(stream_,  (*current_feature).data<float>());
 
   shared_ptr<Keyframe> new_keyframe(new Keyframe(
       stream_,
