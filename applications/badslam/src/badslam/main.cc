@@ -615,6 +615,10 @@ int LIBVIS_QT_MAIN(int argc, char** argv) {
   PrintGPUMemoryUsage();
   
   
+  // 2.9 Release memory. Just for initialization, otherwise I always got random feature address for the first frame
+  rgbd_video.depth_frame_mutable(0)->ClearImageAndDerivedData();
+  rgbd_video.color_frame_mutable(0)->ClearImageAndDerivedData();
+  pre_load_thread.PreLoad(0);
   // ### Main loop ###
   bool quit = false;
   bool program_aborted = false;
@@ -629,18 +633,14 @@ int LIBVIS_QT_MAIN(int argc, char** argv) {
     } else if (live_input == 3) {
       structure_input.GetNextFrame();
     }
-    
     // 11.11 load image here in case of visualizing the input image, actually the 
     // the actual thing is done in ProcessFrame(frame_index)
     // Get the current RGB-D frame's RGB and depth images. This may wait for I/O
     // to complete in case it did not complete in the pre-loading thread yet.
-    const Feature<float>* feature = 
-        rgbd_video.color_frame_mutable(frame_index)->GetFeature().get();
     const Image<Vec3u8>* rgb_image =
-        rgbd_video.color_frame_mutable(frame_index)->GetImage().get();
+        rgbd_video.color_frame_mutable(frame_index)->GetImage().get(); //2.9
     const Image<u16>* depth_image =
-        rgbd_video.depth_frame_mutable(frame_index)->GetImage().get();
-    
+        rgbd_video.depth_frame_mutable(frame_index)->GetImage().get();  
     
     // Pre-load the next frame.
     if (frame_index < rgbd_video.frame_count() - 1) {

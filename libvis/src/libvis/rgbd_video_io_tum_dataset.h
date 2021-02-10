@@ -204,11 +204,11 @@ bool ReadTUMRGBDDatasetAssociatedAndCalibrated(
     // 2.9 for feature loading
     const std::string time_stamp = rgb_time_string;
     const std::string file_name = time_stamp.substr(0, time_stamp.size()-3);
-    const std::string feature_file_path = string(dataset_folder_path) + "/" + feature_folder + "/" + file_name +".npy";
-    
+    const std::string feature_filepath = string(dataset_folder_path) + "/" + feature_folder + "/" + file_name +".npy";
+
     string color_filepath =
         string(dataset_folder_path) + "/" + rgb_filename;
-    ImageFramePtr<ColorT, SE3f> image_frame(new ImageFrame<ColorT, SE3f>(feature_file_path, color_filepath, rgb_timestamp, rgb_time_string));
+    ImageFramePtr<ColorT, SE3f> image_frame(new ImageFrame<ColorT, SE3f>(feature_filepath, color_filepath, rgb_timestamp, rgb_time_string));
     image_frame->SetGlobalTFrame(rgb_global_T_frame); // 11.11 set when the trajectory is known 
     rgbd_video->color_frames_mutable()->push_back(image_frame);
 

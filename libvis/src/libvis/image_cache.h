@@ -143,20 +143,25 @@ class ImageCache : public ImageCacheElement<T> {
   // 2.9 load feature as an array
   bool EnsureFeatureIsLoaded() {
     if (feature_){
+      // cout << "Feature has already been loaded!" <<endl;
       return true;
     }
     if (feature_path_.empty()) {
       return false;
     }
-    feature_.reset(new Feature<float>());
-    if (feature_->Read(feature_path_)){
+    feature_.reset(new /*Feature<float>(*/cnpy::NpyArray());
+    feature_ = make_shared<cnpy::NpyArray>(cnpy::npy_load(feature_path_));
+    if (feature_){
       return true;
     }
+    /*if (feature_->Read(feature_path_)){
+      return true;
+    }*/
     feature_.reset();
     return false;
   }
   // 2.9 load feature
-  inline const shared_ptr<Feature<float>>& GetFeature() {
+  inline const shared_ptr<cnpy::NpyArray/*Feature<float>*/>& GetFeature() {
     if (!EnsureFeatureIsLoaded()) {
       // Make sure that feature_ is not a valid pointer.
       feature_.reset();
@@ -230,7 +235,7 @@ class ImageCache : public ImageCacheElement<T> {
   map<string, shared_ptr<ImageCacheElement<T>>> element_map_;
   // 2.9 corresponding feature path
   string feature_path_;
-  shared_ptr<Feature<float>> feature_; 
+  shared_ptr<cnpy::NpyArray> feature_;
   //
   string image_path_;
   shared_ptr<Image<T>> image_;

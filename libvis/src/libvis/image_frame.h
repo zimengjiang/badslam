@@ -124,7 +124,7 @@ class ImageFrame : public ImageCache<T> {
 };
 
 template<typename T, typename PoseType>
-using ImageFramePtr = shared_ptr<ImageFrame<T, PoseType>>;
+using ImageFramePtr = shared_ptr<ImageFrame<T, PoseType>>; //2.9 for color and depth
 template<typename T, typename PoseType>
 using ImageFrameConstPtr = shared_ptr<const ImageFrame<T, PoseType>>;
 

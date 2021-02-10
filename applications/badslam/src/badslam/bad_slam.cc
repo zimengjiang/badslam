@@ -176,13 +176,16 @@ void BadSlam::ProcessFrame(const std::string& feature_folder, const std::string&
   // Get the images. This should be before starting the "without I/O" timer
   // since it can lead to the images being loaded from disk (in case they are
   // not cached yet).
+  
   const Image<Vec3u8>* rgb_image =
       rgbd_video_->color_frame_mutable(frame_index)->GetImage().get();
   /*const shared_ptr<Image<u16>>& depth_image =*/
       rgbd_video_->depth_frame_mutable(frame_index)->GetImage();
   
   // 2.9 jzmTODO: load features for the current frame here, for both RunOdometry and BA. Avoid loading feaatures twice. 
-  
+  /* const cnpy::NpyArray* current_feature = 
+      rgbd_video_->color_frame_mutable(frame_index)->GetFeature().get();*/ 
+
   // After I/O is done, start the "no I/O" frame timer.
   frame_timer_.Start();
   
@@ -1005,14 +1008,21 @@ shared_ptr<Keyframe> BadSlam::CreateKeyframe(
   11.14 jzm:
   load feature_buffer here
   */
-  const std::string time_stamp = rgbd_video_->color_frame_mutable(frame_index).get()->timestamp_string();
+  /*const std::string time_stamp = rgbd_video_->color_frame_mutable(frame_index).get()->timestamp_string();
   const std::string file_name = time_stamp.substr(0, time_stamp.size()-3);
   const std::string feature_file_path = dataset_folder_path + "/" + feature_folder + "/" + file_name +  +".npy";
   cnpy::NpyArray feature_arr = cnpy::npy_load(feature_file_path);
   // 11.16 upload feature_arr to GPU, feature_buffer_ is the pointer to CUDABuffer;
-  feature_buffer_->UploadAsync(stream_, feature_arr.data<float>());
-  // printf("jzm0: feature arr (400,2000) %f \n", *(feature_arr.data<float>()+400*2217+2000));
+  // feature_buffer_->UploadAsync(stream_, feature_arr.data<float>());
+  printf("jzm0: feature arr (400,2000) %f \n", *(feature_arr.data<float>()+400*2217+2000));
   // printf("jzm0: feature arr (457,2216) %f\n", *(feature_arr.data<float>()+457*2217+2216));
+  */
+ 
+  // 2.9: load features for the current frame here, for both RunOdometry and BA. Avoid loading feaatures twice. 
+  cnpy::NpyArray* current_feature = 
+      rgbd_video_->color_frame_mutable(frame_index)->GetFeature().get();
+  feature_buffer_->UploadAsync(stream_,  (*current_feature).data<float>());
+
   shared_ptr<Keyframe> new_keyframe(new Keyframe(
       stream_,
       frame_index,
