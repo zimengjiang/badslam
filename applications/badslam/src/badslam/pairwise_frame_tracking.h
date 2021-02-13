@@ -39,6 +39,8 @@
 #include "badslam/kernels.h"
 #include "badslam/surfel_projection.cuh"
 
+#include "badslam/kernels.cuh"
+
 namespace vis {
 
 class BadSlamRenderWindow;
@@ -46,17 +48,18 @@ class BadSlamRenderWindow;
 // Collection of GPU buffers used by pairwise frame tracking that should stay
 // allocated over subsequent calls to avoid repeated GPU memory allocations.
 struct PairwiseFrameTrackingBuffers {
-  PairwiseFrameTrackingBuffers(int depth_width, int depth_height, int num_scales);
-  // 2.8 jzmTODO: feature_buffer?
+  PairwiseFrameTrackingBuffers(int depth_width, int depth_height,int num_scales);
   vector<CUDABufferPtr<float>> tracked_depth;
   vector<CUDABufferPtr<u16>> tracked_normals;
   vector<CUDABufferPtr<uchar>> tracked_color;
   vector<cudaTextureObject_t> tracked_color_texture;
+  vector<CUDABufferPtr<float>> tracked_feature; // 2.10
   
   vector<CUDABufferPtr<float>> base_depth;
   vector<CUDABufferPtr<u16>> base_normals;
   vector<CUDABufferPtr<uchar>> base_color;
   vector<cudaTextureObject_t> base_color_texture;
+  vector<CUDABufferPtr<float>> base_feature; // 2.10
 };
 
 // Prepares GPU buffers and textures for pairwise frame tracking, for the given
@@ -95,11 +98,13 @@ void TrackFramePairwise(
     const CUDABuffer<u16>& tracked_depth_buffer,
     const CUDABuffer<u16>& tracked_normals_buffer,
     const cudaTextureObject_t tracked_color_texture,
+    const CUDABuffer<float> & tracked_feature_buffer, // 2.10
     /* base frame */
     const CUDABuffer<float>& base_depth_buffer,
     const CUDABuffer<u16>& base_normals_buffer,
     const CUDABuffer<uchar>& base_color_buffer,
     const cudaTextureObject_t base_color_texture,
+    const CUDABuffer<float>& base_feature_buffer, // 2.10
     /* input / output poses */
     const SE3f& global_T_base,  // for debugging only!
     bool test_different_initial_estimates,

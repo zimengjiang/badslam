@@ -42,17 +42,20 @@ PairwiseFrameTrackingBuffers::PairwiseFrameTrackingBuffers(
   base_normals.resize(num_scales);
   base_color.resize(num_scales);
   base_color_texture.resize(num_scales);
+  base_feature.resize(num_scales); // 2.10
   
   tracked_depth.resize(num_scales);
   tracked_normals.resize(num_scales);
   tracked_color.resize(num_scales);
   tracked_color_texture.resize(num_scales);
+  tracked_feature.resize(num_scales); // 2.10
   
   for (u32 scale = 0; scale < num_scales; ++ scale) {
     int scale_width = depth_width / pow(2, scale);
     int scale_height = depth_height / pow(2, scale);
     
     base_depth[scale].reset(new CUDABuffer<float>(scale_height, scale_width));
+    base_feature[scale].reset(new CUDABuffer<float>(scale_height, scale_width*kTotalChannels)); // 2.10
     base_normals[scale].reset(new CUDABuffer<u16>(scale_height, scale_width));
     base_color[scale].reset(new CUDABuffer<uchar>(scale_height, scale_width));
     base_color[scale]->CreateTextureObject(
@@ -65,6 +68,7 @@ PairwiseFrameTrackingBuffers::PairwiseFrameTrackingBuffers(
     
     // Scale 0 is not used in these arrays for multi-res tracking, but is used for loop closure tracking (except normals)
     tracked_depth[scale].reset(new CUDABuffer<float>(scale_height, scale_width));
+    tracked_feature[scale].reset(new CUDABuffer<float>(scale_height, scale_width*kTotalChannels)); // 2.10
     if (scale >= 1) {
       tracked_normals[scale].reset(new CUDABuffer<u16>(scale_height, scale_width));
     }
@@ -170,6 +174,7 @@ void TrackFramePairwise(
     const CUDABuffer<u16>& tracked_depth_buffer,
     const CUDABuffer<u16>& tracked_normals_buffer,
     const cudaTextureObject_t tracked_color_texture,
+    const CUDABuffer<float>& tracked_feature_buffer, // 2.10
     /* base frame
      * NOTE: Color must have been transformed to the depth camera intrinsics.
      */
@@ -177,6 +182,7 @@ void TrackFramePairwise(
     const CUDABuffer<u16>& base_normals_buffer,
     const CUDABuffer<uchar>& base_color_buffer,
     const cudaTextureObject_t base_color_texture,
+    const CUDABuffer<float>& base_feature_buffer, // 2.10
     /* input / output poses */
     const SE3f& global_T_base,  // for debugging only!
     bool test_different_initial_estimates,
@@ -260,24 +266,28 @@ repeat_pose_estimation:;
   vector<CUDABuffer<u16>*> base_normals(num_scales);
   vector<CUDABuffer<uchar>*> base_color(num_scales);
   vector<cudaTextureObject_t*> base_color_textures(num_scales);
+  vector<CUDABuffer<float>*> base_features(num_scales); // 2.10
   // 2.8 vector of pointers
   vector<CUDABuffer<float>*> tracked_depth(num_scales);
   vector<CUDABuffer<u16>*> tracked_normals(num_scales);
   vector<CUDABuffer<uchar>*> tracked_color(num_scales);
   vector<cudaTextureObject_t*> tracked_color_textures(num_scales);
+  vector<CUDABuffer<float>*> tracked_features(num_scales); // 2.10
+
   // 2.8 jzmTODO: how the color image is scaled?
   for (u32 scale = 0; scale < num_scales; ++ scale) {
     base_depth[scale] = buffers->base_depth[scale].get();
     base_normals[scale] = buffers->base_normals[scale].get();
     base_color[scale] = buffers->base_color[scale].get();
     base_color_textures[scale] = &buffers->base_color_texture[scale];
+    base_features[scale] = buffers->base_feature[scale].get();
     
     tracked_depth[scale] = buffers->tracked_depth[scale].get(); //2.8 Only get the pointer, not the scaled depth
     tracked_normals[scale] = (scale >= 1) ? buffers->tracked_normals[scale].get() : const_cast<CUDABuffer<u16>*>(&tracked_normals_buffer);  // TODO: avoid const_cast
     tracked_color[scale] = buffers->tracked_color[scale].get();
     tracked_color_textures[scale] = &buffers->tracked_color_texture[scale];
+    tracked_features[scale] = buffers->tracked_feature[scale].get();
   }
-  
   
   static CUDABufferPtr<float> debug_residual_image;
   if ((kDebug || convergence_samples_file) && !debug_residual_image) {
@@ -289,6 +299,9 @@ repeat_pose_estimation:;
   base_normals[0] = const_cast<CUDABuffer<u16>*>(&base_normals_buffer);
   base_color[0] = const_cast<CUDABuffer<uchar>*>(&base_color_buffer);
   base_color_textures[0] = const_cast<cudaTextureObject_t*>(&base_color_texture);
+  base_features[0] = const_cast<CUDABuffer<float>*>(&base_feature_buffer); // 2.10
+  // 2.12 Set pointers to use provided feature
+  tracked_features[0] = const_cast<CUDABuffer<float>*>(&tracked_feature_buffer);
   
   if (use_pyramid_level_0) {
     // Convert tracked frame input to the expected format to use it on scale 0.
@@ -321,32 +334,48 @@ repeat_pose_estimation:;
         kDebug);
   }
   
+  // 2.10 Downsample the image and features from scale2
+  // 2.10 jzmTODO: downsample features
   for (u32 scale = 0; scale < num_scales; ++ scale) {
     if (scale >= 1) {
       if (scale >= 2 || use_pyramid_level_0) {
-        DownsampleImagesCUDA(
+        //DownsampleImagesCUDA(
+        DownsampleImagesAndFeaturesCUDA(
             stream,
             tracked_depth[scale - 1]->ToCUDA(),
             tracked_normals[scale - 1]->ToCUDA(),
             *tracked_color_textures[scale - 1],
+            tracked_features[scale -1]->ToCUDA(), // 2.10
             &tracked_depth[scale]->ToCUDA(),
             &tracked_normals[scale]->ToCUDA(),
             &tracked_color[scale]->ToCUDA(),
+            &tracked_features[scale]->ToCUDA(), // 2.10
             kDebug);
+        
+        // 2.12 to save features
+        /*CUDABuffer<float> saved_feature = tracked_features[scale];
+        float* saved_feature_arr;
+        saved_feature.DownloadAsync(stream, saved_feature_arr);
+        cnpy::npy_save("tracked_scale"+to_string(scale)+".npy", &saved_feature_arr, {saved_feature.height(), saved_feature.width()},"w");
+        */
       }
       
-      DownsampleImagesCUDA(
+      // DownsampleImagesCUDA(
+      DownsampleImagesAndFeaturesCUDA(
           stream,
           base_depth[scale - 1]->ToCUDA(),
           base_normals[scale - 1]->ToCUDA(),
           *base_color_textures[scale - 1],
+          base_features[scale - 1]->ToCUDA(), // 2.10
           &base_depth[scale]->ToCUDA(),
           &base_normals[scale]->ToCUDA(),
           &base_color[scale]->ToCUDA(),
+          &base_features[scale]->ToCUDA(), // 2.10
           kDebug);
     }
   }
-  
+
+  // 2.11 TODO: save features here to check scaling
   if (convergence_samples_file) {
     *convergence_samples_file << "EstimateFramePoseMultiRes()" << std::endl;
   }
@@ -369,6 +398,13 @@ repeat_pose_estimation:;
     if (kDebug) {
       LOG(INFO) << "Debug: scale " << scale;
       
+      // 2.12 visualize feature of base_frame
+      static ImageDisplay based_feature_display;
+      base_features[scale]->DebugDisplay(stream, &based_feature_display, "debug base feature", -1.f, 1.f );
+      // 2.12 visualize feature of tracked_frame
+      static ImageDisplay tracked_feature_display;
+      tracked_features[scale]->DebugDisplay(stream, &tracked_feature_display, "debug tracked feature", -1.f, 1.f );
+
       static ImageDisplay base_depth_display;
       base_depth[scale]->DebugDisplay(stream, &base_depth_display, "debug base depth", 0.f, 3.f);
       
@@ -433,7 +469,8 @@ repeat_pose_estimation:;
       u32 residual_count_last_scale;
       float cost_last_scale;
       SE3f base_T_frame_last_scale = (scale != num_scales - 1) ? base_T_frame_estimate : base_T_frame_initial_estimate_1;
-      ComputeCostAndResidualCountFromImagesCUDA(
+      // ComputeCostAndResidualCountFromImagesCUDA(
+      ComputeCostAndResidualCountFromFeaturesCUDA(
           stream,
           use_depth_residuals,
           use_descriptor_residuals,
@@ -444,19 +481,21 @@ repeat_pose_estimation:;
           *tracked_depth[scale],
           *tracked_normals[scale],
           *tracked_color_textures[scale],
+          *tracked_features[scale], // 2.10
           CUDAMatrix3x4(base_T_frame_last_scale.inverse().matrix3x4()),
           *base_depth[scale],
           *base_normals[scale],
           *base_color[scale],
+          *base_features[scale], // 2.10
           &residual_count_last_scale,
           &cost_last_scale,
           helper_buffers,
           use_gradmag);
-      
       u32 residual_count_initial_estimate;
       float cost_initial_estimate;
       SE3f base_T_frame_initial_estimate = (scale != num_scales - 1) ? base_T_frame_chosen_initial_estimate : base_T_frame_initial_estimate_2;
-      ComputeCostAndResidualCountFromImagesCUDA(
+      //ComputeCostAndResidualCountFromImagesCUDA(
+      ComputeCostAndResidualCountFromFeaturesCUDA(
           stream,
           use_depth_residuals,
           use_descriptor_residuals,
@@ -467,15 +506,16 @@ repeat_pose_estimation:;
           *tracked_depth[scale],
           *tracked_normals[scale],
           *tracked_color_textures[scale],
+          *tracked_features[scale],
           CUDAMatrix3x4(base_T_frame_initial_estimate.inverse().matrix3x4()),
           *base_depth[scale],
           *base_normals[scale],
           *base_color[scale],
+          *base_features[scale],
           &residual_count_initial_estimate,
           &cost_initial_estimate,
           helper_buffers,
           use_gradmag);
-      
       // 2.8 TODO: why residual count as the selection criterion of highest priority?
       // Selection heuristic based on residual count and cost:
       if (residual_count_last_scale > 2 * residual_count_initial_estimate) {
@@ -511,7 +551,6 @@ repeat_pose_estimation:;
   //       LOG(INFO) << "DEBUG: times_initial_estimate_chosen = " << times_initial_estimate_chosen;
   //     }
     }
-    
 //     converged = false;
     int iteration;
     for (iteration = 0; iteration < kMaxIterationsPerScale; ++ iteration) {
@@ -526,7 +565,7 @@ repeat_pose_estimation:;
       u32 residual_count;
       float residual_sum;
       float H_temp[6 * (6 + 1) / 2];
-      AccumulatePoseEstimationCoeffsFromImagesCUDA(
+      AccumulatePoseEstimationCoeffsFromFeaturesCUDA(
           stream,
           use_depth_residuals,
           use_descriptor_residuals,
@@ -537,10 +576,12 @@ repeat_pose_estimation:;
           *tracked_depth[scale],
           *tracked_normals[scale],
           *tracked_color_textures[scale],
+          *tracked_features[scale], // 2.10
           CUDAMatrix3x4(base_T_frame_estimate.inverse().matrix3x4()),
           *base_depth[scale],
           *base_normals[scale],
           *base_color[scale],
+          *base_features[scale], // 2.10
           &residual_count,
           &residual_sum,
           H_temp,
@@ -554,6 +595,7 @@ repeat_pose_estimation:;
       for (int row = 0; row < 6; ++ row) {
         for (int col = row; col < 6; ++ col) {
           H(row, col) = H_temp[index];
+          // printf("H(%d,%d)=%f\n",row, col,H_temp[index]);
           ++ index;
         }
       }

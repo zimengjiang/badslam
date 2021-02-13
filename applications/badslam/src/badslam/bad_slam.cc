@@ -88,7 +88,7 @@ BadSlam::BadSlam(
   filtered_depth_buffer_A_.reset(new CUDABuffer<u16>(depth_height, depth_width));
   filtered_depth_buffer_B_.reset(new CUDABuffer<u16>(depth_height, depth_width));
   normals_buffer_.reset(new CUDABuffer<u16>(depth_height, depth_width));
-  radius_buffer_.reset(new CUDABuffer<u16>(kFeatureH, kFeatureW));
+  radius_buffer_.reset(new CUDABuffer<u16>(depth_height, depth_width));
   // 11.16 allocate feature buffer
   feature_buffer_.reset(new CUDABuffer<float>(kFeatureH, kFeatureW*kTotalChannels));
   rgb_buffer_.reset(new CUDABuffer<uchar3>(color_height, color_width));
@@ -142,6 +142,7 @@ BadSlam::BadSlam(
           rgbd_video->depth_frame(config_.start_frame)->global_T_frame() :
           SE3f()));
   
+  constexpr bool enable_loop_detection = false;
   if (config.enable_loop_detection) {
     if (!boost::filesystem::exists(config.loop_detection_vocabulary_path)) {
       LOG(ERROR) << "File given as config.loop_detection_vocabulary_path does not exist: " << config.loop_detection_vocabulary_path;
@@ -185,6 +186,7 @@ void BadSlam::ProcessFrame(const std::string& feature_folder, const std::string&
   // 2.9: load features for the current frame here, for both RunOdometry and BA. Avoid loading feaatures twice. 
   cnpy::NpyArray* current_feature = 
       rgbd_video_->color_frame_mutable(frame_index)->GetFeature().get();
+  // 2.10 feautre_buffer_ stores the buffer of current tracking frame and will be used for keyframe creation
   feature_buffer_->UploadAsync(stream_,  (*current_feature).data<float>());
 
   // After I/O is done, start the "no I/O" frame timer.
@@ -852,7 +854,6 @@ void BadSlam::RunOdometry(int frame_index) {
   PredictFramePose(
       &base_kf_tr_frame_initial_estimate,
       &base_kf_tr_frame_initial_estimate_2);
-  
   // Convert the raw u16 depths of the current frame to calibrated float
   // depths and transform the color image to depth intrinsics (and image size)
   // such that the code from the multi-res odometry tracking can be re-used
@@ -918,7 +919,6 @@ void BadSlam::RunOdometry(int frame_index) {
   direct_ba_->Lock();
   SE3f base_kf_global_T_frame = base_kf_global_T_frame_;
   direct_ba_->Unlock();
-  
   SE3f base_T_frame_estimate;
   TrackFramePairwise(
       &pairwise_tracking_buffers_,
@@ -937,12 +937,14 @@ void BadSlam::RunOdometry(int frame_index) {
       /* tracked frame */
       *depth_buffer_,
       *normals_buffer_,
-      tracked_gradmag_texture_,
+      tracked_gradmag_texture_, // 2.10 TODO: replace it with features?
+      *feature_buffer_, // 2.10
       /* base frame */
       *calibrated_depth_,
       base_kf_->normals_buffer(),
       *calibrated_gradmag_,
       calibrated_gradmag_texture_,
+      base_kf_->feature_buffer(), //2.10
       /* input / output poses */
       base_kf_global_T_frame,
       /*test_different_initial_estimates*/ true,

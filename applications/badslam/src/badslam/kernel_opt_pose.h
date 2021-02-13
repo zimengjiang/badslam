@@ -139,4 +139,51 @@ void ComputeCostAndResidualCountFromImagesCUDAKernel_GradientXY(
     const CUDABuffer_<u32>& residual_count_buffer,
     const CUDABuffer_<float>& residual_buffer);
 
+void ComputeCostAndResidualCountFromFeaturesCUDAKernel(
+      cudaStream_t stream,
+    bool use_depth_residuals,
+    bool use_descriptor_residuals,
+    const PixelCornerProjector& depth_projector,
+    const PixelCenterUnprojector& depth_unprojector,
+    float baseline_fx,
+    const DepthToColorPixelCorner& depth_to_color,
+    float threshold_factor,
+    const CUDAMatrix3x4& estimate_frame_T_surfel_frame,
+    const CUDABuffer_<float>& surfel_depth,
+    const CUDABuffer_<u16>& surfel_normals,
+    const CUDABuffer_<u8>& surfel_color,
+    const CUDABuffer_<float>& surfel_feature, // 2.10
+    const CUDABuffer_<float>& frame_depth,
+    const CUDABuffer_<u16>& frame_normals,
+    cudaTextureObject_t frame_color,
+    const CUDABuffer_<float>& frame_feature, // 2.10
+    const CUDABuffer_<u32>& residual_count_buffer,
+    const CUDABuffer_<float>& residual_buffer);
+
+void CallAccumulatePoseEstimationCoeffsFromFeaturesCUDAKernel(
+    cudaStream_t stream,
+    bool debug,
+    bool use_depth_residuals,
+    bool use_descriptor_residuals,
+    const PixelCornerProjector& depth_projector,
+    const PixelCenterProjector& color_center_projector,
+    const PixelCenterUnprojector& depth_unprojector,
+    float baseline_fx,
+    const DepthToColorPixelCorner& depth_to_color,
+    float threshold_factor,
+    const CUDAMatrix3x4& estimate_frame_T_surfel_frame,
+    const CUDABuffer_<float>& surfel_depth,
+    const CUDABuffer_<u16>& surfel_normals,
+    const CUDABuffer_<u8>& surfel_color,
+    const CUDABuffer_<float>& surfel_feature, // 2.10
+    const CUDABuffer_<float>& frame_depth,
+    const CUDABuffer_<u16>& frame_normals,
+    cudaTextureObject_t frame_color,
+    const CUDABuffer_<float>& frame_feature, // 2.10
+    const CUDABuffer_<u32>& residual_count_buffer,
+    const CUDABuffer_<float>& residual_buffer,
+    const CUDABuffer_<float>& H_buffer,
+    const CUDABuffer_<float>& b_buffer,
+    CUDABuffer_<float>* debug_residual_image);
+
 }

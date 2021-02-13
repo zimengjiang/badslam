@@ -69,6 +69,9 @@ Keyframe::Keyframe(
   normals_buffer_.SetTo(normals_buffer, stream);
   radius_buffer_.SetTo(radius_buffer, stream);
   // 11.16 set feature buffer
+  // 2.12 Sets feature_buffer_ to the content of feature_buffer of the same type, 
+  // NOTE: feature_buffer_ is private of Keyframe, it's not the one as in Badslam::Badslam
+  // What is done here is basically copy Badslam::Badslam::featuer_buffer_ to Keyframe::keyframe::feature_buffer_
   feature_buffer_.SetTo(feature_buffer, stream);
   // 11.13 for each frame, color image is loaded to gpu for 
   color_buffer_.SetTo(color_buffer, stream);

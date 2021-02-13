@@ -463,10 +463,10 @@ void DirectBA::BundleAdjustmentAlternating(
       DebugVerifySurfelCount(stream, surfel_count_, surfels_size_, *surfels_);
     }
     
-    printf("-------Iteration:%d -------\n", iteration);
+    // printf("-------Iteration:%d -------\n", iteration);
     // --- GEOMETRY OPTIMIZATION ---
     if (optimize_geometry) {
-      printf("\n opt geometry...\n");
+      // printf("\n opt geometry...\n");
       cudaEventRecord(ba_geometry_optimization_pre_event_, stream);
       OptimizeGeometryIterationCUDA(
           stream,
@@ -545,7 +545,7 @@ void DirectBA::BundleAdjustmentAlternating(
     // --- POSE OPTIMIZATION ---
     usize num_converged = 0;
     if (optimize_poses) {
-      printf("\n opt pose...\n");
+      // printf("\n opt pose...\n");
       cudaEventRecord(ba_pose_optimization_pre_event_, stream);
       for (const shared_ptr<Keyframe>& keyframe : keyframes_) {
         // Only estimate pose for active and covisible-active keyframes.

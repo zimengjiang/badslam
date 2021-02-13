@@ -35,6 +35,11 @@
 #include "badslam/surfel_projection.cuh"
 #include "badslam/util_nvcc_only.cuh"
 
+#include "badslam/kernels.cuh" // 2.10
+
+// Macro definition
+#define CudaAssert( X ) if ( !(X) ) { printf( "Thread %d:%d failed assert at %s:%d! \n", blockIdx.x, threadIdx.x, __FILE__, __LINE__ ); return; }
+
 namespace vis {
 
 template <bool downsample_color>
@@ -157,6 +162,81 @@ __global__ void DownsampleImagesCUDAKernel(
     float color = tex2D<float>(color_texture, 2 * x + 1.0f, 2 * y + 1.0f);
     downsampled_color(y, x) = 255.f * color + 0.5f;
   }
+}
+
+// 2.10
+__global__ void DownsampleImagesAndFeaturesCUDAKernel(
+  CUDABuffer_<float> depth_buffer,
+  CUDABuffer_<u16> normals_buffer,
+  cudaTextureObject_t color_texture,
+  CUDABuffer_<float> feature_buffer, // 2.10
+  CUDABuffer_<float> downsampled_depth,
+  CUDABuffer_<u16> downsampled_normals,
+  CUDABuffer_<u8> downsampled_color,
+  CUDABuffer_<float> downsampled_feature /*2.10*/) {
+unsigned int x = blockIdx.x * blockDim.x + threadIdx.x;
+unsigned int y = blockIdx.y * blockDim.y + threadIdx.y;
+
+if (x < downsampled_depth.width() && y < downsampled_depth.height()) {
+  constexpr int kOffsets[4][2] = {{0, 0}, {0, 1}, {1, 0}, {1, 1}};
+  float depths[4];
+  
+  float depth_sum = 0;
+  int depth_count = 0;
+  float feature_sum[kTotalChannels] = {0};// each channel will have a sum, will take average for each later 
+
+  #pragma unroll
+  for (int i = 0; i < 4; ++ i) {
+    depths[i] = depth_buffer(2 * y + kOffsets[i][0], 2 * x + kOffsets[i][1]);
+    // 2.10 Bilinear interpolation for features
+    // 2.10 jzmTODO: save interpolated features and visualize them to debug.
+    // (y, x) is the pixel for downsampled depth, we need to fetch (2*y, 2*x), (2*y, 2*x+1), (2*y+1, 2*x), (2*y+1, 2*x+1)
+    // Since (y,x) is int2, we don't need to consider alpha and beta in the bilinear interpolation case, just take the average over 4 pixels, like for the depth
+    #pragma unroll
+    for (int c = 0; c < kTotalChannels; ++c){
+      feature_sum[c] += feature_buffer(2 * y + kOffsets[i][0], (2 * x + kOffsets[i][1])*kTotalChannels + c);
+    }
+    if (depths[i] > 0) {
+      depth_sum += depths[i];
+      depth_count += 1;
+    } else {
+      depths[i] = CUDART_INF_F;
+    }
+  }
+  
+  #pragma unroll
+  for (int c = 0; c < kTotalChannels; ++c){
+    // 2.10 TODO: uncomment if not debugging
+    CudaAssert(x*kTotalChannels+c < downsampled_feature.width());
+    downsampled_feature(y, x*kTotalChannels+c) = feature_sum[c] / 4.f; // average over 4 nearby pixels
+    
+  }
+
+  if (depth_count == 0) {
+    // Normal does not need to be set here, as the pixel is invalid by setting its depth to 0.
+    // However, the color must be set, as it might become relevant again for further downsampling.
+    downsampled_depth(y, x) = 0;
+  } else {
+    float average_depth = depth_sum / depth_count;
+    int closest_index;
+    float closest_distance = CUDART_INF_F;
+    #pragma unroll
+    for (int i = 0; i < 4; ++ i) {
+      float distance = fabs(depths[i] - average_depth);
+      if (distance < closest_distance) {
+        closest_index = i;
+        closest_distance = distance;
+      }
+    }
+    
+    downsampled_depth(y, x) = depths[closest_index];
+    downsampled_normals(y, x) = normals_buffer(2 * y + kOffsets[closest_index][0], 2 * x + kOffsets[closest_index][1]);
+  }
+  // Bilinearly interpolate in the middle of the original 4 pixels to get their average.
+  float color = tex2D<float>(color_texture, 2 * x + 1.0f, 2 * y + 1.0f);
+  downsampled_color(y, x) = 255.f * color + 0.5f;
+}
+ // 2.10 jzmTODO: save downsampled feature buffer and visualize
 }
 
 // __global__ void DownsampleImagesConsistentlyCUDAKernel(
@@ -299,6 +379,44 @@ void DownsampleImagesCUDA(
       *downsampled_normals,
       *downsampled_color);
   CUDA_CHECK();
+}
+
+// 2.10
+void DownsampleImagesAndFeaturesCUDA(
+  cudaStream_t stream,
+  const CUDABuffer_<float>& depth_buffer,
+  const CUDABuffer_<u16>& normals_buffer,
+  cudaTextureObject_t color_texture,
+  const CUDABuffer_<float>& feature_buffer, // 2.10
+  CUDABuffer_<float>* downsampled_depth,
+  CUDABuffer_<u16>* downsampled_normals,
+  CUDABuffer_<u8>* downsampled_color,
+  CUDABuffer_<float>* downsampled_feature, // 2.10
+  bool debug) {
+CUDA_CHECK();
+
+if (debug) {
+  downsampled_depth->Clear(0, stream);
+  downsampled_normals->Clear(0, stream);
+  downsampled_color->Clear(0, stream);
+  downsampled_feature->Clear(0, stream); // 2.10
+}
+
+CUDA_AUTO_TUNE_2D(
+    DownsampleImagesAndFeaturesCUDAKernel,
+    32, 32,
+    downsampled_depth->width(), downsampled_depth->height(),
+    0, stream,
+    /* kernel parameters */
+    depth_buffer,
+    normals_buffer,
+    color_texture,
+    feature_buffer, 
+    *downsampled_depth,
+    *downsampled_normals,
+    *downsampled_color,
+    *downsampled_feature);
+CUDA_CHECK();
 }
 
 // void DownsampleImagesConsistentlyCUDA(

@@ -220,6 +220,33 @@ void AccumulatePoseEstimationCoeffsFromImagesCUDA(
     PoseEstimationHelperBuffers* helper_buffers,
     bool use_gradmag);
 
+// 2.10
+void AccumulatePoseEstimationCoeffsFromFeaturesCUDA(
+    cudaStream_t stream,
+    bool use_depth_residuals,
+    bool use_descriptor_residuals,
+    const PinholeCamera4f& color_camera,
+    const PinholeCamera4f& depth_camera,
+    float baseline_fx,
+    float threshold_factor,
+    const CUDABuffer<float>& downsampled_depth,
+    const CUDABuffer<u16>& downsampled_normals,
+    cudaTextureObject_t downsampled_color,
+    const CUDABuffer<float>& downsampled_feature, // 2.10
+    const CUDAMatrix3x4& estimate_frame_T_surfel_frame,
+    const CUDABuffer<float>& surfel_depth,
+    const CUDABuffer<u16>& surfel_normals,
+    const CUDABuffer<uchar>& surfel_color,
+    const CUDABuffer<float>& surfel_feature, // 2.10
+    u32* residual_count,
+    float* residual_sum,
+    float* H,
+    float* b,
+    bool debug,
+    CUDABuffer<float>* debug_residual_image,
+    PoseEstimationHelperBuffers* helper_buffers,
+    bool use_gradmag);
+
 void ComputeCostAndResidualCountFromImagesCUDA(
     cudaStream_t stream,
     bool use_depth_residuals,
@@ -235,6 +262,29 @@ void ComputeCostAndResidualCountFromImagesCUDA(
     const CUDABuffer<float>& surfel_depth,
     const CUDABuffer<u16>& surfel_normals,
     const CUDABuffer<uchar>& surfel_color,
+    u32* residual_count,
+    float* residual_sum,
+    PoseEstimationHelperBuffers* helper_buffers,
+    bool use_gradmag);
+
+// 2.10
+void ComputeCostAndResidualCountFromFeaturesCUDA(
+    cudaStream_t stream,
+    bool use_depth_residuals,
+    bool use_descriptor_residuals,
+    const PinholeCamera4f& color_camera,
+    const PinholeCamera4f& depth_camera,
+    float baseline_fx,
+    float threshold_factor,
+    const CUDABuffer<float>& downsampled_depth,
+    const CUDABuffer<u16>& downsampled_normals,
+    cudaTextureObject_t downsampled_color,
+    const CUDABuffer<float>& downsampled_feature, // 2.10
+    const CUDAMatrix3x4& estimate_frame_T_surfel_frame,
+    const CUDABuffer<float>& surfel_depth,
+    const CUDABuffer<u16>& surfel_normals,
+    const CUDABuffer<uchar>& surfel_color,
+    const CUDABuffer<float>& sufel_feature, // 2.10 
     u32* residual_count,
     float* residual_sum,
     PoseEstimationHelperBuffers* helper_buffers,
@@ -392,6 +442,19 @@ void DownsampleImagesCUDA(
     CUDABuffer_<u16>* downsampled_normals,
     CUDABuffer_<uchar>* downsampled_color,
     bool debug);
+
+// 2.10
+void DownsampleImagesAndFeaturesCUDA(
+  cudaStream_t stream,
+  const CUDABuffer_<float>& depth_buffer,
+  const CUDABuffer_<u16>& normals_buffer,
+  cudaTextureObject_t color_texture,
+  const CUDABuffer_<float>& feature_buffer, // 2.10
+  CUDABuffer_<float>* downsampled_depth,
+  CUDABuffer_<u16>* downsampled_normals,
+  CUDABuffer_<u8>* downsampled_color,
+  CUDABuffer_<float>* downsampled_feature, // 2.10
+  bool debug);
 
 // void DownsampleImagesConsistentlyCUDA(
 //     cudaStream_t stream,
