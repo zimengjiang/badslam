@@ -375,23 +375,13 @@ __forceinline__ __device__ void TestFetchFeatureArrBilinearInterpolationVec(
     iy = ::min(iy, feature_arr.height()-1);
     float alpha = ::max(0.f, ::min(1.f, px - 0.5f - ix));  // alpha = frac(px-0.5) 
     float beta = ::max(0.f, ::min(1.f, py - 0.5f - iy));   // beta = frac(py-0.5)
-    unsigned int surfel_index = blockIdx.x * blockDim.x + threadIdx.x;
+    // unsigned int surfel_index = blockIdx.x * blockDim.x + threadIdx.x;
 
     int2 top_left, top_right, bottom_left, bottom_right;
     top_left = make_int2(ix,iy);
     top_right = make_int2(::min(ix+1, feature_arr.width()/kTotalChannels-1),iy);
     bottom_left = make_int2(ix,::min(iy+1, feature_arr.height()-1));
     bottom_right = make_int2(::min(ix+1, feature_arr.width()/kTotalChannels-1),::min(iy+1, feature_arr.height()-1));
-    //if (surfel_index == 0){
-    // printf("bilinear: feat(400,2000)=%f, feat(457,2216)=%f \n",feature_arr(400,2000),
-     // feature_arr(457,2216));
-  //}
-    //CudaAssert(ix < (feature_arr.width()/kTotalChannels) -1);
-    //CudaAssert(iy < feature_arr.height() - 1);
-    /*if (iy >= feature_arr.height()-1 || ix >= (feature_arr.width()/kTotalChannels)-1){
-      printf("feature shape (H,WC) = (%d, %d)", feature_arr.height(), feature_arr.width());
-      printf("x = %d, y = %d", ix, iy);
-    }*/
 
     #pragma unroll
     for (int c = 0; c < kTotalChannels; ++c){

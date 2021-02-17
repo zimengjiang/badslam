@@ -1299,10 +1299,10 @@ __global__ void AccumulatePoseEstimationCoeffsFromFeaturesCUDAKernel(
   bool visible = false;
   float depth_jacobian[6];
   float raw_depth_residual;
-  float descriptor_jacobian_1[6];
-  float descriptor_jacobian_2[6];
-  float raw_descriptor_residual_1;
-  float raw_descriptor_residual_2;
+  // float descriptor_jacobian_1[6];
+  // float descriptor_jacobian_2[6];
+  // float raw_descriptor_residual_1;
+  // float raw_descriptor_residual_2;
   // 2.10 
   float raw_descriptor_residual_vec[kSurfelNumDescriptor]={0};
   float jacobian_all[6*kSurfelNumDescriptor] = {0}; 
@@ -2277,8 +2277,8 @@ __global__ void ComputeCostAndResidualCountFromFeaturesCUDAKernel(
   
   bool visible = false;
   float raw_depth_residual;
-  float raw_descriptor_residual_1;
-  float raw_descriptor_residual_2;
+  // float raw_descriptor_residual_1;
+  // float raw_descriptor_residual_2;
   float raw_descriptor_residual_vec[kSurfelNumDescriptor] = {0}; //2.10
   
   if (x < surfel_depth.width() && y < surfel_depth.height()) {
@@ -2397,8 +2397,8 @@ __global__ void ComputeCostAndResidualCountFromFeaturesCUDAKernel(
                       TestComputeRawFeatureDescriptorResidual(
                         frame_feature,
                         color_pxy,
-                        color_pxy_t1, // 2.11 TODO: check if this is beyound the scope of current feature scale
-                        color_pxy_t2, // 2.11 TODO: pass the shape of frame_feature to the fetching function?
+                        color_pxy_t1, // 2.11 TODO: check if this is beyound the scope of current feature scale. update: yes, some indices go out of bounds. clamped
+                        color_pxy_t2, // 2.11 TODO: pass the shape of frame_feature to the fetching function? update: no, use buffer.width() and buffer.height()
                         surfel_descriptor,
                         raw_descriptor_residual_vec
                       );
@@ -2475,9 +2475,6 @@ __global__ void ComputeCostAndResidualCountFromFeaturesCUDAKernel(
       &temp_storage.float_storage,
       &temp_storage.int_storage);
   }
-  // &residual_count_buffer(0,0) = static_cast<u32> (&residual_count_buffer(0,0)*1.0/kTotalChannels);
-  // 2.10 TODO: check residual_count is correctly stored as u32
-  // printf("%d",residual_count)buffer(0,0);
   }
 }
 

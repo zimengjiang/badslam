@@ -189,7 +189,6 @@ if (x < downsampled_depth.width() && y < downsampled_depth.height()) {
   for (int i = 0; i < 4; ++ i) {
     depths[i] = depth_buffer(2 * y + kOffsets[i][0], 2 * x + kOffsets[i][1]);
     // 2.10 Bilinear interpolation for features
-    // 2.10 jzmTODO: save interpolated features and visualize them to debug.
     // (y, x) is the pixel for downsampled depth, we need to fetch (2*y, 2*x), (2*y, 2*x+1), (2*y+1, 2*x), (2*y+1, 2*x+1)
     // Since (y,x) is int2, we don't need to consider alpha and beta in the bilinear interpolation case, just take the average over 4 pixels, like for the depth
     #pragma unroll
@@ -207,7 +206,7 @@ if (x < downsampled_depth.width() && y < downsampled_depth.height()) {
   #pragma unroll
   for (int c = 0; c < kTotalChannels; ++c){
     // 2.10 TODO: uncomment if not debugging
-    CudaAssert(x*kTotalChannels+c < downsampled_feature.width());
+    // CudaAssert(x*kTotalChannels+c < downsampled_feature.width());
     downsampled_feature(y, x*kTotalChannels+c) = feature_sum[c] / 4.f; // average over 4 nearby pixels
     
   }

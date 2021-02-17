@@ -142,7 +142,6 @@ BadSlam::BadSlam(
           rgbd_video->depth_frame(config_.start_frame)->global_T_frame() :
           SE3f()));
   
-  constexpr bool enable_loop_detection = false;
   if (config.enable_loop_detection) {
     if (!boost::filesystem::exists(config.loop_detection_vocabulary_path)) {
       LOG(ERROR) << "File given as config.loop_detection_vocabulary_path does not exist: " << config.loop_detection_vocabulary_path;
@@ -173,7 +172,7 @@ BadSlam::BadSlam(
   }
 }
 
-void BadSlam::ProcessFrame(const std::string& feature_folder, const std::string& dataset_folder_path, int frame_index, bool force_keyframe) {
+void BadSlam::ProcessFrame(int frame_index, bool force_keyframe) {
   // Get the images. This should be before starting the "without I/O" timer
   // since it can lead to the images being loaded from disk (in case they are
   // not cached yet).
@@ -216,9 +215,7 @@ void BadSlam::ProcessFrame(const std::string& feature_folder, const std::string&
     // 11.2 debugging
     printf("**********\n");
     printf("frame index:%d\n",frame_index );
-    CreateKeyframe(feature_folder,
-                   dataset_folder_path,
-                   frame_index,
+    CreateKeyframe(frame_index,
                    rgb_image,
                    final_cpu_depth_map,
                    *final_depth_buffer_);
@@ -933,7 +930,7 @@ void BadSlam::RunOdometry(int frame_index) {
       direct_ba_->use_depth_residuals(),
       direct_ba_->use_descriptor_residuals(),
       /*use_pyramid_level_0*/ true,
-      use_gradmag,
+     /* use_gradmag,*/
       /* tracked frame */
       *depth_buffer_,
       *normals_buffer_,
@@ -970,8 +967,6 @@ void BadSlam::RunOdometry(int frame_index) {
 
 //jzm 15/10
 shared_ptr<Keyframe> BadSlam::CreateKeyframe(
-    const std::string& feature_folder, 
-    const std::string& dataset_folder_path, 
     int frame_index,
     const Image<Vec3u8>* rgb_image,
     const shared_ptr<Image<u16>>& depth_image,

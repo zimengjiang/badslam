@@ -167,7 +167,7 @@ void TrackFramePairwise(
     bool use_depth_residuals,
     bool use_descriptor_residuals,
     bool use_pyramid_level_0,
-    bool use_gradmag,
+    /*bool use_gradmag,*/
     /* tracked frame
      * NOTE: Color must be in the color camera intrinsics.
      */
@@ -274,7 +274,6 @@ repeat_pose_estimation:;
   vector<cudaTextureObject_t*> tracked_color_textures(num_scales);
   vector<CUDABuffer<float>*> tracked_features(num_scales); // 2.10
 
-  // 2.8 jzmTODO: how the color image is scaled?
   for (u32 scale = 0; scale < num_scales; ++ scale) {
     base_depth[scale] = buffers->base_depth[scale].get();
     base_normals[scale] = buffers->base_normals[scale].get();
@@ -300,7 +299,7 @@ repeat_pose_estimation:;
   base_color[0] = const_cast<CUDABuffer<uchar>*>(&base_color_buffer);
   base_color_textures[0] = const_cast<cudaTextureObject_t*>(&base_color_texture);
   base_features[0] = const_cast<CUDABuffer<float>*>(&base_feature_buffer); // 2.10
-  // 2.12 Set pointers to use provided feature
+  // 2.12 Set pointers to use provided feature, without this tracked_features points nowhere. bug fixed.
   tracked_features[0] = const_cast<CUDABuffer<float>*>(&tracked_feature_buffer);
   
   if (use_pyramid_level_0) {
@@ -339,7 +338,6 @@ repeat_pose_estimation:;
   for (u32 scale = 0; scale < num_scales; ++ scale) {
     if (scale >= 1) {
       if (scale >= 2 || use_pyramid_level_0) {
-        //DownsampleImagesCUDA(
         DownsampleImagesAndFeaturesCUDA(
             stream,
             tracked_depth[scale - 1]->ToCUDA(),
@@ -351,16 +349,8 @@ repeat_pose_estimation:;
             &tracked_color[scale]->ToCUDA(),
             &tracked_features[scale]->ToCUDA(), // 2.10
             kDebug);
-        
-        // 2.12 to save features
-        /*CUDABuffer<float> saved_feature = tracked_features[scale];
-        float* saved_feature_arr;
-        saved_feature.DownloadAsync(stream, saved_feature_arr);
-        cnpy::npy_save("tracked_scale"+to_string(scale)+".npy", &saved_feature_arr, {saved_feature.height(), saved_feature.width()},"w");
-        */
       }
       
-      // DownsampleImagesCUDA(
       DownsampleImagesAndFeaturesCUDA(
           stream,
           base_depth[scale - 1]->ToCUDA(),
@@ -469,7 +459,6 @@ repeat_pose_estimation:;
       u32 residual_count_last_scale;
       float cost_last_scale;
       SE3f base_T_frame_last_scale = (scale != num_scales - 1) ? base_T_frame_estimate : base_T_frame_initial_estimate_1;
-      // ComputeCostAndResidualCountFromImagesCUDA(
       ComputeCostAndResidualCountFromFeaturesCUDA(
           stream,
           use_depth_residuals,
@@ -489,12 +478,10 @@ repeat_pose_estimation:;
           *base_features[scale], // 2.10
           &residual_count_last_scale,
           &cost_last_scale,
-          helper_buffers,
-          use_gradmag);
+          helper_buffers);
       u32 residual_count_initial_estimate;
       float cost_initial_estimate;
       SE3f base_T_frame_initial_estimate = (scale != num_scales - 1) ? base_T_frame_chosen_initial_estimate : base_T_frame_initial_estimate_2;
-      //ComputeCostAndResidualCountFromImagesCUDA(
       ComputeCostAndResidualCountFromFeaturesCUDA(
           stream,
           use_depth_residuals,
@@ -514,8 +501,7 @@ repeat_pose_estimation:;
           *base_features[scale],
           &residual_count_initial_estimate,
           &cost_initial_estimate,
-          helper_buffers,
-          use_gradmag);
+          helper_buffers);
       // 2.8 TODO: why residual count as the selection criterion of highest priority?
       // Selection heuristic based on residual count and cost:
       if (residual_count_last_scale > 2 * residual_count_initial_estimate) {
@@ -588,8 +574,7 @@ repeat_pose_estimation:;
           b.data(),
           kDebug || convergence_samples_file,
           debug_residual_image.get(),
-          helper_buffers,
-          use_gradmag);
+          helper_buffers);
       
       int index = 0;
       for (int row = 0; row < 6; ++ row) {

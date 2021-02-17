@@ -183,8 +183,6 @@ bool SaveState(
 }
 
 bool LoadState(
-    const std::string& feature_folder,
-    const std::string& dataset_folder_path,
     BadSlam* slam,
     const std::string& path,
     std::function<bool (int, int)> progress_function) {
@@ -431,8 +429,6 @@ bool LoadState(
           &final_cpu_depth_map);
       
       shared_ptr<Keyframe> new_keyframe = slam->CreateKeyframe(
-          feature_folder,
-          dataset_folder_path,
           frame_index,
           rgb_image,
           final_cpu_depth_map,
@@ -517,8 +513,6 @@ bool LoadState(
         &final_cpu_depth_map);
     
     queued_keyframes[i] = slam->CreateKeyframe(
-        feature_folder,
-        dataset_folder_path,
         frame_index,
         rgb_image,
         final_cpu_depth_map,

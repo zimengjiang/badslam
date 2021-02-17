@@ -93,7 +93,7 @@ void TrackFramePairwise(
     bool use_depth_residuals,
     bool use_descriptor_residuals,
     bool use_pyramid_level_0,
-    bool use_gradmag,
+    /*bool use_gradmag,*/
     /* tracked frame */
     const CUDABuffer<u16>& tracked_depth_buffer,
     const CUDABuffer<u16>& tracked_normals_buffer,

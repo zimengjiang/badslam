@@ -133,8 +133,7 @@ void AccumulatePoseEstimationCoeffsFromFeaturesCUDA(
     float* b,
     bool debug,
     CUDABuffer<float>* debug_residual_image,
-    PoseEstimationHelperBuffers* helper_buffers,
-    bool use_gradmag) {
+    PoseEstimationHelperBuffers* helper_buffers) {
   CUDA_CHECK();
   
   // TODO: Clear in a single kernel call?
@@ -370,8 +369,7 @@ void ComputeCostAndResidualCountFromFeaturesCUDA(
     const CUDABuffer<float>& surfel_feature, // 2.10 
     u32* residual_count,
     float* residual_sum,
-    PoseEstimationHelperBuffers* helper_buffers,
-    bool use_gradmag) {
+    PoseEstimationHelperBuffers* helper_buffers) {
   CUDA_CHECK();
   
   // TODO: Clear in a single kernel call?

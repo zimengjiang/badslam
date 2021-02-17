@@ -244,8 +244,7 @@ void AccumulatePoseEstimationCoeffsFromFeaturesCUDA(
     float* b,
     bool debug,
     CUDABuffer<float>* debug_residual_image,
-    PoseEstimationHelperBuffers* helper_buffers,
-    bool use_gradmag);
+    PoseEstimationHelperBuffers* helper_buffers );
 
 void ComputeCostAndResidualCountFromImagesCUDA(
     cudaStream_t stream,
@@ -287,8 +286,7 @@ void ComputeCostAndResidualCountFromFeaturesCUDA(
     const CUDABuffer<float>& sufel_feature, // 2.10 
     u32* residual_count,
     float* residual_sum,
-    PoseEstimationHelperBuffers* helper_buffers,
-    bool use_gradmag);
+    PoseEstimationHelperBuffers* helper_buffers);
 
 void UpdateSurfelNormalsCUDA(
     cudaStream_t stream,

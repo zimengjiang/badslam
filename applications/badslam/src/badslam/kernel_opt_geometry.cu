@@ -416,7 +416,7 @@ __global__ void TestAccumulateSurfelPositionAndDescriptorOptimizationCoeffsCUDAK
         for (int i = 0; i < kSurfelNumDescriptor; ++i){
           surfel_descriptor[i] = s.surfels(kSurfelFixedAttributeCount+i, surfel_index); 
         }
-        float raw_descriptor_residual[kSurfelNumDescriptor];
+        float raw_descriptor_residual[kSurfelNumDescriptor] = {0};
          TestComputeRawFeatureDescriptorResidual(
             feature_arr,
             color_pxy,

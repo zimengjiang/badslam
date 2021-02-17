@@ -526,7 +526,7 @@ bool LoopDetector::AddImage(
         direct_ba->use_depth_residuals(),
         direct_ba->use_descriptor_residuals(),
         /*use_pyramid_level_0*/ true,
-        use_gradmag,
+        /*use_gradmag,*/
         /* tracked frame */
         old_keyframes[i]->depth_buffer(),
         old_keyframes[i]->normals_buffer(),
