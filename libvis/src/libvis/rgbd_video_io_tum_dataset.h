@@ -202,9 +202,15 @@ bool ReadTUMRGBDDatasetAssociatedAndCalibrated(
     }
     
     // 2.9 for feature loading
-    const std::string time_stamp = rgb_time_string;
-    const std::string file_name = time_stamp.substr(0, time_stamp.size()-3);
-    const std::string feature_filepath = string(dataset_folder_path) + "/" + feature_folder + "/" + file_name +".npy";
+    // const std::string time_stamp = rgb_time_string;
+    std::string tmp_filename = rgb_filename;
+    std::string feature_filename;
+    std::string tmp_filename2;
+    tmp_filename2 = tmp_filename.substr(0, tmp_filename.size()-4); // 2.21 rgb/xxx.png, we want only xxx
+    feature_filename = tmp_filename2.substr(4,tmp_filename2.size());
+    // const std::string file_name = time_stamp.substr(0, time_stamp.size()-3);
+    const std::string feature_filepath = string(dataset_folder_path) + "/" + feature_folder + "/" + feature_filename +".npy";
+    
 
     string color_filepath =
         string(dataset_folder_path) + "/" + rgb_filename;
