@@ -334,7 +334,6 @@ repeat_pose_estimation:;
   }
   
   // 2.10 Downsample the image and features from scale2
-  // 2.10 jzmTODO: downsample features
   for (u32 scale = 0; scale < num_scales; ++ scale) {
     if (scale >= 1) {
       if (scale >= 2 || use_pyramid_level_0) {

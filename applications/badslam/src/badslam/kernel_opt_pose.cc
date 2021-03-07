@@ -361,12 +361,12 @@ void ComputeCostAndResidualCountFromFeaturesCUDA(
     const CUDABuffer<float>& downsampled_depth,
     const CUDABuffer<u16>& downsampled_normals,
     cudaTextureObject_t downsampled_color,
-    const CUDABuffer<float>& downsampled_feature, // 2.10
+    const CUDABuffer<float>& downsampled_feature, // 2.10 tracked 
     const CUDAMatrix3x4& estimate_frame_T_surfel_frame,
     const CUDABuffer<float>& surfel_depth,
     const CUDABuffer<u16>& surfel_normals,
     const CUDABuffer<uchar>& surfel_color,
-    const CUDABuffer<float>& surfel_feature, // 2.10 
+    const CUDABuffer<float>& surfel_feature, // 2.10 base
     u32* residual_count,
     float* residual_sum,
     PoseEstimationHelperBuffers* helper_buffers) {

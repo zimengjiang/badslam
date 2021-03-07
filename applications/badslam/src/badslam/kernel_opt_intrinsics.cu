@@ -50,7 +50,8 @@ __global__ void AccumulateIntrinsicsCoefficientsCUDAKernel(
     PixelCornerProjector color_corner_projector,
     PixelCenterUnprojector depth_center_unprojector,
     float color_fx, float color_fy,
-    cudaTextureObject_t color_texture,
+    /*cudaTextureObject_t color_texture,*/
+    CUDABuffer_<float> feature,
     CUDABuffer_<u32> observation_count,
     CUDABuffer_<float> depth_A,
     CUDABuffer_<float> depth_B,
@@ -67,11 +68,12 @@ __global__ void AccumulateIntrinsicsCoefficientsCUDAKernel(
   float raw_depth_residual = 0;
   
   // Parameters: fx_inv, fy_inv, cx_inv, cy_inv
-  float descriptor_jacobian_1[4] = {0, 0, 0, 0};
-  float raw_descriptor_residual_1 = 0;
-  float descriptor_jacobian_2[4] = {0, 0, 0, 0};
-  float raw_descriptor_residual_2 = 0;
-  // float raw_descriptor_residual[2]; // 2.21 When use features
+  // float descriptor_jacobian_1[4] = {0, 0, 0, 0};
+  // float raw_descriptor_residual_1 = 0;
+  // float descriptor_jacobian_2[4] = {0, 0, 0, 0};
+  // float raw_descriptor_residual_2 = 0;
+  float raw_residual_vec[kSurfelNumDescriptor]={0};
+  float jacobian_all[4*kSurfelNumDescriptor] = {0}; // jacobian w.r.t. fx, fy, cx, cy
 
   int sparse_pixel_index = -1;
   
@@ -133,6 +135,40 @@ __global__ void AccumulateIntrinsicsCoefficientsCUDAKernel(
             color_corner_projector,
             &t1_pxy,
             &t2_pxy);
+        // 2.22 get feature-descriptor for surfels
+        float surfel_descriptor[kSurfelNumDescriptor] = {0}; 
+        #pragma unroll
+        for (int i = 0; i< kSurfelNumDescriptor; ++i){
+            surfel_descriptor[i] = s.surfels(kSurfelFixedAttributeCount + i, surfel_index); // constexpr int kSurfelDescriptorArr[] = {6,7,8,9,10,11};
+            // CudaAssert(surfel_descriptor[i] == surfel_descriptor[i]);
+          }
+        TestComputeRawFeatureDescriptorResidual(
+            feature,
+            color_pxy,
+            t1_pxy,
+            t2_pxy,
+            surfel_descriptor,
+            raw_residual_vec);
+        for (int channel = 0; channel < kTotalChannels; ++channel){
+            float grad_x_1;
+            float grad_y_1;
+            float grad_x_2;
+            float grad_y_2;
+            TestDescriptorJacobianWrtProjectedPositionOnChannels(
+              feature, color_pxy, t1_pxy, t2_pxy, &grad_x_1, &grad_y_1, &grad_x_2, &grad_y_2, channel);
+             // first residual term
+              *(jacobian_all+4*channel) = grad_x_1 * nx; // 2.22 J w.r.t. fx_color, nx = (1/fx_depth)*px - cx/fx_depth, theoretically, J w.r.t. fx_color = lx/lz, lx and lz got from depth unprojector
+             *(jacobian_all+4*channel+1) = grad_y_1 * ny; // 2.22 fy_color
+             *(jacobian_all+4*channel+2) = grad_x_1; // 2.22 cx_color
+             *(jacobian_all+4*channel+3) = grad_y_1; // 2.22 cy_color
+             // second residual term
+             *(jacobian_all + 4*kTotalChannels+ 4*channel) = grad_x_2 * nx; // 2.22 J w.r.t. fx_color, nx = (1/fx_depth)*px - cx/fx_depth, theoretically, J w.r.t. fx_color = lx/lz, lx and lz got from depth unprojector
+             *(jacobian_all + 4*kTotalChannels+ 4*channel+1) = grad_y_2 * ny; // 2.22 fy_color
+             *(jacobian_all + 4*kTotalChannels+ 4*channel+2) = grad_x_2; // 2.22 cx_color
+             *(jacobian_all + 4*kTotalChannels+ 4*channel+3) = grad_y_2; // 2.22 cy_color
+        }
+
+        /*
         float grad_x_1;
         float grad_y_1;
         float grad_x_2;
@@ -150,26 +186,12 @@ __global__ void AccumulateIntrinsicsCoefficientsCUDAKernel(
         descriptor_jacobian_2[2] = grad_x_2;
         descriptor_jacobian_2[3] = grad_y_2;
         
-        float surfel_descriptor_1 = s.surfels(kSurfelDescriptor1, surfel_index);
-        float surfel_descriptor_2 = s.surfels(kSurfelDescriptor2, surfel_index);
+        // float surfel_descriptor_1 = s.surfels(kSurfelDescriptor1, surfel_index);
+        // float surfel_descriptor_2 = s.surfels(kSurfelDescriptor2, surfel_index);
         ComputeRawDescriptorResidual(
             color_texture, color_pxy, t1_pxy, t2_pxy, surfel_descriptor_1, surfel_descriptor_2, &raw_descriptor_residual_1, &raw_descriptor_residual_2);
-        // 2.21 when use feautres
-        /*constexpr int kSurfelDescriptorArr[2] = {6,7};
-        float surfel_descriptor[2]; // problematic with const float array and use for loop to initialize
-        for (int i = 0; i< 2; ++i){
-          surfel_descriptor[i] = s.surfels(kSurfelDescriptorArr[i], surfel_index);
-        }
-        ComputeRawFeatureDescriptorResidual(
-              color_texture, // TODO: use feature_texture
-              color_pxy,
-              t1_pxy,
-              t2_pxy,
-              surfel_descriptor,
-              raw_descriptor_residual);*/
-        // raw_descriptor_residual[0] = raw_descriptor_residual_1;
-        // raw_descriptor_residual[1] = raw_descriptor_residual_2;
-      }
+      */
+          }
     }
   }
   
@@ -213,7 +235,7 @@ __global__ void AccumulateIntrinsicsCoefficientsCUDAKernel(
   }
   
   if (optimize_color_intrinsics) {
-    AccumulateGaussNewtonHAndB<4, block_width, block_height>(
+    /*AccumulateGaussNewtonHAndB<4, block_width, block_height>(
         raw_descriptor_residual_1 != 0,
         raw_descriptor_residual_1,
         ComputeDescriptorResidualWeight(raw_descriptor_residual_1),
@@ -228,7 +250,25 @@ __global__ void AccumulateIntrinsicsCoefficientsCUDAKernel(
         descriptor_jacobian_2,
         color_H,
         color_b,
+        &float_storage);*/
+    for (int channel=0; channel<kTotalChannels; ++channel){
+      AccumulateGaussNewtonHAndB<4, block_width, block_height>(
+        raw_residual_vec[channel] != 0, // first residual term
+        raw_residual_vec[channel],
+        ComputeDescriptorResidualWeight(raw_residual_vec[channel]),
+        jacobian_all+4*channel, // pass the address of jacobian_c_1[0]
+        color_H,
+        color_b,
         &float_storage);
+      AccumulateGaussNewtonHAndB<4, block_width, block_height>(
+        raw_residual_vec[channel+kTotalChannels] != 0, // second residual term
+        raw_residual_vec[channel+kTotalChannels] ,
+        ComputeDescriptorResidualWeight(raw_residual_vec[channel+kTotalChannels]),
+        jacobian_all + 4*kTotalChannels + 4*channel, // pass the address of jacobian_c_2[0]
+        color_H,
+        color_b,
+        &float_storage);
+    }
   }
 }
 
@@ -242,7 +282,8 @@ void CallAccumulateIntrinsicsCoefficientsCUDAKernel(
     const PixelCenterUnprojector& depth_center_unprojector,
     float color_fx,
     float color_fy,
-    cudaTextureObject_t color_texture,
+    /*cudaTextureObject_t color_texture,*/
+    const CUDABuffer_<float>& feature, // 2.22
     const CUDABuffer_<u32>& observation_count,
     const CUDABuffer_<float>& depth_A,
     const CUDABuffer_<float>& depth_B,
@@ -265,7 +306,8 @@ void CallAccumulateIntrinsicsCoefficientsCUDAKernel(
           depth_center_unprojector,
           color_fx,
           color_fy,
-          color_texture,
+          /*color_texture,*/
+          feature, // 2.22
           observation_count,
           depth_A,
           depth_B,

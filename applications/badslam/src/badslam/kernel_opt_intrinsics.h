@@ -46,7 +46,8 @@ void CallAccumulateIntrinsicsCoefficientsCUDAKernel(
     const PixelCenterUnprojector& depth_center_unprojector,
     float color_fx,
     float color_fy,
-    cudaTextureObject_t color_texture,
+    /*cudaTextureObject_t color_texture,*/
+    const CUDABuffer_<float>& feature, // 2.22 
     const CUDABuffer_<u32>& observation_count,
     const CUDABuffer_<float>& depth_A,
     const CUDABuffer_<float>& depth_B,

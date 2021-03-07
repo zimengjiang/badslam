@@ -537,7 +537,7 @@ bool LoopDetector::AddImage(
         current_keyframe.normals_buffer(),
         *calibrated_gradmag_,
         calibrated_gradmag_texture_,
-        current_keyframe.feature_buffer(), // 2.10 TODO: disable loop detector
+        current_keyframe.feature_buffer(), // 2.10
         /* input / output poses */
         current_keyframe.global_T_frame(),
         /*test_different_initial_estimates*/ false,

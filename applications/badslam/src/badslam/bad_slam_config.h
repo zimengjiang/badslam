@@ -236,7 +236,8 @@ struct BadSlamConfig {
       " for tests where one wants to load the ground truth (or other) poses and"
       " then, for example, run bundle adjustment or 3D reconstruction.";
   bool estimate_poses = true;
-  
+  // 2.21 for TUM
+  bool is_TUM = false; // by default it's eth3d.
   
   // --- Memory parameters ---
   

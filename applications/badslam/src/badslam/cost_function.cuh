@@ -369,7 +369,7 @@ __forceinline__ __device__ void TestFetchFeatureArrBilinearInterpolationVec(
     const float& px, /*pixel corner coordinates, -> x, | y*/
     const float& py,
     float* result) {
-    int ix = static_cast<int>(::max(0.f, px - 0.5f));      // i = floor(px-0.5)
+    int ix = static_cast<int>(::max(0.f, px - 0.5f));      // i = floor(px-0.5), converting corner pixel to center pixel convention
     int iy = static_cast<int>(::max(0.f, py - 0.5f));      // j = floor(py-0.5)
     ix = ::min(ix, feature_arr.width()/kTotalChannels-1);
     iy = ::min(iy, feature_arr.height()-1);
@@ -518,7 +518,7 @@ __forceinline__ __device__ void TestComputeRawFeatureDescriptorResidualIntpixel(
   float f_pxy[kTotalChannels] = {0}; // initialize all to 0, memory allocation
   float f_t1[kTotalChannels] = {0};
   float f_t2[kTotalChannels] = {0};
-  
+  // 2.24 Must handle out of range fetching by mannually clamping. Invalid texture memory fetching is handled by CUDA, that's why original code doesn't address that.
   TestFetchFeatureArrVec(feature_arr, pxy.x, pxy.y, f_pxy);
   TestFetchFeatureArrVec(feature_arr, t1_pxy.x, t1_pxy.y, f_t1);
   TestFetchFeatureArrVec(feature_arr, t2_pxy.x, t2_pxy.y, f_t2);
@@ -579,7 +579,7 @@ __forceinline__ __device__ void ComputeRawFeatureDescriptorResidual(
 // projected pixel position of the surfel. This function makes the approximation that
 // the projected positions of all points on the surfel move equally. This should
 // be valid since those points should all be very close together.
-__forceinline__ __device__ void DescriptorJacobianWrtProjectedPositionOnChannels(
+/*__forceinline__ __device__ void DescriptorJacobianWrtProjectedPositionOnChannels(
     cudaTextureObject_t color_texture, // jzmTODO: make it feature_texture
     const float2& color_pxy,
     const float2& t1_pxy,
@@ -693,11 +693,11 @@ __forceinline__ __device__ void DescriptorJacobianWrtProjectedPositionOnChannels
   
   float t2_dx = (bottom_right - bottom_left) * ty + (top_right - top_left) * (1 - ty);
   float t2_dy = (bottom_right - top_right) * tx + (bottom_left - top_left) * (1 - tx);
-  /* 11.2 not used?
-  float intensity = tex2D<float4>(color_texture, color_pxy.x, color_pxy.y).w;
-  float t1_intensity = tex2D<float4>(color_texture, t1_pxy.x, t1_pxy.y).w;
-  float t2_intensity = tex2D<float4>(color_texture, t2_pxy.x, t2_pxy.y).w;
-  */
+  // 11.2 not used?
+  // float intensity = tex2D<float4>(color_texture, color_pxy.x, color_pxy.y).w;
+  // float t1_intensity = tex2D<float4>(color_texture, t1_pxy.x, t1_pxy.y).w;
+  // float t2_intensity = tex2D<float4>(color_texture, t2_pxy.x, t2_pxy.y).w;
+  
   // NOTE: It is approximate to mix all the center, t1, t2 derivatives
   //       directly since the points would move slightly differently on most
   //       pose changes. However, the approximation is possibly pretty good since
@@ -707,7 +707,7 @@ __forceinline__ __device__ void DescriptorJacobianWrtProjectedPositionOnChannels
   *grad_y_1 = 180.f * (t1_dy - center_dy);
   *grad_x_2 = 180.f * (t2_dx - center_dx);
   *grad_y_2 = 180.f * (t2_dy - center_dy);
-}
+}*/
 
 __forceinline__ __device__ void TestDescriptorJacobianWrtProjectedPositionOnChannels(
     const CUDABuffer_<float>& feature_arr, 
@@ -783,7 +783,7 @@ __forceinline__ __device__ void TestDescriptorJacobianWrtProjectedPositionOnChan
   //       pose changes. However, the approximation is possibly pretty good since
   //       the points are all close to each other.
   
-  *grad_x_1 = 180.f * (t1_dx - center_dx);
+  *grad_x_1 = 180.f * (t1_dx - center_dx); // 2.24 180. is emperically set. 
   *grad_y_1 = 180.f * (t1_dy - center_dy);
   *grad_x_2 = 180.f * (t2_dx - center_dx);
   *grad_y_2 = 180.f * (t2_dy - center_dy);

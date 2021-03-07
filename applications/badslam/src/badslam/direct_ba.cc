@@ -342,8 +342,9 @@ void DirectBA::MergeKeyframes(
 void DirectBA::CreateSurfelsForKeyframe(
     cudaStream_t stream,
     bool filter_new_surfels,
-    const shared_ptr<Keyframe>& keyframe) {
-  CUDABuffer<u32>* supporting_surfels[kMergeBufferCount];
+    const shared_ptr<Keyframe>& keyframe) { // 2.23 for a specific keyframe, craete surfels from it, and prepare its transformation to its covisible kfs.
+  CUDABuffer<u32>* supporting_surfels[kMergeBufferCount]; // 2.23 The number of buffers to use for surfel merging. In effect, this is the
+                                                          // number of different surfels that can be stored for one pixel. 
   for (int i = 0; i < kMergeBufferCount; ++ i) {
     supporting_surfels[i] = supporting_surfels_[i].get();
   }

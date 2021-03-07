@@ -136,7 +136,8 @@ void OptimizeGeometryIterationCUDA(
   
   if (!use_descriptor_residuals) {
     // --- Position ---
-    
+    // 2.24 the reason why I got too much resources requested when using the auto_tuning_result from geom+photo
+    // 2.24 this kernel is never called with geom + photo
     // Reset accumulation fields (TODO: Do this after an iteration and assume they stay reset to reduce the number of kernel calls?)
     CallResetSurfelAccum0to1CUDAKernel(
         stream,

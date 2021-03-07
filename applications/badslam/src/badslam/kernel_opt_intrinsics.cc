@@ -96,7 +96,8 @@ void OptimizeIntrinsicsCUDA(
         CreatePixelCornerProjector(color_camera),
         depth_center_unprojector,
         color_camera.parameters()[0], color_camera.parameters()[1],
-        keyframe->color_texture(),
+        /*keyframe->color_texture(),*/
+        keyframe->feature_buffer().ToCUDA(), // 2.22
         buffers->observation_count.ToCUDA(),
         buffers->depth_A.ToCUDA(),
         buffers->depth_B.ToCUDA(),

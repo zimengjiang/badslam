@@ -422,7 +422,7 @@ void DirectBA::BundleAdjustmentAlternating(
       Unlock();
       
       cudaEventRecord(ba_surfel_creation_pre_event_, stream);
-      for (u32 keyframe_id : keyframes_with_new_surfels) {
+      for (u32 keyframe_id : keyframes_with_new_surfels) { // 2.23 only creates new surfels for kfs being activated for the first time
         // TODO: Would it be better for performance to group all keyframes
         //       together that become active in an iteration?
         CreateSurfelsForKeyframe(stream, /* filter_new_surfels */ true, keyframes_[keyframe_id]);
