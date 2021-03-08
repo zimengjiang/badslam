@@ -1002,11 +1002,11 @@ __global__ void AccumulatePoseEstimationCoeffsFromFeaturesCUDAKernel(
     DepthToColorPixelCorner depth_to_color,
     float threshold_factor,
     CUDAMatrix3x4 estimate_frame_T_surfel_frame,
-    CUDABuffer_<float> surfel_depth,
+    CUDABuffer_<float> surfel_depth, // 3.8 after bilateral filtering, normal filter, isolatedpixelfilter
     CUDABuffer_<u16> surfel_normals,
     CUDABuffer_<u8> surfel_color,
     CUDABuffer_<float> surfel_feature, // 2.10
-    CUDABuffer_<float> frame_depth,
+    CUDABuffer_<float> frame_depth, // 3.8 raw depth, without any filtering
     CUDABuffer_<u16> frame_normals,
     cudaTextureObject_t frame_color,
     CUDABuffer_<float> frame_feature, // 2.10

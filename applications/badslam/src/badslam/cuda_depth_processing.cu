@@ -198,7 +198,7 @@ __global__ void ComputeNormalsCUDAKernel(
                                     x / depth_params.sparse_surfel_cell_size),
         depth_params.raw_to_float_depth, bottom_raw_depth);
     
-    float3 left_point = unprojector.UnprojectPoint(x - 1, y, left_depth);
+    float3 left_point = unprojector.UnprojectPoint(x - 1, y, left_depth); // 3.7 in meters
     float3 top_point = unprojector.UnprojectPoint(x, y - 1, top_depth);
     float3 right_point = unprojector.UnprojectPoint(x + 1, y, right_depth);
     float3 bottom_point = unprojector.UnprojectPoint(x, y + 1, bottom_depth);
@@ -212,12 +212,12 @@ __global__ void ComputeNormalsCUDAKernel(
     float left_right_ratio = left_dist_squared / right_dist_squared;
     float3 left_to_right;
     if (left_right_ratio < kRatioThresholdSquared &&
-        left_right_ratio > 1.f / kRatioThresholdSquared) {
+        left_right_ratio > 1.f / kRatioThresholdSquared) { // 3.7 mask1
       left_to_right = right_point - left_point;
-    } else if (left_dist_squared < right_dist_squared) {
+    } else if (left_dist_squared < right_dist_squared) { // 3.7 mask2
       left_to_right = center_point - left_point;
     } else {  // left_dist_squared >= right_dist_squared
-      left_to_right = right_point - center_point;
+      left_to_right = right_point - center_point; // 3.7 mask3
     }
     
     float bottom_dist_squared = SquaredLength(bottom_point - center_point);

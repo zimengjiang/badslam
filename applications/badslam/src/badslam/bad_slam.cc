@@ -179,6 +179,7 @@ void BadSlam::ProcessFrame(int frame_index, bool force_keyframe) {
   
   const Image<Vec3u8>* rgb_image =
       rgbd_video_->color_frame_mutable(frame_index)->GetImage().get();
+
   /*const shared_ptr<Image<u16>>& depth_image =*/
       rgbd_video_->depth_frame_mutable(frame_index)->GetImage();
   
@@ -194,9 +195,26 @@ void BadSlam::ProcessFrame(int frame_index, bool force_keyframe) {
   // Update target frame end time for real-time simulation.
   target_frame_end_time_ += 1. / config_.target_frame_rate;
   
+  
   // Pre-process the RGB-D frame.
   shared_ptr<Image<u16>> final_cpu_depth_map;
   PreprocessFrame(frame_index, &final_depth_buffer_, &final_cpu_depth_map);
+  // 3.8 save the normal (and the filtered depth?)
+  u16 save_normals_array[kFeatureH][kFeatureW];
+  normals_buffer_->DownloadAsync(stream_, &save_normals_array[0][0]);
+  std::string normal_path;
+  //std::string normal_folder = "normal";
+  std::string depth_path = rgbd_video_->depth_frame_mutable(frame_index)->image_path();
+  normal_path = depth_path.substr(0, depth_path.size()-22); // 3.8 hard coded for eth3d only!!! change this if switch to tum
+  std::string depth_filename = depth_path.substr(depth_path.size()-16, depth_path.size());
+  normal_path = normal_path + "normal/"+depth_filename.substr(0,depth_filename.size()-4)+".npy";
+  cnpy::npy_save(normal_path,&save_normals_array[0][0],{kFeatureH,kFeatureW},"w");
+
+  u16 filtered_depth_array[kFeatureW][kFeatureW];
+  filtered_depth_buffer_A_->DownloadAsync(stream_, &filtered_depth_array[0][0]);
+  std::string filtered_depth_path;
+  filtered_depth_path = depth_path.substr(0, depth_path.size()-22) + "depth_filtered/"+depth_filename.substr(0,depth_filename.size()-4)+".npy";
+  cnpy::npy_save(filtered_depth_path,&filtered_depth_array[0][0],{kFeatureH,kFeatureW},"w");
   
   // Estimate the frame's pose (unless it is the first frame).
   pose_estimated_ = false;
@@ -711,7 +729,7 @@ void BadSlam::PreprocessFrame(
       config_.max_depth / config_.raw_to_float_depth,
       config_.raw_to_float_depth,
       depth_buffer_->ToCUDA(),
-      &filtered_depth_buffer_A_->ToCUDA());
+      &filtered_depth_buffer_A_->ToCUDA()); // 3.7 smoothed depth value (not in meters, not inversed)
   
   // Thread-safe camera / depth params access.
   // Be aware though that the content of the cfactor_buffer in depth_params can
@@ -728,7 +746,7 @@ void BadSlam::PreprocessFrame(
       filtered_depth_buffer_A_->ToCUDA(),
       &filtered_depth_buffer_B_->ToCUDA(),
       &normals_buffer_->ToCUDA());
-  
+
 //   // DEBUG: Show normals buffer.
 //   Image<Vec3u8> debug_image(normals_buffer_->width(), normals_buffer_->height());
 //   
@@ -1028,7 +1046,7 @@ shared_ptr<Keyframe> BadSlam::CreateKeyframe(
       rgbd_video_->depth_frame_mutable(frame_index),
       rgbd_video_->color_frame_mutable(frame_index),
       *feature_buffer_));
-  base_kf_ = new_keyframe.get();
+  base_kf_ = new_keyframe.get(); // 3.8 use the newest keyframe as the base frame for tracking.
   // Since the BA thread does not know yet that this frame here will become a
   // keyframe, there is no danger that base_kf_->global_T_frame() gets updated
   // within the BA code (potentially leading to inconsistency). However, it can
