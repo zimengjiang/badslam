@@ -179,7 +179,6 @@ void BadSlam::ProcessFrame(int frame_index, bool force_keyframe) {
   
   const Image<Vec3u8>* rgb_image =
       rgbd_video_->color_frame_mutable(frame_index)->GetImage().get();
-
   /*const shared_ptr<Image<u16>>& depth_image =*/
       rgbd_video_->depth_frame_mutable(frame_index)->GetImage();
   
@@ -199,21 +198,27 @@ void BadSlam::ProcessFrame(int frame_index, bool force_keyframe) {
   // Pre-process the RGB-D frame.
   shared_ptr<Image<u16>> final_cpu_depth_map;
   PreprocessFrame(frame_index, &final_depth_buffer_, &final_cpu_depth_map);
+  
   // 3.8 save the normal (and the filtered depth?)
   u16 save_normals_array[kFeatureH][kFeatureW];
   normals_buffer_->DownloadAsync(stream_, &save_normals_array[0][0]);
-  std::string normal_path;
-  //std::string normal_folder = "normal";
   std::string depth_path = rgbd_video_->depth_frame_mutable(frame_index)->image_path();
-  normal_path = depth_path.substr(0, depth_path.size()-22); // 3.8 hard coded for eth3d only!!! change this if switch to tum
-  std::string depth_filename = depth_path.substr(depth_path.size()-16, depth_path.size());
-  normal_path = normal_path + "normal/"+depth_filename.substr(0,depth_filename.size()-4)+".npy";
+  std::string normal_path;
+  std::string s1;
+  std::string s2;
+  s1 = depth_path.substr(0,depth_path.find_last_of("\\/"));
+  s2 = s1.substr(0,s1.find_last_of("\\/"));
+  //std::string normal_folder = "normal";
+  //normal_path = depth_path.substr(0, depth_path.size()-22); // 3.8 hard coded for eth3d only!!! change this if switch to tum
+  std::string depth_filename = depth_path.substr(depth_path.find_last_of("\\/"), depth_path.size());
+  normal_path = s2 + "/normal"+depth_filename.substr(0,depth_filename.size()-4)+".npy";
   cnpy::npy_save(normal_path,&save_normals_array[0][0],{kFeatureH,kFeatureW},"w");
 
   u16 filtered_depth_array[kFeatureW][kFeatureW];
   filtered_depth_buffer_A_->DownloadAsync(stream_, &filtered_depth_array[0][0]);
   std::string filtered_depth_path;
-  filtered_depth_path = depth_path.substr(0, depth_path.size()-22) + "depth_filtered/"+depth_filename.substr(0,depth_filename.size()-4)+".npy";
+  // filtered_depth_path = depth_path.substr(0, depth_path.size()-22) + "/depth_filtered/"+depth_filename.substr(0,depth_filename.size()-4)+".npy";
+  filtered_depth_path = s2 + "/depth_filtered"+depth_filename.substr(0,depth_filename.size()-4)+".npy";
   cnpy::npy_save(filtered_depth_path,&filtered_depth_array[0][0],{kFeatureH,kFeatureW},"w");
   
   // Estimate the frame's pose (unless it is the first frame).
