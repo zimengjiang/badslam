@@ -143,6 +143,62 @@ __forceinline__ __device__ void ComputeRawDescriptorResidualAndJacobian(
   jacobian_2[5] = -(ls.x * grad_y_fy_2 - ls.y * grad_x_fx_2) * inv_ls_z;
 }
 
+// 3.29
+__forceinline__ __device__ void ComputeRawDescriptor1PointFeatureJacobian(
+  const CUDABuffer_<float>& feature_arr,
+  const PixelCenterProjector& color_center_projector,
+  const float2& pxy,
+  const float3& ls,  // surfel_local_position
+  float* jacobian_all,
+  int channel) {
+  /*  unsigned int surfel_index = blockIdx.x * blockDim.x + threadIdx.x;
+  if (surfel_index == 0){
+    printf("pose_jacobian: feat(400,2000)=%f, feat(457,2216)=%f \n",feature_arr(400,2000), feature_arr(457,2216));
+  }*/
+
+  CudaAssert(ls.x == ls.x);
+  CudaAssert(ls.y == ls.y);
+  CudaAssert(ls.z == ls.z);
+// 11.3 jzmTODO: reuse computation. here the derivative of the projected position w.r.t. pose is the same for all the channels.
+float grad_x_fx_1;
+float grad_y_fy_1;
+float grad_x_fx_2;
+float grad_y_fy_2;
+Descriptor1PointJacobianWrtProjectedPositionOnChannels(
+    feature_arr, pxy, &grad_x_fx_1, &grad_y_fy_1, &grad_x_fx_2, &grad_y_fy_2, channel);
+grad_x_fx_1 *= color_center_projector.fx;
+grad_x_fx_2 *= color_center_projector.fx;
+grad_y_fy_1 *= color_center_projector.fy;
+grad_y_fy_2 *= color_center_projector.fy;
+// 11.3 jzmTODO: for debugging , delete it after debugging
+// unsigned int surfel_index = blockIdx.x * blockDim.x + threadIdx.x;
+
+float inv_ls_z = 1.f / ls.z;
+CudaAssert(inv_ls_z == inv_ls_z);
+float ls_z_sq = ls.z * ls.z;
+CudaAssert(ls_z_sq == ls_z_sq);
+float inv_ls_z_sq = inv_ls_z * inv_ls_z;
+// 11.20 jacobian_1, depending on channel, channel is 0-based index.
+*(jacobian_all+6*channel) = -grad_x_fx_1 * inv_ls_z; // jacobian_1[0] = -grad_x_fx_1 * inv_ls_z;
+*(jacobian_all+6*channel+1) = -grad_y_fy_1 * inv_ls_z; // jacobian_1[1] = -grad_y_fy_1 * inv_ls_z;
+*(jacobian_all+6*channel+2) = (ls.x * grad_x_fx_1 + ls.y * grad_y_fy_1) * inv_ls_z_sq; // jacobian_1[2] = (ls.x * grad_x_fx_1 + ls.y * grad_y_fy_1) * inv_ls_z_sq;
+
+float ls_x_y = ls.x * ls.y;
+//CudaAssert(ls_x_y == ls_x_y);
+*(jacobian_all+6*channel+3) = ((ls.y * ls.y + ls_z_sq) * grad_y_fy_1 + ls_x_y * grad_x_fx_1) * inv_ls_z_sq; // jacobian_1[3] =  ((ls.y * ls.y + ls_z_sq) * grad_y_fy_1 + ls_x_y * grad_x_fx_1) * inv_ls_z_sq;
+*(jacobian_all+6*channel+4) = -((ls.x * ls.x + ls_z_sq) * grad_x_fx_1 + ls_x_y * grad_y_fy_1) * inv_ls_z_sq; // jacobian_1[4] = -((ls.x * ls.x + ls_z_sq) * grad_x_fx_1 + ls_x_y * grad_y_fy_1) * inv_ls_z_sq;
+*(jacobian_all+6*channel+5) = -(ls.x * grad_y_fy_1 - ls.y * grad_x_fx_1) * inv_ls_z; //jacobian_1[5] = -(ls.x * grad_y_fy_1 - ls.y * grad_x_fx_1) * inv_ls_z;
+
+// 11.20 jacobian_2, depending on channel, channel is 0-based index.
+*(jacobian_all + 6*kTotalChannels + 6*channel) = -grad_x_fx_2 * inv_ls_z; // jacobian_2[0] = -grad_x_fx_2 * inv_ls_z;
+*(jacobian_all + 6*kTotalChannels + 6*channel+1) = -grad_y_fy_2 * inv_ls_z; // jacobian_2[1] = -grad_y_fy_2 * inv_ls_z;
+*(jacobian_all + 6*kTotalChannels + 6*channel+2) = (ls.x * grad_x_fx_2 + ls.y * grad_y_fy_2) * inv_ls_z_sq; // jacobian_2[2] = (ls.x * grad_x_fx_2 + ls.y * grad_y_fy_2) * inv_ls_z_sq;
+*(jacobian_all + 6*kTotalChannels + 6*channel+3) = ((ls.y * ls.y + ls_z_sq) * grad_y_fy_2 + ls_x_y * grad_x_fx_2) * inv_ls_z_sq; // jacobian_2[3] =  ((ls.y * ls.y + ls_z_sq) * grad_y_fy_2 + ls_x_y * grad_x_fx_2) * inv_ls_z_sq;
+*(jacobian_all + 6*kTotalChannels + 6*channel+4) = -((ls.x * ls.x + ls_z_sq) * grad_x_fx_2 + ls_x_y * grad_y_fy_2) * inv_ls_z_sq; // jacobian_2[4] = -((ls.x * ls.x + ls_z_sq) * grad_x_fx_2 + ls_x_y * grad_y_fy_2) * inv_ls_z_sq;
+*(jacobian_all + 6*kTotalChannels + 6*channel+5) = -(ls.x * grad_y_fy_2 - ls.y * grad_x_fx_2) * inv_ls_z; // jacobian_2[5] = -(ls.x * grad_y_fy_2 - ls.y * grad_x_fx_2) * inv_ls_z;
+}
+
+
 __forceinline__ __device__ void TestComputeRawDescriptorFeatureJacobian(
   const CUDABuffer_<float>& feature_arr,
   const PixelCenterProjector& color_center_projector,
@@ -1345,6 +1401,266 @@ COMPILE_OPTION_3(debug, use_depth_residuals, use_descriptor_residuals,
       debug_residual_image ? *debug_residual_image : CUDABuffer_<float>()));
 }
 
+template <int block_width, int block_height, bool debug, bool use_depth_residuals, bool use_descriptor_residuals>
+__global__ void AccumulatePoseEstimationCoeffsFromFeatures1PointCUDAKernel(
+    PixelCornerProjector depth_projector,
+    PixelCenterProjector color_center_projector,
+    PixelCenterUnprojector depth_unprojector,
+    float baseline_fx,
+    DepthToColorPixelCorner depth_to_color,
+    float threshold_factor,
+    CUDAMatrix3x4 estimate_frame_T_surfel_frame,
+    CUDABuffer_<float> surfel_depth,
+    CUDABuffer_<u16> surfel_normals,
+    CUDABuffer_<u8> surfel_color,
+    CUDABuffer_<float> surfel_feature, // 2.10
+    CUDABuffer_<float> frame_depth,
+    CUDABuffer_<u16> frame_normals,
+    cudaTextureObject_t frame_color,
+    CUDABuffer_<float> frame_feature, // 2.10
+    CUDABuffer_<u32> residual_count_buffer,
+    CUDABuffer_<float> residual_buffer,
+    CUDABuffer_<float> H_buffer,
+    CUDABuffer_<float> b_buffer,
+    CUDABuffer_<float> debug_residual_image) {
+  unsigned int x = blockIdx.x * blockDim.x + threadIdx.x;
+  unsigned int y = blockIdx.y * blockDim.y + threadIdx.y;
+  
+  bool visible = false;
+  float depth_jacobian[6];
+  float raw_depth_residual;
+  // 2.10 
+  float raw_descriptor_residual_vec[kSurfelNumDescriptor]={0};
+  float jacobian_all[6*kSurfelNumDescriptor] = {0}; 
+  
+  
+  if (x < surfel_depth.width() && y < surfel_depth.height()) {
+    float surfel_calibrated_depth = surfel_depth(y, x);
+    if (surfel_calibrated_depth > 0) {
+      float3 surfel_local_position;
+      if (estimate_frame_T_surfel_frame.MultiplyIfResultZIsPositive(depth_unprojector.UnprojectPoint(x, y, surfel_calibrated_depth), &surfel_local_position)) {
+        int px, py;
+        float2 pxy;
+        if (ProjectSurfelToImage(
+            frame_depth.width(), frame_depth.height(),
+            depth_projector,
+            surfel_local_position,
+            &px, &py,
+            &pxy)) {
+          float pixel_calibrated_depth = frame_depth(py, px);
+          if (pixel_calibrated_depth > 0) {
+            float3 surfel_local_normal;
+            if (IsAssociatedWithPixel<false>(
+                surfel_local_position,
+                surfel_normals,
+                x,
+                y,
+                estimate_frame_T_surfel_frame,
+                frame_normals,
+                px,
+                py,
+                pixel_calibrated_depth,
+                threshold_factor * kDepthResidualDefaultTukeyParam,
+                baseline_fx,
+                depth_unprojector,
+                nullptr,
+                &surfel_local_normal)) {
+              visible = true;
+              
+              if (use_depth_residuals) {
+                float depth_residual_inv_stddev =
+                    ComputeDepthResidualInvStddevEstimate(depth_unprojector.nx(px), depth_unprojector.ny(py), pixel_calibrated_depth, surfel_local_normal, baseline_fx);
+                
+                ComputeRawDepthResidualAndJacobian(
+                    depth_unprojector,
+                    px,
+                    py,
+                    pixel_calibrated_depth,
+                    depth_residual_inv_stddev,
+                    surfel_local_position,
+                    surfel_local_normal,
+                    &raw_depth_residual,
+                    depth_jacobian);
+              }
+              
+              if (use_descriptor_residuals) {
+                if (x < surfel_depth.width() - 1 &&  // NOTE: These conditions are only necessary since we compute descriptors in the input image and always go right / down
+                    y < surfel_depth.height() - 1) {
+
+                  // 2.10: compute descriptor in surfel feature
+                  float surfel_descriptor[kSurfelNumDescriptor] = {0};
+                  float zero_descriptor[kSurfelNumDescriptor] = {0}; // Just for initialization of surfel descriptor
+                  ComputeRawFeatureDescriptor1PointResidualIntpixel(
+                    surfel_feature,
+                    make_int2(x,y),
+                    zero_descriptor,
+                    surfel_descriptor/*the raw_residual_vec inside the function is used as surfel descriptor here*/);
+                  
+                  float2 color_pxy;
+                  if (visible &&
+                      TransformDepthToColorPixelCorner(pxy, depth_to_color, &color_pxy)) {
+                        ComputeRawFeatureDescriptor1PointResidualFloatpixel(
+                        frame_feature,
+                        color_pxy,
+                        surfel_descriptor,
+                        raw_descriptor_residual_vec
+                      );
+                      for (int channel = 0; channel < kTotalChannels; ++channel){
+                        ComputeRawDescriptor1PointFeatureJacobian(
+                            frame_feature,
+                            color_center_projector,
+                            color_pxy,
+                            surfel_local_position,
+                            jacobian_all,
+                            channel /* channel*/);
+                        }
+                  } else {
+                    visible = false;
+                  }
+                } else {
+                  visible = false;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  // Write residual debug image?
+  if (debug && x < surfel_depth.width() && y < surfel_depth.height()) {
+    debug_residual_image(y, x) =
+        visible ?
+        ((use_depth_residuals ? ComputeWeightedDepthResidual(raw_depth_residual) : 0) +
+         (use_descriptor_residuals ? ComputeWeightedDescriptorResidual(/*raw_descriptor_residual_1*/raw_descriptor_residual_vec[0]) : 0)) :  // NOTE: Using the 1st residual only
+        CUDART_NAN_F;
+  }
+  
+  // Early exit?
+  __shared__ int have_visible;
+  if (threadIdx.x == 0 && threadIdx.y == 0) {
+    have_visible = 0;
+  }
+  __syncthreads();
+  
+  if (visible) {
+    have_visible = 1;
+  }
+  __syncthreads();
+  if (have_visible == 0) {
+    return;
+  }
+  
+  typedef cub::BlockReduce<float, block_width, cub::BLOCK_REDUCE_RAKING_COMMUTATIVE_ONLY, block_height> BlockReduceFloat;
+  typedef cub::BlockReduce<int, block_width, cub::BLOCK_REDUCE_RAKING_COMMUTATIVE_ONLY, block_height> BlockReduceInt;
+  __shared__ union {
+    typename BlockReduceFloat::TempStorage float_storage;
+    typename BlockReduceInt::TempStorage int_storage;
+  } temp_storage;
+  
+  if (use_depth_residuals) {
+    AccumulateGaussNewtonHAndB<6, block_width, block_height>(
+        visible,
+        raw_depth_residual,
+        ComputeDepthResidualWeight(raw_depth_residual, threshold_factor),
+        depth_jacobian,
+        H_buffer,
+        b_buffer,
+        &temp_storage.float_storage);
+    
+    if (debug) {
+      AccumulatePoseResidualAndCount<block_width, block_height>(
+          visible,
+          ComputeWeightedDepthResidual(raw_depth_residual, threshold_factor),
+          residual_count_buffer,
+          residual_buffer,
+          &temp_storage.float_storage,
+          &temp_storage.int_storage);
+    }
+  }
+  
+  if (use_descriptor_residuals) {
+
+    for (int channel = 0; channel < kTotalChannels; ++channel){
+      AccumulateGaussNewtonHAndB<6, block_width, block_height>(
+        visible,
+        raw_descriptor_residual_vec[channel],
+        ComputeDescriptorResidualWeight(raw_descriptor_residual_vec[channel], threshold_factor),
+        jacobian_all+6*channel, // pass the address of jacobian_c_1[0]
+        H_buffer,
+        b_buffer,
+        &temp_storage.float_storage);
+    }
+    
+    if (debug) {
+      AccumulatePoseResidualAndCount<block_width, block_height>(
+          visible,
+          ComputeWeightedDescriptorResidual(raw_descriptor_residual_vec[0], threshold_factor),  // NOTE: Using the 1st residual only
+          residual_count_buffer,
+          residual_buffer,
+          &temp_storage.float_storage,
+          &temp_storage.int_storage);
+    }
+  }
+}
+
+// 3.29
+void CallAccumulatePoseEstimationCoeffsFromFeatures1PointCUDAKernel(
+  cudaStream_t stream,
+  bool debug,
+  bool use_depth_residuals,
+  bool use_descriptor_residuals,
+  const PixelCornerProjector& depth_projector,
+  const PixelCenterProjector& color_center_projector,
+  const PixelCenterUnprojector& depth_unprojector,
+  float baseline_fx,
+  const DepthToColorPixelCorner& depth_to_color,
+  float threshold_factor,
+  const CUDAMatrix3x4& estimate_frame_T_surfel_frame,
+  const CUDABuffer_<float>& surfel_depth,
+  const CUDABuffer_<u16>& surfel_normals,
+  const CUDABuffer_<u8>& surfel_color,
+  const CUDABuffer_<float>& surfel_feature, // 2.10
+  const CUDABuffer_<float>& frame_depth,
+  const CUDABuffer_<u16>& frame_normals,
+  cudaTextureObject_t frame_color,
+  const CUDABuffer_<float>& frame_feature, // 2.10
+  const CUDABuffer_<u32>& residual_count_buffer,
+  const CUDABuffer_<float>& residual_buffer,
+  const CUDABuffer_<float>& H_buffer,
+  const CUDABuffer_<float>& b_buffer,
+  CUDABuffer_<float>* debug_residual_image) {
+COMPILE_OPTION_3(debug, use_depth_residuals, use_descriptor_residuals,
+  CUDA_AUTO_TUNE_2D_TEMPLATED(
+      AccumulatePoseEstimationCoeffsFromFeatures1PointCUDAKernel,
+      32, 32,
+      surfel_depth.width(), surfel_depth.height(),
+      0, stream,
+      TEMPLATE_ARGUMENTS(block_width, block_height, _debug, _use_depth_residuals, _use_descriptor_residuals),
+      /* kernel parameters */
+      depth_projector,
+      color_center_projector,
+      depth_unprojector,
+      baseline_fx,
+      depth_to_color,
+      threshold_factor,
+      estimate_frame_T_surfel_frame,
+      surfel_depth,
+      surfel_normals,
+      surfel_color,
+      surfel_feature, // 2.10
+      frame_depth,
+      frame_normals,
+      frame_color,
+      frame_feature, // 2.10
+      residual_count_buffer,
+      residual_buffer,
+      H_buffer,
+      b_buffer,
+      debug_residual_image ? *debug_residual_image : CUDABuffer_<float>()));
+}
+
 
 
 template <int block_width, int block_height, bool debug, bool use_depth_residuals, bool use_descriptor_residuals>
@@ -2247,5 +2563,212 @@ void ComputeCostAndResidualCountFromFeaturesCUDAKernel(
 }
 
 
+// 3.29
+template <int block_width, int block_height, bool use_depth_residuals, bool use_descriptor_residuals>
+__global__ void ComputeCostAnd1PointResidualCountFromFeaturesCUDAKernel(
+    PixelCornerProjector depth_projector,
+    PixelCenterUnprojector depth_unprojector,
+    float baseline_fx,
+    DepthToColorPixelCorner depth_to_color,
+    float threshold_factor,
+    CUDAMatrix3x4 estimate_frame_T_surfel_frame,
+    CUDABuffer_<float> surfel_depth,
+    CUDABuffer_<u16> surfel_normals,
+    CUDABuffer_<u8> surfel_color,
+    CUDABuffer_<float> surfel_feature, // 2.10
+    CUDABuffer_<float> frame_depth,
+    CUDABuffer_<u16> frame_normals,
+    cudaTextureObject_t frame_color,
+    CUDABuffer_<float> frame_feature, // 2.10
+    CUDABuffer_<u32> residual_count_buffer,
+    CUDABuffer_<float> residual_buffer) {
+  unsigned int x = blockIdx.x * blockDim.x + threadIdx.x;
+  unsigned int y = blockIdx.y * blockDim.y + threadIdx.y;
+  
+  bool visible = false;
+  float raw_depth_residual;
+  float raw_descriptor_residual_vec[kSurfelNumDescriptor] = {0}; //2.10
+  
+  if (x < surfel_depth.width() && y < surfel_depth.height()) {
+    float surfel_calibrated_depth = surfel_depth(y, x);
+    if (surfel_calibrated_depth > 0) {
+      float3 surfel_local_position;
+      // 2.8 project sufels (in its own local frame, i.e. base kf) to the estimated frame (current tracking frame)
+      if (estimate_frame_T_surfel_frame.MultiplyIfResultZIsPositive(depth_unprojector.UnprojectPoint(x, y, surfel_calibrated_depth), &surfel_local_position)) { // 2.25 get surfel position in the coorinate system of the frame being tracked
+        int px, py;
+        float2 pxy;
+        if (ProjectSurfelToImage(
+            frame_depth.width(), frame_depth.height(),
+            depth_projector,
+            surfel_local_position,
+            &px, &py,
+            &pxy)) { // 2.11 px, py are ensured to be within the image bounds if the 'if' statement holds. They are casted from pxy. But px+1, py+1 can be out of bounds?
+          float pixel_calibrated_depth = frame_depth(py, px);
+          if (pixel_calibrated_depth > 0) {
+            float3 surfel_local_normal;
+            if (IsAssociatedWithPixel<false>( // 3.29 surfel_proejection_nvcc_only.cuh : 177
+                surfel_local_position,
+                surfel_normals,
+                x,
+                y,
+                estimate_frame_T_surfel_frame,
+                frame_normals,
+                px,
+                py,
+                pixel_calibrated_depth,
+                threshold_factor * kDepthResidualDefaultTukeyParam,
+                baseline_fx,
+                depth_unprojector,
+                nullptr,
+                &surfel_local_normal)) {
+              visible = true;
+              
+              if (use_depth_residuals) {
+                float depth_residual_inv_stddev =
+                    ComputeDepthResidualInvStddevEstimate(depth_unprojector.nx(px), depth_unprojector.ny(py), pixel_calibrated_depth, surfel_local_normal, baseline_fx);
+                
+                float3 local_unproj;
+                ComputeRawDepthResidual(depth_unprojector, px, py, pixel_calibrated_depth,
+                                        depth_residual_inv_stddev,
+                                        surfel_local_position, surfel_local_normal,
+                                        &local_unproj, &raw_depth_residual);
+              }
+              
+              if (use_descriptor_residuals) {
+                if (x < surfel_depth.width() - 1 &&  // NOTE: These conditions are only necessary since we compute descriptors in the input image and always go right / down
+                    y < surfel_depth.height() - 1) {
+                  // Compute descriptor in surfel image // 2.7 jzmTODO:
+                  /*const float intensity = 1 / 255.f * surfel_color(y, x); //2.7 TODO: use features of base kf
+                  const float t1_intensity = 1 / 255.f * surfel_color(y, x + 1);
+                  const float t2_intensity = 1 / 255.f * surfel_color(y + 1, x);
+                  
+                  float surfel_descriptor_1 = (180.f * (t1_intensity - intensity));
+                  float surfel_descriptor_2 = (180.f * (t2_intensity - intensity));*/
+
+                  // 2.10: compute descriptor in surfel feature
+                  float surfel_descriptor[kSurfelNumDescriptor] = {0};
+                  float zero_descriptor[kSurfelNumDescriptor] = {0}; // Just for initialization of surfel descriptor
+                  ComputeRawFeatureDescriptor1PointResidualIntpixel(
+                    surfel_feature,
+                    make_int2(x,y),
+                    zero_descriptor,
+                    surfel_descriptor/*the raw_residual_vec is used as surfel descriptor here*/);
+
+                  float2 color_pxy;
+                  if (visible &&
+                      TransformDepthToColorPixelCorner(pxy, depth_to_color, &color_pxy)) {
+                        ComputeRawFeatureDescriptor1PointResidualFloatpixel(
+                        frame_feature,
+                        color_pxy,
+                        surfel_descriptor,
+                        raw_descriptor_residual_vec
+                      );
+                  } else {
+                    visible = false;
+                  }
+                } else {
+                  visible = false;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  // Early exit?
+  __shared__ int have_visible;
+  if (threadIdx.x == 0 && threadIdx.y == 0) {
+    have_visible = 0;
+  }
+  __syncthreads();
+  
+  if (visible) {
+    have_visible = 1;
+  }
+  __syncthreads();
+  if (have_visible == 0) {
+    return;
+  }
+  
+  typedef cub::BlockReduce<float, block_width, cub::BLOCK_REDUCE_RAKING_COMMUTATIVE_ONLY, block_height> BlockReduceFloat;
+  typedef cub::BlockReduce<int, block_width, cub::BLOCK_REDUCE_RAKING_COMMUTATIVE_ONLY, block_height> BlockReduceInt;
+  __shared__ union {
+    typename BlockReduceFloat::TempStorage float_storage;
+    typename BlockReduceInt::TempStorage int_storage;
+  } temp_storage;
+  
+  if (use_depth_residuals) {
+    AccumulatePoseResidualAndCount<block_width, block_height>(
+        visible,
+        ComputeWeightedDepthResidual(raw_depth_residual, threshold_factor),
+        residual_count_buffer,
+        residual_buffer,
+        &temp_storage.float_storage,
+        &temp_storage.int_storage);
+  }
+  
+  if (use_descriptor_residuals) {
+    // TODO: It should be possible to merge these two calls and directly accumulate the sum (also use 2 for the residual count then).
+    //       It should even be possible to merge it with the depth residual call as well in case both residual types are used.
+  for (int channel = 0; channel < kTotalChannels; ++channel){
+    AccumulatePoseResidualAndCount<block_width, block_height>(
+      visible,
+      ComputeWeightedDescriptorResidual(raw_descriptor_residual_vec[channel], threshold_factor),
+      residual_count_buffer,
+      residual_buffer,
+      &temp_storage.float_storage,
+      &temp_storage.int_storage);
+  }
+  }
+}
+
+// 3.29 Computing 1-point residual instead of gradient residual
+void ComputeCostAnd1PointResidualCountFromFeaturesCUDAKernel(
+  cudaStream_t stream,
+  bool use_depth_residuals,
+  bool use_descriptor_residuals,
+  const PixelCornerProjector& depth_projector,
+  const PixelCenterUnprojector& depth_unprojector,
+  float baseline_fx,
+  const DepthToColorPixelCorner& depth_to_color,
+  float threshold_factor,
+  const CUDAMatrix3x4& estimate_frame_T_surfel_frame,
+  const CUDABuffer_<float>& surfel_depth,
+  const CUDABuffer_<u16>& surfel_normals,
+  const CUDABuffer_<u8>& surfel_color,
+  const CUDABuffer_<float>& surfel_feature, // 2.10
+  const CUDABuffer_<float>& frame_depth,
+  const CUDABuffer_<u16>& frame_normals,
+  cudaTextureObject_t frame_color,
+  const CUDABuffer_<float>& frame_feature, // 2.10
+  const CUDABuffer_<u32>& residual_count_buffer,
+  const CUDABuffer_<float>& residual_buffer) {
+COMPILE_OPTION_2(use_depth_residuals, use_descriptor_residuals,
+    CUDA_AUTO_TUNE_2D_TEMPLATED(
+        ComputeCostAnd1PointResidualCountFromFeaturesCUDAKernel,
+        32, 32,
+        surfel_depth.width(), surfel_depth.height(),
+        0, stream,
+        TEMPLATE_ARGUMENTS(block_width, block_height, _use_depth_residuals, _use_descriptor_residuals),
+        /* kernel parameters */
+        depth_projector,
+        depth_unprojector,
+        baseline_fx,
+        depth_to_color,
+        threshold_factor,
+        estimate_frame_T_surfel_frame,
+        surfel_depth,
+        surfel_normals,
+        surfel_color,
+        surfel_feature, // 2.10
+        frame_depth,
+        frame_normals,
+        frame_color,
+        frame_feature, // 2.10
+        residual_count_buffer,
+        residual_buffer));
+}
 
 }

@@ -458,7 +458,7 @@ repeat_pose_estimation:;
       u32 residual_count_last_scale;
       float cost_last_scale;
       SE3f base_T_frame_last_scale = (scale != num_scales - 1) ? base_T_frame_estimate : base_T_frame_initial_estimate_1;
-      ComputeCostAndResidualCountFromFeaturesCUDA(
+      ComputeCostAnd1PointResidualCountFromFeaturesCUDA(
           stream,
           use_depth_residuals,
           use_descriptor_residuals,
@@ -481,7 +481,7 @@ repeat_pose_estimation:;
       u32 residual_count_initial_estimate;
       float cost_initial_estimate;
       SE3f base_T_frame_initial_estimate = (scale != num_scales - 1) ? base_T_frame_chosen_initial_estimate : base_T_frame_initial_estimate_2;
-      ComputeCostAndResidualCountFromFeaturesCUDA(
+      ComputeCostAnd1PointResidualCountFromFeaturesCUDA(
           stream,
           use_depth_residuals,
           use_descriptor_residuals,
@@ -550,7 +550,7 @@ repeat_pose_estimation:;
       u32 residual_count;
       float residual_sum;
       float H_temp[6 * (6 + 1) / 2];
-      AccumulatePoseEstimationCoeffsFromFeaturesCUDA(
+      AccumulatePoseEstimationCoeffsFromFeatures1PointCUDA(
           stream,
           use_depth_residuals,
           use_descriptor_residuals,

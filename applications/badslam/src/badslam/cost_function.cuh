@@ -115,6 +115,7 @@ __forceinline__ __device__ float ComputeWeightedDepthResidual(float raw_residual
 // Weight factor from the cost term.
 // TODO: Tune further. Make parameter?
 constexpr float kDescriptorResidualWeight = 1e-2f;
+// constexpr float kDescriptorResidualWeight = 1.0f; // 3.29
 
 // Parameter for the Huber robust loss function for photometric residuals.
 // TODO: Make parameter?
@@ -529,6 +530,37 @@ __forceinline__ __device__ void TestComputeRawFeatureDescriptorResidualIntpixel(
   }
 }
 
+// 3.29 1point residual, indexing int pixel location
+__forceinline__ __device__ void ComputeRawFeatureDescriptor1PointResidualIntpixel(
+    const CUDABuffer_<float>& feature_arr,
+    const int2& pxy, /*pixel corner convention*/ /* Validity must be handled already */
+    float* surfel_descriptor_vec,
+    float* raw_residual_vec) {
+  // feature vectors
+  float f_pxy[kTotalChannels] = {0}; // initialize all to 0, memory allocation
+  // 2.24 Must handle out of range fetching by mannually clamping. Invalid texture memory fetching is handled by CUDA, that's why original code doesn't address that.
+  TestFetchFeatureArrVec(feature_arr, pxy.x, pxy.y, f_pxy);
+  #pragma unroll
+  for (int c = 0; c < kTotalChannels; ++c){
+    *(raw_residual_vec+c) = 180.f * f_pxy[c] - surfel_descriptor_vec[c]; // 3.29 180.0 is emperically set, might get rid of it.
+  }
+}
+
+// 3.29 1point residual, indexing float pixel location using bilinear interpolation
+__forceinline__ __device__ void ComputeRawFeatureDescriptor1PointResidualFloatpixel(
+    const CUDABuffer_<float>& feature_arr,
+    const float2& pxy, /*pixel corner convention*/
+    float* surfel_descriptor_vec,
+    float* raw_residual_vec) {
+  // feature vectors
+  float f_pxy[kTotalChannels] = {0}; // initialize all to 0, memory allocation
+  TestFetchFeatureArrBilinearInterpolationVec(feature_arr, pxy.x, pxy.y, f_pxy);
+  #pragma unroll
+  for (int c = 0; c < kTotalChannels; ++c){
+    *(raw_residual_vec+c) = 180.f * f_pxy[c] - surfel_descriptor_vec[c];
+  }
+}
+
 __forceinline__ __device__ void ComputeRawFeatureDescriptorResidual(
     cudaTextureObject_t feature_texture,
     const float2& pxy,
@@ -789,5 +821,50 @@ __forceinline__ __device__ void TestDescriptorJacobianWrtProjectedPositionOnChan
   *grad_y_2 = 180.f * (t2_dy - center_dy);
 }
 
+__forceinline__ __device__ void Descriptor1PointJacobianWrtProjectedPositionOnChannels(
+    const CUDABuffer_<float>& feature_arr, 
+    const float2& color_pxy,
+    float* grad_x_1,
+    float* grad_y_1,
+    float* grad_x_2,
+    float* grad_y_2,
+    int c) {
+  /*unsigned int surfel_index = blockIdx.x * blockDim.x + threadIdx.x;
+    if (surfel_index == 0){
+    printf("jacobian: feat(400,2000)=%f, feat(457,2216)=%f \n",feature_arr(400,2000), feature_arr(457,2216));
+  }*/
+  // 11.16 Texture object fetching and filtering, +-0.5 stuff.
+  // https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#texture-fetching
+  int ix = static_cast<int>(::max(0.f, color_pxy.x - 0.5f)); // refer to libvis/camera.h: 103, convert to pixel center convention??? easier to compute the offsets from te pixel centers -> bilinear interpolation
+  int iy = static_cast<int>(::max(0.f, color_pxy.y - 0.5f));
+  ix = ::min(ix, feature_arr.width()/kTotalChannels-1);
+  iy = ::min(iy, feature_arr.height()-1);
+  // 11.19 out of bounds error => clamp it, texture memory handles like this!!! always check if out of bounds when indexing something
+  // see: https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#texture-memory
+
+  float tx = ::max(0.f, ::min(1.f, color_pxy.x - 0.5f - ix));  // truncated x = trunc(cx + fx*ls.x/ls.z) // frac(xB), xB = x-0.5
+  float ty = ::max(0.f, ::min(1.f, color_pxy.y - 0.5f - iy));  // truncated y = trunc(cy + fy*ls.y/ls.z)
+  
+  float top_left, top_right, bottom_left, bottom_right;
+
+  top_left = feature_arr(iy, ix*kTotalChannels+c);
+  top_right = feature_arr(iy, ::min(ix+1, feature_arr.width()/kTotalChannels-1)*kTotalChannels+c);
+  bottom_left = feature_arr(::min(iy+1, feature_arr.height()-1), ix*kTotalChannels+c);
+  bottom_right = feature_arr(::min(iy+1, feature_arr.height()-1), ::min(ix+1, feature_arr.width()/kTotalChannels-1)*kTotalChannels+c);
+
+  float center_dx = (bottom_right - bottom_left) * ty + (top_right - top_left) * (1 - ty);
+  float center_dy = (bottom_right - top_right) * tx + (bottom_left - top_left) * (1 - tx);
+  
+
+  // NOTE: It is approximate to mix all the center, t1, t2 derivatives
+  //       directly since the points would move slightly differently on most
+  //       pose changes. However, the approximation is possibly pretty good since
+  //       the points are all close to each other.
+  
+  *grad_x_1 = 180.f * center_dx; // 2.24 180. is emperically set. 
+  *grad_y_1 = 180.f * center_dy;
+  *grad_x_2 = 180.f * center_dx;
+  *grad_y_2 = 180.f * center_dy;
+}
 
 }

@@ -246,6 +246,32 @@ void AccumulatePoseEstimationCoeffsFromFeaturesCUDA(
     CUDABuffer<float>* debug_residual_image,
     PoseEstimationHelperBuffers* helper_buffers );
 
+// 3.29
+void AccumulatePoseEstimationCoeffsFromFeatures1PointCUDA(
+    cudaStream_t stream,
+    bool use_depth_residuals,
+    bool use_descriptor_residuals,
+    const PinholeCamera4f& color_camera,
+    const PinholeCamera4f& depth_camera,
+    float baseline_fx,
+    float threshold_factor,
+    const CUDABuffer<float>& downsampled_depth,
+    const CUDABuffer<u16>& downsampled_normals,
+    cudaTextureObject_t downsampled_color,
+    const CUDABuffer<float>& downsampled_feature, // 2.10
+    const CUDAMatrix3x4& estimate_frame_T_surfel_frame,
+    const CUDABuffer<float>& surfel_depth,
+    const CUDABuffer<u16>& surfel_normals,
+    const CUDABuffer<uchar>& surfel_color,
+    const CUDABuffer<float>& surfel_feature, // 2.10
+    u32* residual_count,
+    float* residual_sum,
+    float* H,
+    float* b,
+    bool debug,
+    CUDABuffer<float>* debug_residual_image,
+    PoseEstimationHelperBuffers* helper_buffers );
+
 void ComputeCostAndResidualCountFromImagesCUDA(
     cudaStream_t stream,
     bool use_depth_residuals,
@@ -268,6 +294,28 @@ void ComputeCostAndResidualCountFromImagesCUDA(
 
 // 2.10
 void ComputeCostAndResidualCountFromFeaturesCUDA(
+    cudaStream_t stream,
+    bool use_depth_residuals,
+    bool use_descriptor_residuals,
+    const PinholeCamera4f& color_camera,
+    const PinholeCamera4f& depth_camera,
+    float baseline_fx,
+    float threshold_factor,
+    const CUDABuffer<float>& downsampled_depth,
+    const CUDABuffer<u16>& downsampled_normals,
+    cudaTextureObject_t downsampled_color,
+    const CUDABuffer<float>& downsampled_feature, // 2.10
+    const CUDAMatrix3x4& estimate_frame_T_surfel_frame,
+    const CUDABuffer<float>& surfel_depth,
+    const CUDABuffer<u16>& surfel_normals,
+    const CUDABuffer<uchar>& surfel_color,
+    const CUDABuffer<float>& sufel_feature, // 2.10 
+    u32* residual_count,
+    float* residual_sum,
+    PoseEstimationHelperBuffers* helper_buffers);
+
+// 3.29
+void ComputeCostAnd1PointResidualCountFromFeaturesCUDA(
     cudaStream_t stream,
     bool use_depth_residuals,
     bool use_descriptor_residuals,
