@@ -150,7 +150,7 @@ repeat_pose_estimation:;
       b.setZero();
     } else {
       float H_temp[6 * (6 + 1) / 2]; //10.26 due to symmetry
-      AccumulatePoseEstimationCoeffsCUDA(
+      AccumulatePoseEstimationCoeffs1PointCUDA(
           stream,
           use_depth_residuals_,
           use_descriptor_residuals_,

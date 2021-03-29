@@ -191,6 +191,28 @@ void AccumulatePoseEstimationCoeffsCUDA(
     float* b,
     PoseEstimationHelperBuffers* helper_buffers);
 
+// 3.29 1 point residual
+void AccumulatePoseEstimationCoeffs1PointCUDA(
+    cudaStream_t stream,
+    bool use_depth_residuals,
+    bool use_descriptor_residuals,
+    const PinholeCamera4f& color_camera,
+    const PinholeCamera4f& depth_camera,
+    const DepthParameters& depth_params,
+    const CUDABuffer<u16>& depth_buffer,
+    const CUDABuffer<u16>& normals_buffer,
+    /*cudaTextureObject_t color_texture,*/
+    const CUDABuffer<float>& feature_arr, /*11.18 in cpu*/
+    const CUDAMatrix3x4& frame_T_global_estimate,
+    u32 surfels_size,
+    const CUDABuffer<float>& surfels,
+    bool debug,
+    u32* residual_count,
+    float* residual_sum,
+    float* H,
+    float* b,
+    PoseEstimationHelperBuffers* helper_buffers);
+
 void DebugSetBufferToColorTexture(
     cudaStream_t stream,
     cudaTextureObject_t texture,

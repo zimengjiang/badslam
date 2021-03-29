@@ -826,8 +826,6 @@ __forceinline__ __device__ void Descriptor1PointJacobianWrtProjectedPositionOnCh
     const float2& color_pxy,
     float* grad_x_1,
     float* grad_y_1,
-    float* grad_x_2,
-    float* grad_y_2,
     int c) {
   /*unsigned int surfel_index = blockIdx.x * blockDim.x + threadIdx.x;
     if (surfel_index == 0){
@@ -863,8 +861,6 @@ __forceinline__ __device__ void Descriptor1PointJacobianWrtProjectedPositionOnCh
   
   *grad_x_1 = 180.f * center_dx; // 2.24 180. is emperically set. 
   *grad_y_1 = 180.f * center_dy;
-  *grad_x_2 = 180.f * center_dx;
-  *grad_y_2 = 180.f * center_dy;
 }
 
 }
