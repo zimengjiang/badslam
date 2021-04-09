@@ -274,6 +274,7 @@ void ComputeCostAnd3PointResidualCountFromFeaturesCUDAKernel(
     const CUDABuffer_<u32>& residual_count_buffer,
     const CUDABuffer_<float>& residual_buffer);
 
+// 4.9
 void CallAccumulatePoseEstimationCoeffsFromFeatures3PointCUDAKernel(
     cudaStream_t stream,
     bool debug,
