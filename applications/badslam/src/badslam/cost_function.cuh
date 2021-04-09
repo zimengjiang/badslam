@@ -547,6 +547,30 @@ __forceinline__ __device__ void ComputeRawFeatureDescriptor1PointResidualIntpixe
   }
 }
 
+// 4.9 1point residual, indexing int pixel location
+__forceinline__ __device__ void ComputeRawFeatureDescriptor3PointResidualIntpixel(
+    const CUDABuffer_<float>& feature_arr,
+    const int2& pxy, /*pixel corner convention*/ /* Validity must be handled already */
+    const int2& t1_pxy, 
+    const int2& t2_pxy, 
+    float* surfel_descriptor_vec,
+    float* raw_residual_vec) {
+  // feature vectors
+  float f_pxy[kTotalChannels] = {0}; // initialize all to 0, memory allocation
+  float f_t1[kTotalChannels] = {0};
+  float f_t2[kTotalChannels] = {0};
+  // 2.24 Must handle out of range fetching by mannually clamping. Invalid texture memory fetching is handled by CUDA, that's why original code doesn't address that.
+  TestFetchFeatureArrVec(feature_arr, pxy.x, pxy.y, f_pxy);
+  TestFetchFeatureArrVec(feature_arr, t1_pxy.x, t1_pxy.y, f_t1);
+  TestFetchFeatureArrVec(feature_arr, t2_pxy.x, t2_pxy.y, f_t2);
+  #pragma unroll
+  for (int c = 0; c < kTotalChannels; ++c){
+    *(raw_residual_vec+c) = 180.f * f_pxy[c] - surfel_descriptor_vec[c];
+    *(raw_residual_vec+kTotalChannels+c) = 180.f * f_t1[c]- surfel_descriptor_vec[kTotalChannels+c];
+    *(raw_residual_vec+2*kTotalChannels+c) = 180.f * f_t2[c]- surfel_descriptor_vec[2*kTotalChannels+c];
+  }
+}
+
 // 3.29 1point residual, indexing float pixel location using bilinear interpolation
 __forceinline__ __device__ void ComputeRawFeatureDescriptor1PointResidualFloatpixel(
     const CUDABuffer_<float>& feature_arr,
@@ -561,6 +585,35 @@ __forceinline__ __device__ void ComputeRawFeatureDescriptor1PointResidualFloatpi
     *(raw_residual_vec+c) = 180.f * f_pxy[c] - surfel_descriptor_vec[c];
   }
 }
+
+// 4.9 3point residual, indexing float pixel location using bilinear interpolation
+__forceinline__ __device__ void ComputeRawFeatureDescriptor1PointResidualFloatpixel(
+    const CUDABuffer_<float>& feature_arr,
+    const float2& pxy, /*pixel corner convention*/
+    const float2& t1_pxy,/*pixel corner convention*/
+    const float2& t2_pxy,
+    float* surfel_descriptor_vec,
+    float* raw_residual_vec) {
+  
+  /*unsigned int surfel_index = blockIdx.x * blockDim.x + threadIdx.x;
+  if (surfel_index == 0){
+    printf("residual: feat(400,2000)=%f, feat(457,2216)=%f \n",feature_arr(400,2000), feature_arr(457,2216));
+  }*/
+  // feature vectors
+  float f_pxy[kTotalChannels] = {0}; // initialize all to 0, memory allocation
+  float f_t1[kTotalChannels] = {0};
+  float f_t2[kTotalChannels] = {0};
+  TestFetchFeatureArrBilinearInterpolationVec(feature_arr, pxy.x, pxy.y, f_pxy);
+  TestFetchFeatureArrBilinearInterpolationVec(feature_arr, t1_pxy.x, t1_pxy.y, f_t1);
+  TestFetchFeatureArrBilinearInterpolationVec(feature_arr, t2_pxy.x, t2_pxy.y, f_t2);
+  #pragma unroll
+  for (int c = 0; c < kTotalChannels; ++c){
+    *(raw_residual_vec+c) = 180.f * f_pxy[c] - surfel_descriptor_vec[c];
+    *(raw_residual_vec+kTotalChannels+c) = 180.f * f_t1[c] - surfel_descriptor_vec[kTotalChannels+c];
+    *(raw_residual_vec+2*kTotalChannels+c) = 180.f * f_t2[c] - surfel_descriptor_vec[2*kTotalChannels+c];
+  }
+}
+
 
 __forceinline__ __device__ void ComputeRawFeatureDescriptorResidual(
     cudaTextureObject_t feature_texture,
