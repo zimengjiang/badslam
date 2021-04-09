@@ -38,7 +38,8 @@
 #include "badslam/kernels.cuh" // 2.10
 
 // Macro definition
-#define CudaAssert( X ) if ( !(X) ) { printf( "Thread %d:%d failed assert at %s:%d! \n", blockIdx.x, threadIdx.x, __FILE__, __LINE__ ); return; }
+// #define CudaAssert( X ) if ( !(X) ) { printf( "Thread %d:%d failed assert at %s:%d! \n", blockIdx.x, threadIdx.x, __FILE__, __LINE__ ); return; }
+#define CudaAssert( X ) if ( !(X) ) {return; }
 
 namespace vis {
 
@@ -100,6 +101,7 @@ __global__ void CalibrateAndDownsampleImagesCUDAKernel(
     
     if (downsample_color) {
       // Bilinearly interpolate in the middle of the original 4 pixels to get their average.
+      // 3.20 In this case, since x and y are integers, the bilinear interpolation is just taking the average of the original 4 pixels. 
       float color = tex2D<float>(color_texture, 2 * x + 1.0f, 2 * y + 1.0f);
       downsampled_color(y, x) = 255.f * color + 0.5f;
     } else {

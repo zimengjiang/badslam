@@ -60,7 +60,8 @@ constexpr int max_x = kFeatureW-1-1; // W - 1 - 1
 constexpr int max_y = kFeatureH-1-1; // H - 1 - 1
 
 // Macro definition
-#define CudaAssert( X ) if ( !(X) ) { printf( "Thread %d:%d failed assert at %s:%d! \n", blockIdx.x, threadIdx.x, __FILE__, __LINE__ ); return; }
+// #define CudaAssert( X ) if ( !(X) ) { printf( "Thread %d:%d failed assert at %s:%d! \n", blockIdx.x, threadIdx.x, __FILE__, __LINE__ ); return; }
+#define CudaAssert( X ) if ( !(X) ) {return; }
 
 
 
@@ -114,12 +115,14 @@ __forceinline__ __device__ float ComputeWeightedDepthResidual(float raw_residual
 
 // Weight factor from the cost term.
 // TODO: Tune further. Make parameter?
-constexpr float kDescriptorResidualWeight = 1e-2f;
-// constexpr float kDescriptorResidualWeight = 1.0f; // 3.29
+// constexpr float kDescriptorResidualWeight = 1e-2f;
+constexpr float kDescriptorResidualWeight = 10.f; // 4.7
+
 
 // Parameter for the Huber robust loss function for photometric residuals.
 // TODO: Make parameter?
-constexpr float kDescriptorResidualHuberParameter = 10.f;
+// constexpr float kDescriptorResidualHuberParameter = 10.f;
+constexpr float kDescriptorResidualHuberParameter = 1.f; // 4.7
 
 
 // Computes the projections in an image of two (mostly) fixed points on the
@@ -542,7 +545,8 @@ __forceinline__ __device__ void ComputeRawFeatureDescriptor1PointResidualIntpixe
   TestFetchFeatureArrVec(feature_arr, pxy.x, pxy.y, f_pxy);
   #pragma unroll
   for (int c = 0; c < kTotalChannels; ++c){
-    *(raw_residual_vec+c) = 180.f * f_pxy[c] - surfel_descriptor_vec[c]; // 3.29 180.0 is emperically set, might get rid of it.
+    // *(raw_residual_vec+c) = 180.f * f_pxy[c] - surfel_descriptor_vec[c]; // 3.29 180.0 is emperically set, might get rid of it.
+     *(raw_residual_vec+c) = f_pxy[c] - surfel_descriptor_vec[c]; // 4.7 remove 180.
   }
 }
 
@@ -557,7 +561,8 @@ __forceinline__ __device__ void ComputeRawFeatureDescriptor1PointResidualFloatpi
   TestFetchFeatureArrBilinearInterpolationVec(feature_arr, pxy.x, pxy.y, f_pxy);
   #pragma unroll
   for (int c = 0; c < kTotalChannels; ++c){
-    *(raw_residual_vec+c) = 180.f * f_pxy[c] - surfel_descriptor_vec[c];
+    // *(raw_residual_vec+c) = 180.f * f_pxy[c] - surfel_descriptor_vec[c];
+    *(raw_residual_vec+c) = f_pxy[c] - surfel_descriptor_vec[c]; // 4.7 remove uncertainty
   }
 }
 
@@ -859,8 +864,10 @@ __forceinline__ __device__ void Descriptor1PointJacobianWrtProjectedPositionOnCh
   //       pose changes. However, the approximation is possibly pretty good since
   //       the points are all close to each other.
   
-  *grad_x_1 = 180.f * center_dx; // 2.24 180. is emperically set. 
-  *grad_y_1 = 180.f * center_dy;
+  // *grad_x_1 = 180.f * center_dx; // 2.24 180. is emperically set. 
+  // *grad_y_1 = 180.f * center_dy; 
+  *grad_x_1 = center_dx; // 2.24 180. is emperically set. 4.7 remove it 
+  *grad_y_1 = center_dy; 
 }
 
 }

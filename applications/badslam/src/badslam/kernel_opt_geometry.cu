@@ -38,7 +38,8 @@
 
 namespace vis {
 // Macro definition
-#define CudaAssert( X ) if ( !(X) ) { printf( "Thread %d:%d failed assert at %s:%d! \n", blockIdx.x, threadIdx.x, __FILE__, __LINE__ ); return; }
+// #define CudaAssert( X ) if ( !(X) ) { printf( "Thread %d:%d failed assert at %s:%d! \n", blockIdx.x, threadIdx.x, __FILE__, __LINE__ ); return; }
+#define CudaAssert( X ) if ( !(X) ) {return; }
 
 __global__ void ResetSurfelAccumCUDAKernel(
     u32 surfels_size,
