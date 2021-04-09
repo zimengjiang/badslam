@@ -37,7 +37,8 @@
 
 namespace vis {
 // Macro definition
-#define CudaAssert( X ) if ( !(X) ) { printf( "Thread %d:%d failed assert at %s:%d! \n", blockIdx.x, threadIdx.x, __FILE__, __LINE__ ); return; }
+// #define CudaAssert( X ) if ( !(X) ) { printf( "Thread %d:%d failed assert at %s:%d! \n", blockIdx.x, threadIdx.x, __FILE__, __LINE__ ); return; }
+#define CudaAssert( X ) if ( !(X) ) {return; }
 
 // Adds a residual (given its Jacobian and "raw" (unweighted) residual value and
 // its weight) to the matrix H and the vector b of the Gauss-Newton update

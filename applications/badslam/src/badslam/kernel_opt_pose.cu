@@ -43,7 +43,7 @@
 
 namespace vis {
 // Macro definition
-#define CudaAssert( X ) if ( !(X) ) { printf( "Thread %d:%d failed assert at %s:%d! \n", blockIdx.x, threadIdx.x, __FILE__, __LINE__ ); return; }
+// #define CudaAssert( X ) if ( !(X) ) { printf( "Thread %d:%d failed assert at %s:%d! \n", blockIdx.x, threadIdx.x, __FILE__, __LINE__ ); return; }
 __forceinline__ __device__ void ComputeRawDepthResidualAndJacobian(
     const PixelCenterUnprojector& unprojector,
     int px,

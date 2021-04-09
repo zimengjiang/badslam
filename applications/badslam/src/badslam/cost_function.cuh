@@ -60,7 +60,8 @@ constexpr int max_x = kFeatureW-1-1; // W - 1 - 1
 constexpr int max_y = kFeatureH-1-1; // H - 1 - 1
 
 // Macro definition
-#define CudaAssert( X ) if ( !(X) ) { printf( "Thread %d:%d failed assert at %s:%d! \n", blockIdx.x, threadIdx.x, __FILE__, __LINE__ ); return; }
+// #define CudaAssert( X ) if ( !(X) ) { printf( "Thread %d:%d failed assert at %s:%d! \n", blockIdx.x, threadIdx.x, __FILE__, __LINE__ ); return; }
+#define CudaAssert( X ) if ( !(X) ) {return; }
 
 
 
