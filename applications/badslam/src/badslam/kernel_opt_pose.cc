@@ -608,4 +608,133 @@ void AccumulatePoseEstimationCoeffsFromFeatures1PointCUDA(
   cudaStreamSynchronize(stream);
 }
 
+// 4.10 3 point 
+void ComputeCostAnd3PointResidualCountFromFeaturesCUDA(
+    cudaStream_t stream,
+    bool use_depth_residuals,
+    bool use_descriptor_residuals,
+    const PinholeCamera4f& color_camera,
+    const PinholeCamera4f& depth_camera,
+    float baseline_fx,
+    float threshold_factor,
+    const CUDABuffer<float>& downsampled_depth,
+    const CUDABuffer<u16>& downsampled_normals,
+    cudaTextureObject_t downsampled_color,
+    const CUDABuffer<float>& downsampled_feature, // 2.10 tracked 
+    const CUDAMatrix3x4& estimate_frame_T_surfel_frame,
+    const CUDABuffer<float>& surfel_depth,
+    const CUDABuffer<u16>& surfel_normals,
+    const CUDABuffer<uchar>& surfel_color,
+    const CUDABuffer<float>& surfel_feature, // 2.10 base
+    u32* residual_count,
+    float* residual_sum,
+    PoseEstimationHelperBuffers* helper_buffers) {
+  CUDA_CHECK();
+  
+  // TODO: Clear in a single kernel call?
+  helper_buffers->residual_count_buffer.Clear(0, stream);
+  helper_buffers->residual_buffer.Clear(0, stream);
+  
+  ComputeCostAnd3PointResidualCountFromFeaturesCUDAKernel(
+      stream,
+      use_depth_residuals,
+      use_descriptor_residuals,
+      CreatePixelCornerProjector(depth_camera),
+      CreatePixelCenterUnprojector(depth_camera),
+      baseline_fx,
+      CreateDepthToColorPixelCorner(depth_camera, color_camera),
+      threshold_factor,
+      estimate_frame_T_surfel_frame,
+      surfel_depth.ToCUDA(), //2.7 base_depth[scale]
+      surfel_normals.ToCUDA(),
+      surfel_color.ToCUDA(),
+      surfel_feature.ToCUDA(), // 2.10
+      downsampled_depth.ToCUDA(), // 2.7 tracked_depth[scale]
+      downsampled_normals.ToCUDA(),
+      downsampled_color,
+      downsampled_feature.ToCUDA(), // 2.10
+      helper_buffers->residual_count_buffer.ToCUDA(),
+      helper_buffers->residual_buffer.ToCUDA());
+
+  CUDA_CHECK();
+  
+  helper_buffers->residual_count_buffer.DownloadAsync(stream, residual_count);
+  helper_buffers->residual_buffer.DownloadAsync(stream, residual_sum);
+  cudaStreamSynchronize(stream);
+}
+
+// 4.10
+void AccumulatePoseEstimationCoeffsFromFeatures3PointCUDA(
+    cudaStream_t stream,
+    bool use_depth_residuals,
+    bool use_descriptor_residuals,
+    const PinholeCamera4f& color_camera,
+    const PinholeCamera4f& depth_camera,
+    float baseline_fx,
+    float threshold_factor,
+    const CUDABuffer<float>& downsampled_depth,
+    const CUDABuffer<u16>& downsampled_normals,
+    cudaTextureObject_t downsampled_color,
+    const CUDABuffer<float>& downsampled_feature, // 2.10
+    const CUDAMatrix3x4& estimate_frame_T_surfel_frame,
+    const CUDABuffer<float>& surfel_depth,
+    const CUDABuffer<u16>& surfel_normals,
+    const CUDABuffer<uchar>& surfel_color,
+    const CUDABuffer<float>& surfel_feature, // 2.10
+    u32* residual_count,
+    float* residual_sum,
+    float* H,
+    float* b,
+    bool debug,
+    CUDABuffer<float>* debug_residual_image,
+    PoseEstimationHelperBuffers* helper_buffers) {
+  CUDA_CHECK();
+  
+  // TODO: Clear in a single kernel call?
+  if (debug) {
+    debug_residual_image->Clear(numeric_limits<float>::quiet_NaN(), stream);
+    
+    helper_buffers->residual_count_buffer.Clear(0, stream);
+    helper_buffers->residual_buffer.Clear(0, stream);
+  }
+  helper_buffers->H_buffer.Clear(0, stream);
+  helper_buffers->b_buffer.Clear(0, stream);
+  
+  CallAccumulatePoseEstimationCoeffsFromFeatures3PointCUDAKernel(
+        stream,
+        debug,
+        use_depth_residuals,
+        use_descriptor_residuals,
+        CreatePixelCornerProjector(depth_camera),
+        CreatePixelCenterProjector(color_camera),
+        CreatePixelCenterUnprojector(depth_camera),
+        baseline_fx,
+        CreateDepthToColorPixelCorner(depth_camera, color_camera),
+        threshold_factor,
+        estimate_frame_T_surfel_frame,
+        surfel_depth.ToCUDA(),
+        surfel_normals.ToCUDA(),
+        surfel_color.ToCUDA(),
+        surfel_feature.ToCUDA(), // 2.10
+        downsampled_depth.ToCUDA(),
+        downsampled_normals.ToCUDA(),
+        downsampled_color,
+        downsampled_feature.ToCUDA(), // 2.10
+        helper_buffers->residual_count_buffer.ToCUDA(),
+        helper_buffers->residual_buffer.ToCUDA(),
+        helper_buffers->H_buffer.ToCUDA(),
+        helper_buffers->b_buffer.ToCUDA(),
+        debug_residual_image ? &debug_residual_image->ToCUDA() : nullptr);
+
+  CUDA_CHECK();
+  
+  if (debug) {
+    helper_buffers->residual_count_buffer.DownloadAsync(stream, residual_count);
+    helper_buffers->residual_buffer.DownloadAsync(stream, residual_sum);
+  }
+  helper_buffers->H_buffer.DownloadAsync(stream, H);
+  helper_buffers->b_buffer.DownloadAsync(stream, b);
+  cudaStreamSynchronize(stream);
+}
+
 }
