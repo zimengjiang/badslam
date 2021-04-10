@@ -571,6 +571,292 @@ COMPILE_OPTION_2(optimize_color_intrinsics, optimize_depth_intrinsics,
 CUDA_CHECK();
 }
 
+// 3.29
+template <int block_width, bool optimize_color_intrinsics, bool optimize_depth_intrinsics>
+__global__ void AccumulateIntrinsicsCoefficients3PointCUDAKernel(
+    SurfelProjectionParameters s,
+    DepthToColorPixelCorner depth_to_color,
+    PixelCornerProjector color_corner_projector,
+    PixelCenterUnprojector depth_center_unprojector,
+    float color_fx, float color_fy,
+    /*cudaTextureObject_t color_texture,*/
+    CUDABuffer_<float> feature,
+    CUDABuffer_<u32> observation_count,
+    CUDABuffer_<float> depth_A,
+    CUDABuffer_<float> depth_B,
+    CUDABuffer_<float> depth_D,
+    CUDABuffer_<float> depth_b1,
+    CUDABuffer_<float> depth_b2,
+    CUDABuffer_<float> color_H,
+    CUDABuffer_<float> color_b) {
+  constexpr int block_height = 1;
+  const unsigned int surfel_index = blockIdx.x * blockDim.x + threadIdx.x;
+  
+  // Parameters: fx_inv, fy_inv, cx_inv, cy_inv, a_0, a_1 (all global), cfactor (per sparsification pixel)
+  float depth_jacobian[kARows + 1] = {0, 0, 0, 0, 0};
+  float raw_depth_residual = 0;
+  
+  // Parameters: fx_inv, fy_inv, cx_inv, cy_inv
+  // float descriptor_jacobian_1[4] = {0, 0, 0, 0};
+  // float raw_descriptor_residual_1 = 0;
+  // float descriptor_jacobian_2[4] = {0, 0, 0, 0};
+  // float raw_descriptor_residual_2 = 0;
+  float raw_residual_vec[kSurfelNumDescriptor]={0};
+  float jacobian_all[4*kSurfelNumDescriptor] = {0}; // jacobian w.r.t. fx, fy, cx, cy
+
+  int sparse_pixel_index = -1;
+  
+  SurfelProjectionResult6 r;
+  if (SurfelProjectsToAssociatedPixel(surfel_index, s, &r)) {
+    float nx = depth_center_unprojector.nx(r.px);
+    float ny = depth_center_unprojector.ny(r.py);
+    
+    if (optimize_depth_intrinsics) {
+      int sparse_px = r.px / s.depth_params.sparse_surfel_cell_size;
+      int sparse_py = r.py / s.depth_params.sparse_surfel_cell_size;
+      float cfactor = s.depth_params.cfactor_buffer(sparse_py, sparse_px);
+      
+      float raw_inv_depth = 1.0f / (s.depth_params.raw_to_float_depth * s.depth_buffer(r.py, r.px));  // TODO: SurfelProjectsToAssociatedPixel() also reads that value, could be gotten from there
+      float exp_inv_depth = expf(- s.depth_params.a * raw_inv_depth);
+      float corrected_inv_depth = cfactor * exp_inv_depth + raw_inv_depth;
+      if (fabs(corrected_inv_depth) > 1e-4f) {  // NOTE: Corresponds to 1000 meters
+        float3 local_surfel_normal = s.frame_T_global.Rotate(r.surfel_normal);
+        float dot = Dot(make_float3(nx, ny, 1), local_surfel_normal);
+        
+        float depth_residual_inv_stddev =
+            ComputeDepthResidualInvStddevEstimate(nx, ny, r.pixel_calibrated_depth, local_surfel_normal, s.depth_params.baseline_fx);
+        
+        float jac_base = depth_residual_inv_stddev * dot * exp_inv_depth / (corrected_inv_depth * corrected_inv_depth);
+        
+        // Depth residual derivative wrt. ...
+        // cx_inv (Attention: notice the indexing order!)
+        depth_jacobian[2] = depth_residual_inv_stddev * r.pixel_calibrated_depth * Dot(r.surfel_normal, make_float3(s.frame_T_global.row0.x, s.frame_T_global.row0.y, s.frame_T_global.row0.z));
+        // cy_inv
+        depth_jacobian[3] = depth_residual_inv_stddev * r.pixel_calibrated_depth * Dot(r.surfel_normal, make_float3(s.frame_T_global.row1.x, s.frame_T_global.row1.y, s.frame_T_global.row1.z));
+        // fx_inv
+        depth_jacobian[0] = r.px * depth_jacobian[2];
+        // fy_inv
+        depth_jacobian[1] = r.py * depth_jacobian[3];
+//         // a_0
+//         depth_jacobian[4] = -cfactor * jac_base;
+        // a
+        depth_jacobian[4] = cfactor * raw_inv_depth * jac_base;
+        // cfactor
+        depth_jacobian[5] = -jac_base;
+        
+        float3 local_unproj = make_float3(r.pixel_calibrated_depth * nx, r.pixel_calibrated_depth * ny, r.pixel_calibrated_depth);
+        ComputeRawDepthResidual(
+            depth_residual_inv_stddev, r.surfel_local_position, local_surfel_normal, local_unproj, &raw_depth_residual);
+        
+        sparse_pixel_index = sparse_px + sparse_py * s.depth_params.cfactor_buffer.width();
+      }
+    }
+    
+    if (optimize_color_intrinsics) {
+      float2 color_pxy;
+      if (TransformDepthToColorPixelCorner(r.pxy, depth_to_color, &color_pxy)) {
+        float2 t1_pxy, t2_pxy;
+        ComputeTangentProjections(
+            r.surfel_global_position,
+            r.surfel_normal,
+            SurfelGetRadiusSquared(s.surfels, surfel_index),
+            s.frame_T_global,
+            color_corner_projector,
+            &t1_pxy,
+            &t2_pxy);
+        // 2.22 get feature-descriptor for surfels
+        float surfel_descriptor[kSurfelNumDescriptor] = {0}; 
+        #pragma unroll
+        for (int i = 0; i< kSurfelNumDescriptor; ++i){
+            surfel_descriptor[i] = s.surfels(kSurfelFixedAttributeCount + i, surfel_index); // constexpr int kSurfelDescriptorArr[] = {6,7,8,9,10,11};
+            // CudaAssert(surfel_descriptor[i] == surfel_descriptor[i]);
+          }
+         ComputeRawFeatureDescriptor3PointResidualFloatpixel(
+            feature,
+            color_pxy,
+            t1_pxy,
+            t2_pxy,
+            surfel_descriptor,
+            raw_residual_vec);
+        for (int channel = 0; channel < kTotalChannels; ++channel){
+            float grad_x_1;
+            float grad_y_1;
+            Descriptor1PointJacobianWrtProjectedPositionOnChannels(
+              feature, color_pxy, &grad_x_1, &grad_y_1, channel);
+             // first residual term
+             *(jacobian_all+4*channel) = grad_x_1 * nx; // 2.22 J w.r.t. fx_color, nx = (1/fx_depth)*px - cx/fx_depth, theoretically, J w.r.t. fx_color = lx/lz, lx and lz got from depth unprojector
+             *(jacobian_all+4*channel+1) = grad_y_1 * ny; // 2.22 fy_color
+             *(jacobian_all+4*channel+2) = grad_x_1; // 2.22 cx_color
+             *(jacobian_all+4*channel+3) = grad_y_1; // 2.22 cy_color
+
+            // 2nd residual term
+            float grad_x_2;
+            float grad_y_2;
+            Descriptor1PointJacobianWrtProjectedPositionOnChannels(
+              feature, t1_pxy, &grad_x_2, &grad_y_2, channel);
+             // first residual term
+             *(jacobian_all+ 4*kTotalChannels + 4*channel) = grad_x_2 * nx; // 2.22 J w.r.t. fx_color, nx = (1/fx_depth)*px - cx/fx_depth, theoretically, J w.r.t. fx_color = lx/lz, lx and lz got from depth unprojector
+             *(jacobian_all+ 4*kTotalChannels + 4*channel+1) = grad_y_2 * ny; // 2.22 fy_color
+             *(jacobian_all+ 4*kTotalChannels + 4*channel+2) = grad_x_2; // 2.22 cx_color
+             *(jacobian_all+ 4*kTotalChannels + 4*channel+3) = grad_y_2; // 2.22 cy_color
+            
+             // 3rd residual term
+            float grad_x_3;
+            float grad_y_3;
+            Descriptor1PointJacobianWrtProjectedPositionOnChannels(
+              feature, t2_pxy, &grad_x_3, &grad_y_3, channel);
+             // first residual term
+             *(jacobian_all+ 4*2*kTotalChannels + 4*channel) = grad_x_3 * nx; // 2.22 J w.r.t. fx_color, nx = (1/fx_depth)*px - cx/fx_depth, theoretically, J w.r.t. fx_color = lx/lz, lx and lz got from depth unprojector
+             *(jacobian_all+ 4*2*kTotalChannels + 4*channel+1) = grad_y_3 * ny; // 2.22 fy_color
+             *(jacobian_all+ 4*2*kTotalChannels + 4*channel+2) = grad_x_3; // 2.22 cx_color
+             *(jacobian_all+ 4*2*kTotalChannels + 4*channel+3) = grad_y_3; // 2.22 cy_color
+
+        }
+
+        /*
+        float grad_x_1;
+        float grad_y_1;
+        float grad_x_2;
+        float grad_y_2;
+        DescriptorJacobianWrtProjectedPosition(
+            color_texture, color_pxy, t1_pxy, t2_pxy, &grad_x_1, &grad_y_1, &grad_x_2, &grad_y_2);
+        
+        descriptor_jacobian_1[0] = grad_x_1 * nx;
+        descriptor_jacobian_1[1] = grad_y_1 * ny;
+        descriptor_jacobian_1[2] = grad_x_1;
+        descriptor_jacobian_1[3] = grad_y_1;
+        
+        descriptor_jacobian_2[0] = grad_x_2 * nx;
+        descriptor_jacobian_2[1] = grad_y_2 * ny;
+        descriptor_jacobian_2[2] = grad_x_2;
+        descriptor_jacobian_2[3] = grad_y_2;
+        
+        // float surfel_descriptor_1 = s.surfels(kSurfelDescriptor1, surfel_index);
+        // float surfel_descriptor_2 = s.surfels(kSurfelDescriptor2, surfel_index);
+        ComputeRawDescriptorResidual(
+            color_texture, color_pxy, t1_pxy, t2_pxy, surfel_descriptor_1, surfel_descriptor_2, &raw_descriptor_residual_1, &raw_descriptor_residual_2);
+      */
+          }
+    }
+  }
+  
+  // TODO: Would it be faster to use a few different shared memory buffers (instead of only a single one) for the reduce operations to avoid some of the __syncthreads()?
+  typedef cub::BlockReduce<float, block_width, cub::BLOCK_REDUCE_RAKING_COMMUTATIVE_ONLY> BlockReduceFloat;
+  __shared__ typename BlockReduceFloat::TempStorage float_storage;
+  
+  if (optimize_depth_intrinsics) {
+    const float depth_weight = ComputeDepthResidualWeight(raw_depth_residual);
+    
+    // depth_jacobian.tranpose() * depth_jacobian (top-left part A), as well as
+    // depth_jacobian.transpose() * raw_depth_residual (top rows corresponding to A):
+    AccumulateGaussNewtonHAndB<kARows, block_width, block_height>(
+        sparse_pixel_index >= 0,
+        raw_depth_residual,
+        depth_weight,
+        depth_jacobian,
+        depth_A,
+        depth_b1,
+        &float_storage);
+    
+    if (sparse_pixel_index >= 0) {
+      // depth_jacobian.tranpose() * depth_jacobian (top-right part B):
+      #pragma unroll
+      for (int i = 0; i < kARows; ++ i) {
+        const float depth_jacobian_sq_i = depth_weight * depth_jacobian[/*row*/ i] * depth_jacobian[/*col*/ kARows];
+        atomicAdd(&depth_B(i, sparse_pixel_index), depth_jacobian_sq_i);
+      }
+      
+      // depth_jacobian.tranpose() * depth_jacobian (diagonal-only part D):
+      const float depth_jacobian_sq_i = depth_weight * depth_jacobian[/*row*/ kARows] * depth_jacobian[/*col*/ kARows];
+      atomicAdd(&depth_D(0, sparse_pixel_index), depth_jacobian_sq_i);
+      
+      // depth_jacobian.transpose() * point_residual (bottom row corresponding to D):
+      const float b_pose_i = depth_weight * raw_depth_residual * depth_jacobian[kARows];
+      atomicAdd(&depth_b2(0, sparse_pixel_index), b_pose_i);
+      
+      // observation count:
+      atomicAdd(&observation_count(0, sparse_pixel_index), 1);
+    }
+  }
+  
+  if (optimize_color_intrinsics) {
+    /*AccumulateGaussNewtonHAndB<4, block_width, block_height>(
+        raw_descriptor_residual_1 != 0,
+        raw_descriptor_residual_1,
+        ComputeDescriptorResidualWeight(raw_descriptor_residual_1),
+        descriptor_jacobian_1,
+        color_H,
+        color_b,
+        &float_storage);
+    AccumulateGaussNewtonHAndB<4, block_width, block_height>(
+        raw_descriptor_residual_2 != 0,
+        raw_descriptor_residual_2,
+        ComputeDescriptorResidualWeight(raw_descriptor_residual_2),
+        descriptor_jacobian_2,
+        color_H,
+        color_b,
+        &float_storage);*/
+    for (int channel=0; channel<kTotalChannels; ++channel){
+      AccumulateGaussNewtonHAndB<4, block_width, block_height>(
+        raw_residual_vec[channel] != 0, // first residual term
+        raw_residual_vec[channel],
+        ComputeDescriptorResidualWeight(raw_residual_vec[channel]),
+        jacobian_all+4*channel, // pass the address of jacobian_c_1[0]
+        color_H,
+        color_b,
+        &float_storage);
+    }
+  }
+}
+
+// 4.10
+void CallAccumulateIntrinsicsCoefficients3PointCUDAKernel(
+  cudaStream_t stream,
+  bool optimize_color_intrinsics,
+  bool optimize_depth_intrinsics,
+  const SurfelProjectionParameters& s,
+  const DepthToColorPixelCorner& depth_to_color,
+  const PixelCornerProjector& color_corner_projector,
+  const PixelCenterUnprojector& depth_center_unprojector,
+  float color_fx,
+  float color_fy,
+  /*cudaTextureObject_t color_texture,*/
+  const CUDABuffer_<float>& feature, // 2.22
+  const CUDABuffer_<u32>& observation_count,
+  const CUDABuffer_<float>& depth_A,
+  const CUDABuffer_<float>& depth_B,
+  const CUDABuffer_<float>& depth_D,
+  const CUDABuffer_<float>& depth_b1,
+  const CUDABuffer_<float>& depth_b2,
+  const CUDABuffer_<float>& color_H,
+  const CUDABuffer_<float>& color_b) {
+COMPILE_OPTION_2(optimize_color_intrinsics, optimize_depth_intrinsics,
+    CUDA_AUTO_TUNE_1D_TEMPLATED(
+        AccumulateIntrinsicsCoefficients3PointCUDAKernel,
+        1024,
+        s.surfels_size,
+        0, stream,
+        TEMPLATE_ARGUMENTS(block_width, _optimize_color_intrinsics, _optimize_depth_intrinsics),
+        /* kernel parameters */
+        s,
+        depth_to_color,
+        color_corner_projector,
+        depth_center_unprojector,
+        color_fx,
+        color_fy,
+        /*color_texture,*/
+        feature, // 2.22
+        observation_count,
+        depth_A,
+        depth_B,
+        depth_D,
+        depth_b1,
+        depth_b2,
+        color_H,
+        color_b));
+CUDA_CHECK();
+}
+
 
 template <int block_width>
 __global__ void ComputeIntrinsicsIntermediateMatricesCUDAKernel(

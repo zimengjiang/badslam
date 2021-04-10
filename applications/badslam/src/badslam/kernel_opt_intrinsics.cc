@@ -87,7 +87,7 @@ void OptimizeIntrinsicsCUDA(
       continue;
     }
     
-    CallAccumulateIntrinsicsCoefficients1PointCUDAKernel(
+    CallAccumulateIntrinsicsCoefficients3PointCUDAKernel(
         stream,
         optimize_color_intrinsics,
         optimize_depth_intrinsics,

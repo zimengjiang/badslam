@@ -58,6 +58,28 @@ void CallAccumulateIntrinsicsCoefficients1PointCUDAKernel(
     const CUDABuffer_<float>& color_H,
     const CUDABuffer_<float>& color_b);
 
+// 4.10 
+void CallAccumulateIntrinsicsCoefficients3PointCUDAKernel(
+    cudaStream_t stream,
+    bool optimize_color_intrinsics,
+    bool optimize_depth_intrinsics,
+    const SurfelProjectionParameters& s,
+    const DepthToColorPixelCorner& depth_to_color,
+    const PixelCornerProjector& color_corner_projector,
+    const PixelCenterUnprojector& depth_center_unprojector,
+    float color_fx,
+    float color_fy,
+    /*cudaTextureObject_t color_texture,*/
+    const CUDABuffer_<float>& feature, // 2.22 
+    const CUDABuffer_<u32>& observation_count,
+    const CUDABuffer_<float>& depth_A,
+    const CUDABuffer_<float>& depth_B,
+    const CUDABuffer_<float>& depth_D,
+    const CUDABuffer_<float>& depth_b1,
+    const CUDABuffer_<float>& depth_b2,
+    const CUDABuffer_<float>& color_H,
+    const CUDABuffer_<float>& color_b);
+
 void CallAccumulateIntrinsicsCoefficientsCUDAKernel(
     cudaStream_t stream,
     bool optimize_color_intrinsics,

@@ -54,6 +54,24 @@ void CallAccumulatePoseEstimationCoeffs1PointCUDAKernel(
     const CUDABuffer_<float>& H_buffer,
     const CUDABuffer_<float>& b_buffer);
 
+// 4.10 3 point
+void CallAccumulatePoseEstimationCoeffs3PointCUDAKernel(
+    cudaStream_t stream,
+    bool debug,
+    bool use_depth_residuals,
+    bool use_descriptor_residuals,
+    const SurfelProjectionParameters& s,
+    const DepthToColorPixelCorner& depth_to_color,
+    const PixelCenterProjector& color_center_projector,
+    const PixelCornerProjector& color_corner_projector,
+    const PixelCenterUnprojector& depth_unprojector,
+    /*cudaTextureObject_t color_texture,*/
+    const CUDABuffer_<float>& feature_buffer, /*11.18 in gpu*/ 
+    const CUDABuffer_<u32>& residual_count_buffer,
+    const CUDABuffer_<float>& residual_buffer,
+    const CUDABuffer_<float>& H_buffer,
+    const CUDABuffer_<float>& b_buffer);
+
 void CallAccumulatePoseEstimationCoeffsCUDAKernel(
     cudaStream_t stream,
     bool debug,

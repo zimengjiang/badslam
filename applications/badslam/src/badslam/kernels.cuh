@@ -190,18 +190,18 @@ NOTE: this is the case when we compute 1-point residual
 /*
 NOTE: this is the case when we compute 3-point residual
 1. fixed attributes: 6, [0,1,2,3,4,5], for kSurfelX/Y/Z, kSurfelNormal, kSurfelRadiusSquared, kSurfelColor
-2. descriptors: N, [6, ..., N+5]
-3. Hessian: (N+1)+N, [N+6, ..., 3N+6]
-4. b: N+1 [3N+7, 4N+7]
-5. data attribute count (x,y,z,normal,r^2,color,descriptor): 6+N
-6. accumulate H and b count: 3N+2
-7. in totol: 4N+8 (attribute count)
+2. descriptors: 3N, [6, ..., 3N+5]
+3. Hessian: (3N+1)+3N, [3N+6, ..., 9N+6]
+4. b: 3N+1 [9N+7, 12N+7]
+5. data attribute count (x,y,z,normal,r^2,color,descriptor): 6+3N
+6. accumulate H and b count: 9N+2
+7. in totol: 12N+8 (attribute count)
 */
-constexpr int kSurfelAccumHAndBCount = 3*kTotalChannels+2; // 3N+2
-constexpr int kSurfelAccumHCount = 2*kTotalChannels+1; // 2N+1
-constexpr int kSurfelAccumBCount = kTotalChannels+1; // N+1 
-constexpr int kSurfelDataAttributeCount = 6+kTotalChannels; // 6+N, 6 is for kSurfelX/Y/Z, kSurfelNormal, kSurfelRadiusSquared, kSurfelColor, N channels => N descriptor residuals
-constexpr int kSurfelAttributeCount = 4*kTotalChannels+8; 
+constexpr int kSurfelAccumHAndBCount = 9*kTotalChannels+2; // 9N+2
+constexpr int kSurfelAccumHCount = 6*kTotalChannels+1; // 6N+1
+constexpr int kSurfelAccumBCount = 3*kTotalChannels+1; // 3N+1 
+constexpr int kSurfelDataAttributeCount = 6+3*kTotalChannels; // 6+3N, 6 is for kSurfelX/Y/Z, kSurfelNormal, kSurfelRadiusSquared, kSurfelColor, N channels => N descriptor residuals
+constexpr int kSurfelAttributeCount = 12*kTotalChannels+8; 
 constexpr int kSurfelFixedAttributeCount = 6;
 constexpr int kSurfelNumDescriptor = 3*kTotalChannels; // 3N
 

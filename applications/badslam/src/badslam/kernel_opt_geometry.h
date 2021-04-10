@@ -114,6 +114,17 @@ void AccumulateSurfelPositionAndDescriptorOptimizationCoeffs1PointCUDAKernel(
     const CUDABuffer_<u8>& active_surfels,
     bool use_depth_residuals);
 
+// 4.10 3-point feature residual
+void AccumulateSurfelPositionAndDescriptorOptimizationCoeffs3PointCUDAKernel(
+    cudaStream_t stream,
+    const SurfelProjectionParameters& s,
+    const PixelCenterUnprojector& depth_unprojector,
+    const DepthToColorPixelCorner& depth_to_color,
+    const PixelCornerProjector& color_corner_projector,
+    const CUDABuffer_<float>& feature_arr,
+    const CUDABuffer_<u8>& active_surfels,
+    bool use_depth_residuals);
+
 void CallUpdateSurfelPositionAndDescriptorCUDAKernel(
     cudaStream_t stream,
     u32 surfels_size,

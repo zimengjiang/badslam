@@ -195,7 +195,7 @@ void OptimizeGeometryIterationCUDA(
           keyframe->color_texture(), // 11.12 TODO: instead, using keyframe->feature
           active_surfels.ToCUDA(),
           use_depth_residuals);*/
-        AccumulateSurfelPositionAndDescriptorOptimizationCoeffs1PointCUDAKernel(
+        AccumulateSurfelPositionAndDescriptorOptimizationCoeffs3PointCUDAKernel(
           stream,
           CreateSurfelProjectionParameters(depth_camera, depth_params, surfels_size, surfels, keyframe.get()),
           CreatePixelCenterUnprojector(depth_camera),
