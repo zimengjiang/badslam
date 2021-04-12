@@ -116,7 +116,8 @@ __forceinline__ __device__ float ComputeWeightedDepthResidual(float raw_residual
 // Weight factor from the cost term.
 // TODO: Tune further. Make parameter?
 // constexpr float kDescriptorResidualWeight = 1e-2f;
-constexpr float kDescriptorResidualWeight = 10.f; // 4.7
+// constexpr float kDescriptorResidualWeight = 10.f; // 4.7
+constexpr float kDescriptorResidualWeight = 20.f; // 4.12
 
 
 // Parameter for the Huber robust loss function for photometric residuals.

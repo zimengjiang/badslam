@@ -673,7 +673,7 @@ if (surfel_index < surfels_size) {
       }*/
       float surfel_descriptor = surfels(kSurfelFixedAttributeCount + i, surfel_index);
       surfel_descriptor -= x2[i];
-      surfels(kSurfelFixedAttributeCount + i, surfel_index) = ::max(-180.f, ::min(180.f, surfel_descriptor));
+      surfels(kSurfelFixedAttributeCount + i, surfel_index) = ::max(-1.f, ::min(1.f, surfel_descriptor));
     } 
   }
   
