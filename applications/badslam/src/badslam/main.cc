@@ -622,9 +622,14 @@ int LIBVIS_QT_MAIN(int argc, char** argv) {
   // ### Main loop ###
   bool quit = false;
   bool program_aborted = false;
-  for (usize frame_index = bad_slam_config.start_frame;
+//   for (usize frame_index = bad_slam_config.start_frame;
+//        (live_input || frame_index < rgbd_video.frame_count()) && !quit;
+//        ++ frame_index) {
+    // 5.6 test different frame intervals
+    int interval = 1; 
+    for (usize frame_index = bad_slam_config.start_frame;
        (live_input || frame_index < rgbd_video.frame_count()) && !quit;
-       ++ frame_index) {
+       frame_index += interval) {
     pre_load_thread.WaitUntilDone();
     if (live_input == 1) {
       rs_input.GetNextFrame();
@@ -643,8 +648,10 @@ int LIBVIS_QT_MAIN(int argc, char** argv) {
         rgbd_video.depth_frame_mutable(frame_index)->GetImage().get();  
     
     // Pre-load the next frame.
-    if (frame_index < rgbd_video.frame_count() - 1) {
-      pre_load_thread.PreLoad(frame_index + 1);
+    // if (frame_index < rgbd_video.frame_count() - 1) {
+    //   pre_load_thread.PreLoad(frame_index + 1);
+    if (frame_index < rgbd_video.frame_count() - interval) {
+      pre_load_thread.PreLoad(frame_index + interval); // 5.6 test different intervals
     }
     
     // Optionally, visualize the input images.
