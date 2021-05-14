@@ -879,11 +879,18 @@ __global__ void AccumulatePoseEstimationCoeffs1PointCUDAKernel(
     else{
       visible = false; // nothing is done if not visible 
     }
+    // 5.11 compute the weight only once, compute the weight for err^2, instead of each entry. i.e. the residual weight is only pointwise, not channelwise and pointwise
+    float raw_residual_squared_sum = 0;
+    for (int channel = 0; channel < kTotalChannels; ++channel){
+      raw_residual_squared_sum += (raw_residual_vec[channel]*raw_residual_vec[channel]);
+    }
+    float DescriptorResidualWeight = ComputeDescriptorResidualWeight(raw_residual_squared_sum);
     for (int channel = 0; channel < kTotalChannels; ++channel){
       AccumulateGaussNewtonHAndB<6, block_width, block_height>(
         visible,
         raw_residual_vec[channel],
-        ComputeDescriptorResidualWeight(raw_residual_vec[channel]),
+        // ComputeDescriptorResidualWeight(raw_residual_vec[channel]),
+        DescriptorResidualWeight,
         jacobian_all+6*channel, // pass the address of jacobian_c_1[0]
         H_buffer,
         b_buffer,
@@ -1761,12 +1768,18 @@ __global__ void AccumulatePoseEstimationCoeffsFromFeatures1PointCUDAKernel(
   }
   
   if (use_descriptor_residuals) {
-
+    // 5.11 compute the weight only once, compute the weight for err^2, instead of each entry. i.e. the residual weight is only pointwise, not channelwise and pointwise
+    float raw_residual_squared_sum = 0;
+    for (int channel = 0; channel < kTotalChannels; ++channel){
+      raw_residual_squared_sum += (raw_descriptor_residual_vec[channel]*raw_descriptor_residual_vec[channel]);
+    }
+    float DescriptorResidualWeight = ComputeDescriptorResidualWeight(raw_residual_squared_sum, threshold_factor);
     for (int channel = 0; channel < kTotalChannels; ++channel){
       AccumulateGaussNewtonHAndB<6, block_width, block_height>(
         visible,
         raw_descriptor_residual_vec[channel],
-        ComputeDescriptorResidualWeight(raw_descriptor_residual_vec[channel], threshold_factor),
+        // ComputeDescriptorResidualWeight(raw_descriptor_residual_vec[channel], threshold_factor),
+        DescriptorResidualWeight, 
         jacobian_all+6*channel, // pass the address of jacobian_c_1[0]
         H_buffer,
         b_buffer,
@@ -2684,10 +2697,18 @@ __global__ void ComputeCostAndResidualCountFromFeaturesCUDAKernel(
         &temp_storage.float_storage,
         &temp_storage.int_storage);
   */
+  // 5.11 compute the weight only once, compute the weight for err^2, instead of each entry. i.e. the residual weight is only pointwise, not channelwise and pointwise
+  float raw_residual_squared_sum = 0;
+  for (int channel = 0; channel < kTotalChannels; ++channel){
+    raw_residual_squared_sum += (raw_descriptor_residual_vec[channel]*raw_descriptor_residual_vec[channel]);
+  }
+  float DescriptorResidual = ComputeWeightedDescriptorResidual(raw_residual_squared_sum, threshold_factor);
+  
   for (int channel = 0; channel < kTotalChannels; ++channel){
     AccumulatePoseResidualAndCount<block_width, block_height>(
       visible,
-      ComputeWeightedDescriptorResidual(raw_descriptor_residual_vec[channel], threshold_factor),
+      // ComputeWeightedDescriptorResidual(raw_descriptor_residual_vec[channel], threshold_factor),
+      DescriptorResidual,
       residual_count_buffer,
       residual_buffer,
       &temp_storage.float_storage,
@@ -2892,15 +2913,23 @@ __global__ void ComputeCostAnd1PointResidualCountFromFeaturesCUDAKernel(
   if (use_descriptor_residuals) {
     // TODO: It should be possible to merge these two calls and directly accumulate the sum (also use 2 for the residual count then).
     //       It should even be possible to merge it with the depth residual call as well in case both residual types are used.
+  // 5.11 compute the weight only once, compute the weight for err^2, instead of each entry. i.e. the residual weight is only pointwise, not channelwise and pointwise
+  float raw_residual_squared_sum = 0;
   for (int channel = 0; channel < kTotalChannels; ++channel){
+    raw_residual_squared_sum += (raw_descriptor_residual_vec[channel]*raw_descriptor_residual_vec[channel]);
+  }
+  float DescriptorResidual = ComputeWeightedDescriptorResidual(raw_residual_squared_sum, threshold_factor);
+  
+    // for (int channel = 0; channel < kTotalChannels; ++channel){
     AccumulatePoseResidualAndCount<block_width, block_height>(
       visible,
-      ComputeWeightedDescriptorResidual(raw_descriptor_residual_vec[channel], threshold_factor),
+      // ComputeWeightedDescriptorResidual(raw_descriptor_residual_vec[channel], threshold_factor),
+      DescriptorResidual,
       residual_count_buffer,
       residual_buffer,
       &temp_storage.float_storage,
       &temp_storage.int_storage);
-  }
+  // }
   }
 }
 

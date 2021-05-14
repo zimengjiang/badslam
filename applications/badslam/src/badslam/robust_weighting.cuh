@@ -85,4 +85,25 @@ __forceinline__ __device__ float HuberWeight(
   return (abs_residual < huber_parameter) ? 1.f : (huber_parameter / abs_residual);
 }
 
+// 5.11 assuming the residual is already squared
+// Computes the weight used in the weighted least squares update equation.
+// Is equal to (1 / residual) * (d HuberResidual(residual)) / (d residual) .
+__forceinline__ __device__ float HuberWeightSquaredResidual(
+    float residual_squared,
+    float huber_parameter) {
+  const float residual_sqrt = sqrtf(residual_squared);
+  const float residual_sqrt_inv = 1./(::max(1e-6f, residual_sqrt));
+  return (residual_squared < huber_parameter) ? 1.f : (huber_parameter / residual_sqrt_inv);
+}
+
+// 5.11 the input residual is err^2
+// Calculates the value of the robust weight function for a residual, to be
+  // used in residual calculation.
+__forceinline__ __device__ float HuberResidualSquared(
+    float residual_squared,
+    float huber_parameter) {
+  const float residual_sqrt = sqrtf(residual_squared);
+  return (residual_squared < huber_parameter) ? residual_squared : (2*residual_sqrt-1);
+}
+
 }

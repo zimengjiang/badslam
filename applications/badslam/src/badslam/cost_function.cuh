@@ -191,13 +191,15 @@ __forceinline__ __device__ void ComputeRawDescriptorResidualWithFloatTexture(
 
 // Computes the weight of the descriptor residual in the optimization.
 __forceinline__ __device__ float ComputeDescriptorResidualWeight(float raw_residual, float scaling = 1.f) {
-  return scaling * kDescriptorResidualWeight * HuberWeight(raw_residual, kDescriptorResidualHuberParameter);
+  // return scaling * kDescriptorResidualWeight * HuberWeight(raw_residual, kDescriptorResidualHuberParameter);
+  return scaling * kDescriptorResidualWeight * HuberWeightSquaredResidual(raw_residual, kDescriptorResidualHuberParameter);
 }
 
 // Computes the weighted descriptor residual for summing up the optimization 
 // cost.
 __forceinline__ __device__ float ComputeWeightedDescriptorResidual(float raw_residual, float scaling = 1.f) {
-  return scaling * kDescriptorResidualWeight * HuberResidual(raw_residual, kDescriptorResidualHuberParameter);
+  // return scaling * kDescriptorResidualWeight * HuberResidual(raw_residual, kDescriptorResidualHuberParameter);
+  return scaling * kDescriptorResidualWeight * HuberResidualSquared(raw_residual, kDescriptorResidualHuberParameter);
 }
 
 // Computes the Jacobian of a surfel descriptor with regard to changes in the

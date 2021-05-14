@@ -251,11 +251,19 @@ __global__ void AccumulateIntrinsicsCoefficientsCUDAKernel(
         color_H,
         color_b,
         &float_storage);*/
+    // 5.11 compute the weight only once, compute the weight for err^2, instead of each entry. i.e. the residual weight is only pointwise, not channelwise and pointwise
+    float raw_residual_squared_sum = 0;
+    for (int channel = 0; channel < kTotalChannels; ++channel){
+      raw_residual_squared_sum += (raw_residual_vec[channel]*raw_residual_vec[channel]);
+    }
+    float DescriptorResidualWeight = ComputeDescriptorResidualWeight(raw_residual_squared_sum);
+    
     for (int channel=0; channel<kTotalChannels; ++channel){
       AccumulateGaussNewtonHAndB<4, block_width, block_height>(
         raw_residual_vec[channel] != 0, // first residual term
         raw_residual_vec[channel],
-        ComputeDescriptorResidualWeight(raw_residual_vec[channel]),
+        // ComputeDescriptorResidualWeight(raw_residual_vec[channel]),
+        DescriptorResidualWeight,
         jacobian_all+4*channel, // pass the address of jacobian_c_1[0]
         color_H,
         color_b,
@@ -263,7 +271,8 @@ __global__ void AccumulateIntrinsicsCoefficientsCUDAKernel(
       AccumulateGaussNewtonHAndB<4, block_width, block_height>(
         raw_residual_vec[channel+kTotalChannels] != 0, // second residual term
         raw_residual_vec[channel+kTotalChannels] ,
-        ComputeDescriptorResidualWeight(raw_residual_vec[channel+kTotalChannels]),
+        // ComputeDescriptorResidualWeight(raw_residual_vec[channel+kTotalChannels]),
+        DescriptorResidualWeight,
         jacobian_all + 4*kTotalChannels + 4*channel, // pass the address of jacobian_c_2[0]
         color_H,
         color_b,
@@ -510,11 +519,18 @@ __global__ void AccumulateIntrinsicsCoefficients1PointCUDAKernel(
         color_H,
         color_b,
         &float_storage);*/
+    // 5.11 compute the weight only once, compute the weight for err^2, instead of each entry. i.e. the residual weight is only pointwise, not channelwise and pointwise
+    float raw_residual_squared_sum = 0;
+    for (int channel = 0; channel < kTotalChannels; ++channel){
+      raw_residual_squared_sum += (raw_residual_vec[channel]*raw_residual_vec[channel]);
+    }
+    float DescriptorResidualWeight = ComputeDescriptorResidualWeight(raw_residual_squared_sum);
     for (int channel=0; channel<kTotalChannels; ++channel){
       AccumulateGaussNewtonHAndB<4, block_width, block_height>(
         raw_residual_vec[channel] != 0, // first residual term
         raw_residual_vec[channel],
-        ComputeDescriptorResidualWeight(raw_residual_vec[channel]),
+        // ComputeDescriptorResidualWeight(raw_residual_vec[channel]),
+        DescriptorResidualWeight,
         jacobian_all+4*channel, // pass the address of jacobian_c_1[0]
         color_H,
         color_b,

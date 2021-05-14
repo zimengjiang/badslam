@@ -481,7 +481,13 @@ __global__ void AccumulateSurfelPositionAndDescriptorOptimizationCoeffs1PointCUD
 
         // --- Descriptor residual change wrt. descriptor change ---
         constexpr float jacobian_wrt_descriptor = -1.f; // 10.31 defined here for efficiency
-
+        // 5.11 compute the weight only once, compute the weight for err^2, instead of each entry. i.e. the residual weight is only pointwise, not channelwise and pointwise
+        float raw_residual_squared_sum = 0;
+        for (int channel = 0; channel < kTotalChannels; ++channel){
+          raw_residual_squared_sum += (raw_descriptor_residual[channel]*raw_descriptor_residual[channel]);
+        }
+        const float weight_1 = ComputeDescriptorResidualWeight(raw_residual_squared_sum);
+        
         for (int channel_i = 0; channel_i < kTotalChannels; ++channel_i){
           
           // --- Descriptor residual change wrt. position change ---
@@ -503,7 +509,7 @@ __global__ void AccumulateSurfelPositionAndDescriptorOptimizationCoeffs1PointCUD
           
           // --- Compute weights for each residual term ---
           // 10.30 jzmTODO: maybe the weight needs adjusted when applying feature maps
-          const float weight_1 = ComputeDescriptorResidualWeight(raw_descriptor_residual[channel_i]); 
+          // const float weight_1 = ComputeDescriptorResidualWeight(raw_descriptor_residual[channel_i]); 
           const float weighted_raw_residual_1 = weight_1 * raw_descriptor_residual[channel_i];
           
           // const float weight_2 = ComputeDescriptorResidualWeight(raw_descriptor_residual[channel_i+kTotalChannels]);// N = 3
