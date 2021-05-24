@@ -110,6 +110,7 @@ void TrackFramePairwise(
     bool test_different_initial_estimates,
     const SE3f& base_T_frame_initial_estimate_1,
     const SE3f& base_T_frame_initial_estimate_2,
-    SE3f* out_base_T_frame_estimate);
+    SE3f* out_base_T_frame_estimate,
+    float rf_weight  /*5.20 parameters for descriptorresidualweight*/);
 
 }

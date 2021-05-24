@@ -76,6 +76,7 @@ class DirectBA {
       float baseline_fx,
       int sparse_surfel_cell_size,
       float surfel_merge_dist_factor,
+      float rf_weight, // 5.20 
       int min_observation_count_while_bootstrapping_1,
       int min_observation_count_while_bootstrapping_2,
       int min_observation_count,
@@ -379,7 +380,7 @@ class DirectBA {
   
   inline float surfel_merge_dist_factor() const { return surfel_merge_dist_factor_; }
   inline void SetSurfelMergeDistFactor(float factor) { surfel_merge_dist_factor_ = factor; }
-  
+  inline float rf_weight() const {return rf_weight_;} // 5.20 
   inline void SetSaveTimings(std::ofstream* stream) { timings_stream_ = stream; }
   
   inline void SetVisualization(bool visualize_normals, bool visualize_descriptors, bool visualize_radii) {
@@ -493,6 +494,8 @@ class DirectBA {
   bool use_depth_residuals_;
   bool use_descriptor_residuals_;
   
+  float rf_weight_; // 5.20 
+
   int min_observation_count_while_bootstrapping_1_;
   int min_observation_count_while_bootstrapping_2_;
   int min_observation_count_;

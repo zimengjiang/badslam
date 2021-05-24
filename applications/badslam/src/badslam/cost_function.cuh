@@ -117,7 +117,7 @@ __forceinline__ __device__ float ComputeWeightedDepthResidual(float raw_residual
 // TODO: Tune further. Make parameter?
 // constexpr float kDescriptorResidualWeight = 1e-2f;
 // constexpr float kDescriptorResidualWeight = 10.f; // 4.7
-constexpr float kDescriptorResidualWeight = 20.f; // 4.12
+constexpr float kDescriptorResidualWeight = 1.f; // 4.12
 
 
 // Parameter for the Huber robust loss function for photometric residuals.
@@ -200,6 +200,22 @@ __forceinline__ __device__ float ComputeDescriptorResidualWeight(float raw_resid
 __forceinline__ __device__ float ComputeWeightedDescriptorResidual(float raw_residual, float scaling = 1.f) {
   // return scaling * kDescriptorResidualWeight * HuberResidual(raw_residual, kDescriptorResidualHuberParameter);
   return scaling * kDescriptorResidualWeight * HuberResidualSquared(raw_residual, kDescriptorResidualHuberParameter);
+}
+
+// 5.20 
+// Computes the weight of the descriptor residual in the optimization.
+__forceinline__ __device__ float ComputeDescriptorResidualWeightParam(float raw_residual, float rf_weight, float scaling = 1.f) {
+  // return scaling * kDescriptorResidualWeight * HuberWeight(raw_residual, kDescriptorResidualHuberParameter);
+  // return scaling * kDescriptorResidualWeight * HuberWeightSquaredResidual(raw_residual, kDescriptorResidualHuberParameter);
+  return scaling * rf_weight * HuberWeightSquaredResidual(raw_residual, kDescriptorResidualHuberParameter);
+}
+
+// Computes the weighted descriptor residual for summing up the optimization 
+// cost.
+__forceinline__ __device__ float ComputeWeightedDescriptorResidualParam(float raw_residual, float rf_weight, float scaling = 1.f) {
+  // return scaling * kDescriptorResidualWeight * HuberResidual(raw_residual, kDescriptorResidualHuberParameter);
+  // return scaling * kDescriptorResidualWeight * HuberResidualSquared(raw_residual, kDescriptorResidualHuberParameter);
+  return scaling * rf_weight * HuberResidualSquared(raw_residual, kDescriptorResidualHuberParameter);
 }
 
 // Computes the Jacobian of a surfel descriptor with regard to changes in the

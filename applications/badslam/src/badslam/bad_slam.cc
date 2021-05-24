@@ -129,6 +129,7 @@ BadSlam::BadSlam(
       config.baseline_fx,
       config.sparse_surfel_cell_size,
       config.surfel_merge_dist_factor,
+      config.rf_weight, // 5.20
       config.min_observation_count_while_bootstrapping_1,
       config.min_observation_count_while_bootstrapping_2,
       config.min_observation_count,
@@ -947,7 +948,8 @@ void BadSlam::RunOdometry(int frame_index) {
       /*test_different_initial_estimates*/ true,
       base_kf_tr_frame_initial_estimate,
       base_kf_tr_frame_initial_estimate_2,
-      &base_T_frame_estimate);
+      &base_T_frame_estimate,
+      direct_ba_->rf_weight() /*5.20 parameters for descriptorresidualweight*/);
   
   direct_ba_->Lock();
   SE3f new_global_T_frame = base_kf_global_T_frame_ * base_T_frame_estimate;

@@ -481,7 +481,8 @@ TEST(Optimization, PairwiseFrameTracking) {
             /*test_different_initial_estimates*/ false,
             base_T_tracked_initial_estimate,
             base_T_tracked_initial_estimate,
-            &base_T_tracked_estimate);
+            &base_T_tracked_estimate,
+            20.f /*5.20 just for testing, rf_weight*/);
         
         // Check base_T_tracked_estimate against the ground truth
         Matrix<float, 6, 1> error = (base_T_tracked_estimate.inverse() * base_T_tracked_ground_truth).log();
@@ -533,7 +534,8 @@ TEST(Optimization, PairwiseFrameTracking) {
             /*test_different_initial_estimates*/ false,
             base_T_tracked_initial_estimate,
             base_T_tracked_initial_estimate,
-            &base_T_tracked_estimate);
+            &base_T_tracked_estimate,
+            20.f /*5.20 just for testing, rf_weight*/);
         
         // Check base_T_tracked_estimate against the ground truth
         error = (base_T_tracked_estimate.inverse() * base_T_tracked_ground_truth).log();

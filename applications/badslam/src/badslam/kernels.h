@@ -196,6 +196,7 @@ void AccumulatePoseEstimationCoeffs1PointCUDA(
     cudaStream_t stream,
     bool use_depth_residuals,
     bool use_descriptor_residuals,
+    float rf_weight, // 5.20 
     const PinholeCamera4f& color_camera,
     const PinholeCamera4f& depth_camera,
     const DepthParameters& depth_params,
@@ -277,6 +278,7 @@ void AccumulatePoseEstimationCoeffsFromFeatures1PointCUDA(
     const PinholeCamera4f& depth_camera,
     float baseline_fx,
     float threshold_factor,
+    float rf_weight, // 5.20
     const CUDABuffer<float>& downsampled_depth,
     const CUDABuffer<u16>& downsampled_normals,
     cudaTextureObject_t downsampled_color,
@@ -345,6 +347,7 @@ void ComputeCostAnd1PointResidualCountFromFeaturesCUDA(
     const PinholeCamera4f& depth_camera,
     float baseline_fx,
     float threshold_factor,
+    float rf_weight, // 5.20 
     const CUDABuffer<float>& downsampled_depth,
     const CUDABuffer<u16>& downsampled_normals,
     cudaTextureObject_t downsampled_color,
@@ -371,6 +374,7 @@ void OptimizeGeometryIterationCUDA(
     cudaStream_t stream,
     bool use_depth_residuals,
     bool use_descriptor_residuals,
+    float rf_weight, // 5.20 
     const PinholeCamera4f& color_camera,
     const PinholeCamera4f& depth_camera,
     const DepthParameters& depth_params,
@@ -383,6 +387,7 @@ void OptimizeIntrinsicsCUDA(
     cudaStream_t stream,
     bool optimize_depth_intrinsics,
     bool optimize_color_intrinsics,
+    float rf_weight, // 5.20
     const vector<shared_ptr<Keyframe>>& keyframes,
     const PinholeCamera4f& color_camera,
     const PinholeCamera4f& depth_camera,

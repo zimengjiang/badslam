@@ -112,7 +112,8 @@ void AccumulateSurfelPositionAndDescriptorOptimizationCoeffs1PointCUDAKernel(
     const PixelCornerProjector& color_corner_projector,
     const CUDABuffer_<float>& feature_arr,
     const CUDABuffer_<u8>& active_surfels,
-    bool use_depth_residuals);
+    bool use_depth_residuals,
+    float rf_weight /* 5.20*/ );
 
 void CallUpdateSurfelPositionAndDescriptorCUDAKernel(
     cudaStream_t stream,

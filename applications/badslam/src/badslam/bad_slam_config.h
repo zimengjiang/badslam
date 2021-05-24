@@ -171,7 +171,6 @@ struct BadSlamConfig {
       "Whether to use a constant motion model to predict the next frame's pose.";
   bool use_motion_model = true;
   
-  
   // --- Bundle adjustment parameters ---
   
   static constexpr const char* keyframe_interval_help =
@@ -373,6 +372,12 @@ struct BadSlamConfig {
   
   bool Save(FILE* file) const;
   bool Load(FILE* file);
+  // --- Residual parameters  ---
+  
+  static constexpr const char* rf_weight_help =
+      "The weight of feature-metric residual. see kDescriptorResidualWeight. By default it's 1.f";
+  float rf_weight = 1.f;
+
 };
 
 }

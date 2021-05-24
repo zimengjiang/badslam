@@ -40,6 +40,7 @@ void OptimizeIntrinsicsCUDA(
     cudaStream_t stream,
     bool optimize_depth_intrinsics,
     bool optimize_color_intrinsics,
+    float rf_weight, // 5.20 
     const vector<shared_ptr<Keyframe>>& keyframes,
     const PinholeCamera4f& color_camera,
     const PinholeCamera4f& depth_camera,
@@ -91,6 +92,7 @@ void OptimizeIntrinsicsCUDA(
         stream,
         optimize_color_intrinsics,
         optimize_depth_intrinsics,
+        rf_weight, // 5.20 
         CreateSurfelProjectionParameters(depth_camera, depth_params, surfels_size, surfels, keyframe.get()),
         CreateDepthToColorPixelCorner(depth_camera, color_camera),
         CreatePixelCornerProjector(color_camera),

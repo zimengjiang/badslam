@@ -95,6 +95,9 @@ bool BadSlamConfig::Save(FILE* file) const {
   fwrite(&loop_detection_image_frequency, sizeof(float), 1, file);
   SaveInt32(loop_detection_images_width);
   SaveInt32(loop_detection_images_height);
+
+  // 5.20 residual weight
+  fwrite(&rf_weight, sizeof(float), 1, file);
   
   return true;
 }
@@ -192,6 +195,9 @@ bool BadSlamConfig::Load(FILE* file) {
   loop_detection_image_frequency = LoadFloat();
   loop_detection_images_width = LoadInt32();
   loop_detection_images_height = LoadInt32();
+
+  // 5.20 residual weight
+  rf_weight = LoadFloat();
   
   return true;
 }

@@ -154,6 +154,7 @@ repeat_pose_estimation:;
           stream,
           use_depth_residuals_,
           use_descriptor_residuals_,
+          rf_weight_, // 5.20 
           color_camera_,
           depth_camera_,
           depth_params_,
@@ -472,6 +473,7 @@ void DirectBA::BundleAdjustmentAlternating(
           stream,
           use_depth_residuals_,
           use_descriptor_residuals_,
+          rf_weight_, // 5.20 
           color_camera_,
           depth_camera_,
           depth_params_,
@@ -597,6 +599,7 @@ void DirectBA::BundleAdjustmentAlternating(
           stream,
           optimize_depth_intrinsics,
           optimize_color_intrinsics,
+          rf_weight_, // 5.20
           keyframes_,
           color_camera_,
           depth_camera_,

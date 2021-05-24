@@ -41,6 +41,7 @@ void CallAccumulateIntrinsicsCoefficients1PointCUDAKernel(
     cudaStream_t stream,
     bool optimize_color_intrinsics,
     bool optimize_depth_intrinsics,
+    float rf_weight, // 5.20 
     const SurfelProjectionParameters& s,
     const DepthToColorPixelCorner& depth_to_color,
     const PixelCornerProjector& color_corner_projector,

@@ -189,8 +189,8 @@ constexpr int kSurfelAccum8 = kSurfelAccum0 + 8;  // 20 float
 
 
 // 12.1 paprameters related to feature shape
-// constexpr int kFeatureW = 739;  // eth3d
-// constexpr int kFeatureH = 458;  
-constexpr int kFeatureW = 640;  // tum
-constexpr int kFeatureH = 480;  
+constexpr int kFeatureW = 739;  // eth3d
+constexpr int kFeatureH = 458;  
+// constexpr int kFeatureW = 640;  // tum
+// constexpr int kFeatureH = 480;  
 }

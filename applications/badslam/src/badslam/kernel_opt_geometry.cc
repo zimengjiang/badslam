@@ -81,6 +81,7 @@ void OptimizeGeometryIterationCUDA(
     cudaStream_t stream,
     bool use_depth_residuals,
     bool use_descriptor_residuals,
+    float rf_weight, // 5.20 
     const PinholeCamera4f& color_camera,
     const PinholeCamera4f& depth_camera,
     const DepthParameters& depth_params,
@@ -203,7 +204,8 @@ void OptimizeGeometryIterationCUDA(
           CreatePixelCornerProjector(color_camera),
           keyframe->feature_buffer().ToCUDA(), // 11.16 not sure if should use keyframe->feature_buffer() 11.18 update: should use .ToCUDA() to move from cpu to gpu. 
           active_surfels.ToCUDA(),
-          use_depth_residuals);
+          use_depth_residuals,
+          rf_weight /*5.20*/ );
       
     }
     

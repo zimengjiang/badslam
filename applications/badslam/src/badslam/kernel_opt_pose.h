@@ -42,6 +42,7 @@ void CallAccumulatePoseEstimationCoeffs1PointCUDAKernel(
     bool debug,
     bool use_depth_residuals,
     bool use_descriptor_residuals,
+    float rf_weight, // 5.20
     const SurfelProjectionParameters& s,
     const DepthToColorPixelCorner& depth_to_color,
     const PixelCenterProjector& color_center_projector,
@@ -214,6 +215,7 @@ void ComputeCostAnd1PointResidualCountFromFeaturesCUDAKernel(
     float baseline_fx,
     const DepthToColorPixelCorner& depth_to_color,
     float threshold_factor,
+    float rf_weight, // 5.20
     const CUDAMatrix3x4& estimate_frame_T_surfel_frame,
     const CUDABuffer_<float>& surfel_depth,
     const CUDABuffer_<u16>& surfel_normals,
@@ -237,6 +239,7 @@ void CallAccumulatePoseEstimationCoeffsFromFeatures1PointCUDAKernel(
     float baseline_fx,
     const DepthToColorPixelCorner& depth_to_color,
     float threshold_factor,
+    float rf_weight, // 5.20
     const CUDAMatrix3x4& estimate_frame_T_surfel_frame,
     const CUDABuffer_<float>& surfel_depth,
     const CUDABuffer_<u16>& surfel_normals,

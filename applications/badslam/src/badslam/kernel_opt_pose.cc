@@ -41,6 +41,7 @@ void AccumulatePoseEstimationCoeffs1PointCUDA(
     cudaStream_t stream,
     bool use_depth_residuals,
     bool use_descriptor_residuals,
+    float rf_weight, // 5.20 
     const PinholeCamera4f& color_camera,
     const PinholeCamera4f& depth_camera,
     const DepthParameters& depth_params,
@@ -78,6 +79,7 @@ void AccumulatePoseEstimationCoeffs1PointCUDA(
       debug,
       use_depth_residuals,
       use_descriptor_residuals,
+      rf_weight, // 5.20 
       CreateSurfelProjectionParameters(depth_camera, depth_params, surfels_size, surfels, depth_buffer, normals_buffer, frame_T_global_estimate),
       CreateDepthToColorPixelCorner(depth_camera, color_camera),
       CreatePixelCenterProjector(color_camera),
@@ -488,6 +490,7 @@ void ComputeCostAnd1PointResidualCountFromFeaturesCUDA(
     const PinholeCamera4f& depth_camera,
     float baseline_fx,
     float threshold_factor,
+    float rf_weight, // 5.20 
     const CUDABuffer<float>& downsampled_depth,
     const CUDABuffer<u16>& downsampled_normals,
     cudaTextureObject_t downsampled_color,
@@ -515,6 +518,7 @@ void ComputeCostAnd1PointResidualCountFromFeaturesCUDA(
       baseline_fx,
       CreateDepthToColorPixelCorner(depth_camera, color_camera),
       threshold_factor,
+      rf_weight, // 5.20
       estimate_frame_T_surfel_frame,
       surfel_depth.ToCUDA(), //2.7 base_depth[scale]
       surfel_normals.ToCUDA(),
@@ -543,6 +547,7 @@ void AccumulatePoseEstimationCoeffsFromFeatures1PointCUDA(
     const PinholeCamera4f& depth_camera,
     float baseline_fx,
     float threshold_factor,
+    float rf_weight, // 5.20
     const CUDABuffer<float>& downsampled_depth,
     const CUDABuffer<u16>& downsampled_normals,
     cudaTextureObject_t downsampled_color,
@@ -582,6 +587,7 @@ void AccumulatePoseEstimationCoeffsFromFeatures1PointCUDA(
         baseline_fx,
         CreateDepthToColorPixelCorner(depth_camera, color_camera),
         threshold_factor,
+        rf_weight, // 5.20 
         estimate_frame_T_surfel_frame,
         surfel_depth.ToCUDA(),
         surfel_normals.ToCUDA(),

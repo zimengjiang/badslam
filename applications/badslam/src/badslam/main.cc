@@ -400,6 +400,11 @@ int LIBVIS_QT_MAIN(int argc, char** argv) {
       &bad_slam_config.structure_visible_exposure_time, /*required*/ false,
       bad_slam_config.structure_visible_exposure_time_help);
   
+  // 5.20
+  cmd_parser.NamedParameter(
+      "--rf_weight",
+      &bad_slam_config.rf_weight, /*required*/ false,
+      bad_slam_config.rf_weight_help);
   
   
   // These sequential parameters must be specified last (in code).

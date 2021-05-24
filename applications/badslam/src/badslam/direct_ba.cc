@@ -79,6 +79,7 @@ DirectBA::DirectBA(
     float baseline_fx,
     int sparse_surfel_cell_size,
     float surfel_merge_dist_factor,
+    float rf_weight, // 5.20 
     int min_observation_count_while_bootstrapping_1,
     int min_observation_count_while_bootstrapping_2,
     int min_observation_count,
@@ -94,6 +95,7 @@ DirectBA::DirectBA(
       depth_camera_(depth_camera_initial_estimate),
       use_depth_residuals_(use_depth_residuals),
       use_descriptor_residuals_(use_descriptor_residuals),
+      rf_weight_(rf_weight), // 5.20 
       min_observation_count_while_bootstrapping_1_(min_observation_count_while_bootstrapping_1),
       min_observation_count_while_bootstrapping_2_(min_observation_count_while_bootstrapping_2),
       min_observation_count_(min_observation_count),

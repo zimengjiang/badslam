@@ -188,7 +188,8 @@ void TrackFramePairwise(
     bool test_different_initial_estimates,
     const SE3f& base_T_frame_initial_estimate_1,
     const SE3f& base_T_frame_initial_estimate_2,
-    SE3f* out_base_T_frame_estimate) {
+    SE3f* out_base_T_frame_estimate,
+    float rf_weight /*5.20 param for descriptor residual weight*/) {
   static int call_counter = 0;
   ++ call_counter;
   
@@ -466,6 +467,7 @@ repeat_pose_estimation:;
           *tracked_depth_camera,
           depth_params.baseline_fx,
           threshold_factor,
+          rf_weight, //5.20
           *tracked_depth[scale],
           *tracked_normals[scale],
           *tracked_color_textures[scale],
@@ -489,6 +491,7 @@ repeat_pose_estimation:;
           *tracked_depth_camera,
           depth_params.baseline_fx,
           threshold_factor,
+          rf_weight, // 5.20
           *tracked_depth[scale],
           *tracked_normals[scale],
           *tracked_color_textures[scale],
@@ -558,6 +561,7 @@ repeat_pose_estimation:;
           *tracked_depth_camera,
           depth_params.baseline_fx,
           threshold_factor,
+          rf_weight, // 5.20
           *tracked_depth[scale],
           *tracked_normals[scale],
           *tracked_color_textures[scale],

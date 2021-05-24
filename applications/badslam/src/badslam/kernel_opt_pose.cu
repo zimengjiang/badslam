@@ -762,7 +762,8 @@ __global__ void AccumulatePoseEstimationCoeffs1PointCUDAKernel(
     CUDABuffer_<u32> residual_count_buffer,
     CUDABuffer_<float> residual_buffer,
     CUDABuffer_<float> H_buffer,
-    CUDABuffer_<float> b_buffer) {
+    CUDABuffer_<float> b_buffer,
+    float rf_weight /*5.20*/) {
   unsigned int surfel_index = blockIdx.x * blockDim.x + threadIdx.x;
   /*if(surfel_index == 0){
     printf("pose: feat(400,2000)=%f, feat(457,2216)=%f \n",feature_arr(400,2000), feature_arr(457,2216));
@@ -884,7 +885,7 @@ __global__ void AccumulatePoseEstimationCoeffs1PointCUDAKernel(
     for (int channel = 0; channel < kTotalChannels; ++channel){
       raw_residual_squared_sum += (raw_residual_vec[channel]*raw_residual_vec[channel]);
     }
-    float DescriptorResidualWeight = ComputeDescriptorResidualWeight(raw_residual_squared_sum);
+    float DescriptorResidualWeight = ComputeDescriptorResidualWeightParam(raw_residual_squared_sum, rf_weight);
     for (int channel = 0; channel < kTotalChannels; ++channel){
       AccumulateGaussNewtonHAndB<6, block_width, block_height>(
         visible,
@@ -900,7 +901,7 @@ __global__ void AccumulatePoseEstimationCoeffs1PointCUDAKernel(
     if (debug) {
       AccumulatePoseResidualAndCount<block_width, block_height>(
           visible,
-          ComputeWeightedDescriptorResidual(raw_residual_vec[0]),
+          ComputeWeightedDescriptorResidualParam(raw_residual_vec[0], rf_weight),
           residual_count_buffer,
           residual_buffer,
           &temp_storage.float_storage,
@@ -913,6 +914,7 @@ void CallAccumulatePoseEstimationCoeffs1PointCUDAKernel(
     bool debug,
     bool use_depth_residuals,
     bool use_descriptor_residuals,
+    float rf_weight, // 5.20 
     const SurfelProjectionParameters& s,
     const DepthToColorPixelCorner& depth_to_color,
     const PixelCenterProjector& color_center_projector,
@@ -942,7 +944,8 @@ void CallAccumulatePoseEstimationCoeffs1PointCUDAKernel(
           residual_count_buffer,
           residual_buffer,
           H_buffer,
-          b_buffer));
+          b_buffer,
+          rf_weight /*5.20 */));
   CUDA_CHECK();
 }
 
@@ -1596,6 +1599,7 @@ __global__ void AccumulatePoseEstimationCoeffsFromFeatures1PointCUDAKernel(
     float baseline_fx,
     DepthToColorPixelCorner depth_to_color,
     float threshold_factor,
+    float rf_weight, // 5.20 
     CUDAMatrix3x4 estimate_frame_T_surfel_frame,
     CUDABuffer_<float> surfel_depth,
     CUDABuffer_<u16> surfel_normals,
@@ -1773,7 +1777,7 @@ __global__ void AccumulatePoseEstimationCoeffsFromFeatures1PointCUDAKernel(
     for (int channel = 0; channel < kTotalChannels; ++channel){
       raw_residual_squared_sum += (raw_descriptor_residual_vec[channel]*raw_descriptor_residual_vec[channel]);
     }
-    float DescriptorResidualWeight = ComputeDescriptorResidualWeight(raw_residual_squared_sum, threshold_factor);
+    float DescriptorResidualWeight = ComputeDescriptorResidualWeightParam(raw_residual_squared_sum, rf_weight, threshold_factor);
     for (int channel = 0; channel < kTotalChannels; ++channel){
       AccumulateGaussNewtonHAndB<6, block_width, block_height>(
         visible,
@@ -1789,7 +1793,7 @@ __global__ void AccumulatePoseEstimationCoeffsFromFeatures1PointCUDAKernel(
     if (debug) {
       AccumulatePoseResidualAndCount<block_width, block_height>(
           visible,
-          ComputeWeightedDescriptorResidual(raw_descriptor_residual_vec[0], threshold_factor),  // NOTE: Using the 1st residual only
+          ComputeWeightedDescriptorResidualParam(raw_descriptor_residual_vec[0], rf_weight,threshold_factor),  // NOTE: Using the 1st residual only
           residual_count_buffer,
           residual_buffer,
           &temp_storage.float_storage,
@@ -1810,6 +1814,7 @@ void CallAccumulatePoseEstimationCoeffsFromFeatures1PointCUDAKernel(
   float baseline_fx,
   const DepthToColorPixelCorner& depth_to_color,
   float threshold_factor,
+  float rf_weight, // 5.20
   const CUDAMatrix3x4& estimate_frame_T_surfel_frame,
   const CUDABuffer_<float>& surfel_depth,
   const CUDABuffer_<u16>& surfel_normals,
@@ -1838,6 +1843,7 @@ COMPILE_OPTION_3(debug, use_depth_residuals, use_descriptor_residuals,
       baseline_fx,
       depth_to_color,
       threshold_factor,
+      rf_weight, // 5.20
       estimate_frame_T_surfel_frame,
       surfel_depth,
       surfel_normals,
@@ -2772,6 +2778,7 @@ __global__ void ComputeCostAnd1PointResidualCountFromFeaturesCUDAKernel(
     float baseline_fx,
     DepthToColorPixelCorner depth_to_color,
     float threshold_factor,
+    float rf_weight, // 5.20
     CUDAMatrix3x4 estimate_frame_T_surfel_frame,
     CUDABuffer_<float> surfel_depth,
     CUDABuffer_<u16> surfel_normals,
@@ -2918,7 +2925,7 @@ __global__ void ComputeCostAnd1PointResidualCountFromFeaturesCUDAKernel(
   for (int channel = 0; channel < kTotalChannels; ++channel){
     raw_residual_squared_sum += (raw_descriptor_residual_vec[channel]*raw_descriptor_residual_vec[channel]);
   }
-  float DescriptorResidual = ComputeWeightedDescriptorResidual(raw_residual_squared_sum, threshold_factor);
+  float DescriptorResidual = ComputeWeightedDescriptorResidualParam(raw_residual_squared_sum, rf_weight, threshold_factor);
   
     // for (int channel = 0; channel < kTotalChannels; ++channel){
     AccumulatePoseResidualAndCount<block_width, block_height>(
@@ -2943,6 +2950,7 @@ void ComputeCostAnd1PointResidualCountFromFeaturesCUDAKernel(
   float baseline_fx,
   const DepthToColorPixelCorner& depth_to_color,
   float threshold_factor,
+  float rf_weight, // 5.20
   const CUDAMatrix3x4& estimate_frame_T_surfel_frame,
   const CUDABuffer_<float>& surfel_depth,
   const CUDABuffer_<u16>& surfel_normals,
@@ -2967,6 +2975,7 @@ COMPILE_OPTION_2(use_depth_residuals, use_descriptor_residuals,
         baseline_fx,
         depth_to_color,
         threshold_factor,
+        rf_weight, // 5.20
         estimate_frame_T_surfel_frame,
         surfel_depth,
         surfel_normals,

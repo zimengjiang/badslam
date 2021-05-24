@@ -543,7 +543,8 @@ bool LoopDetector::AddImage(
         /*test_different_initial_estimates*/ false,
         base_T_tracked_initial_estimate,
         base_T_tracked_initial_estimate,
-        &cur_T_tracked[i]);
+        &cur_T_tracked[i],
+        direct_ba->rf_weight() /*params for descriptor residual weight*/);
     
     old_T_cur_refined[i] = matched_T_this * cur_T_tracked[i].inverse();
     cur_T_old_refined[i] = old_T_cur_refined[i].inverse();

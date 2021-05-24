@@ -345,7 +345,8 @@ __global__ void AccumulateIntrinsicsCoefficients1PointCUDAKernel(
     CUDABuffer_<float> depth_b1,
     CUDABuffer_<float> depth_b2,
     CUDABuffer_<float> color_H,
-    CUDABuffer_<float> color_b) {
+    CUDABuffer_<float> color_b,
+    float rf_weight /*5.20*/) {
   constexpr int block_height = 1;
   const unsigned int surfel_index = blockIdx.x * blockDim.x + threadIdx.x;
   
@@ -524,7 +525,7 @@ __global__ void AccumulateIntrinsicsCoefficients1PointCUDAKernel(
     for (int channel = 0; channel < kTotalChannels; ++channel){
       raw_residual_squared_sum += (raw_residual_vec[channel]*raw_residual_vec[channel]);
     }
-    float DescriptorResidualWeight = ComputeDescriptorResidualWeight(raw_residual_squared_sum);
+    float DescriptorResidualWeight = ComputeDescriptorResidualWeightParam(raw_residual_squared_sum, rf_weight); // 5.20
     for (int channel=0; channel<kTotalChannels; ++channel){
       AccumulateGaussNewtonHAndB<4, block_width, block_height>(
         raw_residual_vec[channel] != 0, // first residual term
@@ -544,6 +545,7 @@ void CallAccumulateIntrinsicsCoefficients1PointCUDAKernel(
   cudaStream_t stream,
   bool optimize_color_intrinsics,
   bool optimize_depth_intrinsics,
+  float rf_weight, // 5.20 
   const SurfelProjectionParameters& s,
   const DepthToColorPixelCorner& depth_to_color,
   const PixelCornerProjector& color_corner_projector,
@@ -583,7 +585,8 @@ COMPILE_OPTION_2(optimize_color_intrinsics, optimize_depth_intrinsics,
         depth_b1,
         depth_b2,
         color_H,
-        color_b));
+        color_b,
+        rf_weight /*5.20*/));
 CUDA_CHECK();
 }
 

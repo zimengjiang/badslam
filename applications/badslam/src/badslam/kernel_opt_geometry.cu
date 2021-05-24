@@ -391,7 +391,8 @@ __global__ void AccumulateSurfelPositionAndDescriptorOptimizationCoeffs1PointCUD
     PixelCornerProjector color_corner_projector,
     // ERROR! illegal memory access with 'const CUDABuffer_<float>& feature_arr', /*11.18 global, better to use pointer instead of reference, such that it won't visit cpu memory?*/
     CUDABuffer_<float> feature_arr, /*11.18 pointer to gpu*/
-    CUDABuffer_<u8> active_surfels) {
+    CUDABuffer_<u8> active_surfels,
+    float rf_weight /*5.20 */) {
   const unsigned int surfel_index = blockIdx.x * blockDim.x + threadIdx.x;
   if (surfel_index < s.surfels_size) {
     if (!(active_surfels(0, surfel_index) & kSurfelActiveFlag)) {
@@ -486,7 +487,7 @@ __global__ void AccumulateSurfelPositionAndDescriptorOptimizationCoeffs1PointCUD
         for (int channel = 0; channel < kTotalChannels; ++channel){
           raw_residual_squared_sum += (raw_descriptor_residual[channel]*raw_descriptor_residual[channel]);
         }
-        const float weight_1 = ComputeDescriptorResidualWeight(raw_residual_squared_sum);
+        const float weight_1 = ComputeDescriptorResidualWeightParam(raw_residual_squared_sum, rf_weight); // 5.20
         
         for (int channel_i = 0; channel_i < kTotalChannels; ++channel_i){
           
@@ -568,7 +569,8 @@ void AccumulateSurfelPositionAndDescriptorOptimizationCoeffs1PointCUDAKernel(
   const PixelCornerProjector& color_corner_projector,
   const CUDABuffer_<float>& feature_arr,
   const CUDABuffer_<u8>& active_surfels,
-  bool use_depth_residuals) {
+  bool use_depth_residuals,
+  float rf_weight /* 5.20*/) {
 if (use_depth_residuals) {
   CUDA_AUTO_TUNE_1D(
       AccumulateSurfelPositionAndDescriptorOptimizationCoeffs1PointCUDAKernel<true>,
@@ -581,7 +583,8 @@ if (use_depth_residuals) {
       depth_to_color,
       color_corner_projector,
       feature_arr, 
-      active_surfels);
+      active_surfels,
+      rf_weight /*5.20*/);
 } else {
   CUDA_AUTO_TUNE_1D(
       AccumulateSurfelPositionAndDescriptorOptimizationCoeffs1PointCUDAKernel<false>,
@@ -594,7 +597,8 @@ if (use_depth_residuals) {
       depth_to_color,
       color_corner_projector,
       feature_arr,
-      active_surfels);
+      active_surfels,
+      rf_weight /*5.20*/);
 }
 CUDA_CHECK();
 }
