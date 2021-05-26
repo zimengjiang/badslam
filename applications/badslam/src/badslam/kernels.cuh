@@ -63,6 +63,10 @@ typedef float PCGScalar;
 
 // 11.20 number of channels, cost_function.cuh also needs this const, #include this file?
 constexpr int kTotalChannels = 8;
+// 5.25 additional channel appended to represent geometric and feature metric weights
+constexpr int kGeomResidualChannel = 1;
+constexpr int kFeatResidualChannel = 1;
+
 
 
 // The surfel structure is stored in large buffers. It is organized

@@ -361,7 +361,6 @@ __global__ void AccumulateIntrinsicsCoefficients1PointCUDAKernel(
   // float raw_descriptor_residual_2 = 0;
   float raw_residual_vec[kSurfelNumDescriptor]={0};
   float jacobian_all[4*kSurfelNumDescriptor] = {0}; // jacobian w.r.t. fx, fy, cx, cy
-
   int sparse_pixel_index = -1;
   
   SurfelProjectionResult6 r;
@@ -405,7 +404,6 @@ __global__ void AccumulateIntrinsicsCoefficients1PointCUDAKernel(
         float3 local_unproj = make_float3(r.pixel_calibrated_depth * nx, r.pixel_calibrated_depth * ny, r.pixel_calibrated_depth);
         ComputeRawDepthResidual(
             depth_residual_inv_stddev, r.surfel_local_position, local_surfel_normal, local_unproj, &raw_depth_residual);
-        
         sparse_pixel_index = sparse_px + sparse_py * s.depth_params.cfactor_buffer.width();
       }
     }

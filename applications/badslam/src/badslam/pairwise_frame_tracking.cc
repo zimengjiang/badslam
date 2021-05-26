@@ -55,7 +55,7 @@ PairwiseFrameTrackingBuffers::PairwiseFrameTrackingBuffers(
     int scale_height = depth_height / pow(2, scale);
     
     base_depth[scale].reset(new CUDABuffer<float>(scale_height, scale_width));
-    base_feature[scale].reset(new CUDABuffer<float>(scale_height, scale_width*kTotalChannels)); // 2.10
+    base_feature[scale].reset(new CUDABuffer<float>(scale_height, scale_width*(kTotalChannels+kGeomResidualChannel+kFeatResidualChannel))); // 2.10, 5.26 add leanred weights
     base_normals[scale].reset(new CUDABuffer<u16>(scale_height, scale_width));
     base_color[scale].reset(new CUDABuffer<uchar>(scale_height, scale_width));
     base_color[scale]->CreateTextureObject(
@@ -68,7 +68,7 @@ PairwiseFrameTrackingBuffers::PairwiseFrameTrackingBuffers(
     
     // Scale 0 is not used in these arrays for multi-res tracking, but is used for loop closure tracking (except normals)
     tracked_depth[scale].reset(new CUDABuffer<float>(scale_height, scale_width));
-    tracked_feature[scale].reset(new CUDABuffer<float>(scale_height, scale_width*kTotalChannels)); // 2.10
+    tracked_feature[scale].reset(new CUDABuffer<float>(scale_height, scale_width*(kTotalChannels+kGeomResidualChannel+kFeatResidualChannel))); // 2.10, 5.26 add learned weights
     if (scale >= 1) {
       tracked_normals[scale].reset(new CUDABuffer<u16>(scale_height, scale_width));
     }

@@ -777,7 +777,10 @@ __global__ void AccumulatePoseEstimationCoeffs1PointCUDAKernel(
   float jacobian[6] = {0};
   float depth_raw_residual = 0;
   float raw_residual_vec[kSurfelNumDescriptor] = {0}; // It's very important to initialize !!!!
-  
+  // 5.26
+  float wf = 1.f;
+  float wg = 1.f;
+
   constexpr int block_height = 1;
   typedef cub::BlockReduce<float, block_width, cub::BLOCK_REDUCE_RAKING_COMMUTATIVE_ONLY, block_height> BlockReduceFloat;
   typedef cub::BlockReduce<int, block_width, cub::BLOCK_REDUCE_RAKING_COMMUTATIVE_ONLY, block_height> BlockReduceInt;
@@ -805,11 +808,15 @@ __global__ void AccumulatePoseEstimationCoeffs1PointCUDAKernel(
         surfel_local_normal,
         &depth_raw_residual,
         jacobian);
+        // 5.26
+        if(kGeomResidualChannel > 0){
+          wg = feature_arr(r.py, r.px + kTotalChannels*kFeatureW);
+        }
     
     AccumulateGaussNewtonHAndB<6, block_width, block_height>(
         visible,
         depth_raw_residual,
-        ComputeDepthResidualWeight(depth_raw_residual),
+        ComputeDepthResidualWeight(depth_raw_residual)*wg, // 5.26
         jacobian,
         H_buffer,
         b_buffer,
@@ -876,6 +883,9 @@ __global__ void AccumulatePoseEstimationCoeffs1PointCUDAKernel(
             jacobian_all,
             channel /* channel*/);
         }
+        if (kFeatResidualChannel > 0){
+          wf = BilinearInterpolateFeatureWeight(feature_arr, color_pxy.x, color_pxy.y);
+        }
     }
     else{
       visible = false; // nothing is done if not visible 
@@ -891,7 +901,7 @@ __global__ void AccumulatePoseEstimationCoeffs1PointCUDAKernel(
         visible,
         raw_residual_vec[channel],
         // ComputeDescriptorResidualWeight(raw_residual_vec[channel]),
-        DescriptorResidualWeight,
+        DescriptorResidualWeight*wf,
         jacobian_all+6*channel, // pass the address of jacobian_c_1[0]
         H_buffer,
         b_buffer,
@@ -1623,6 +1633,9 @@ __global__ void AccumulatePoseEstimationCoeffsFromFeatures1PointCUDAKernel(
   // 2.10 
   float raw_descriptor_residual_vec[kSurfelNumDescriptor]={0};
   float jacobian_all[6*kSurfelNumDescriptor] = {0}; 
+  // 5.26
+  float wg = 1.f;
+  float wf = 1.f;
   
   
   if (x < surfel_depth.width() && y < surfel_depth.height()) {
@@ -1672,6 +1685,10 @@ __global__ void AccumulatePoseEstimationCoeffsFromFeatures1PointCUDAKernel(
                     surfel_local_normal,
                     &raw_depth_residual,
                     depth_jacobian);
+                // 5.26
+                if (kGeomResidualChannel > 0){
+                  wg = surfel_feature(y, x + kTotalChannels*surfel_depth.width())*frame_feature(py, px + kTotalChannels*surfel_depth.width());
+                }
               }
               
               if (use_descriptor_residuals) {
@@ -1696,6 +1713,10 @@ __global__ void AccumulatePoseEstimationCoeffsFromFeatures1PointCUDAKernel(
                         surfel_descriptor,
                         raw_descriptor_residual_vec
                       );
+                      // 5.26
+                      if (kFeatResidualChannel > 0){
+                        wf = surfel_feature(y, x + (kTotalChannels+kGeomResidualChannel)*surfel_depth.width())*BilinearInterpolateFeatureWeight(frame_feature, color_pxy.x, color_pxy.y);
+                      }
                       for (int channel = 0; channel < kTotalChannels; ++channel){
                         ComputeRawDescriptor1PointFeatureJacobian(
                             frame_feature,
@@ -1754,7 +1775,7 @@ __global__ void AccumulatePoseEstimationCoeffsFromFeatures1PointCUDAKernel(
     AccumulateGaussNewtonHAndB<6, block_width, block_height>(
         visible,
         raw_depth_residual,
-        ComputeDepthResidualWeight(raw_depth_residual, threshold_factor),
+        ComputeDepthResidualWeight(raw_depth_residual, threshold_factor)*wg,
         depth_jacobian,
         H_buffer,
         b_buffer,
@@ -1783,7 +1804,7 @@ __global__ void AccumulatePoseEstimationCoeffsFromFeatures1PointCUDAKernel(
         visible,
         raw_descriptor_residual_vec[channel],
         // ComputeDescriptorResidualWeight(raw_descriptor_residual_vec[channel], threshold_factor),
-        DescriptorResidualWeight, 
+        DescriptorResidualWeight*wf, 
         jacobian_all+6*channel, // pass the address of jacobian_c_1[0]
         H_buffer,
         b_buffer,
@@ -2796,6 +2817,8 @@ __global__ void ComputeCostAnd1PointResidualCountFromFeaturesCUDAKernel(
   bool visible = false;
   float raw_depth_residual;
   float raw_descriptor_residual_vec[kSurfelNumDescriptor] = {0}; //2.10
+  float wg = 1.f; // 5.26 initialization 
+  float wf = 1.f;
   
   if (x < surfel_depth.width() && y < surfel_depth.height()) {
     float surfel_calibrated_depth = surfel_depth(y, x);
@@ -2832,6 +2855,9 @@ __global__ void ComputeCostAnd1PointResidualCountFromFeaturesCUDAKernel(
               visible = true;
               
               if (use_depth_residuals) {
+                if (kGeomResidualChannel > 0){
+                  wg = surfel_feature(y, kTotalChannels*surfel_depth.width()+x) * frame_feature(py, kTotalChannels*surfel_depth.width()+px);
+               }
                 float depth_residual_inv_stddev =
                     ComputeDepthResidualInvStddevEstimate(depth_unprojector.nx(px), depth_unprojector.ny(py), pixel_calibrated_depth, surfel_local_normal, baseline_fx);
                 
@@ -2871,6 +2897,10 @@ __global__ void ComputeCostAnd1PointResidualCountFromFeaturesCUDAKernel(
                         surfel_descriptor,
                         raw_descriptor_residual_vec
                       );
+                      // 5.26
+                      if (kFeatResidualChannel > 0){
+                        wf = surfel_feature(y, x + (kTotalChannels+kGeomResidualChannel)*surfel_depth.width()) * BilinearInterpolateFeatureWeight(frame_feature, color_pxy.x, color_pxy.y);
+                      }          
                   } else {
                     visible = false;
                   }
@@ -2910,7 +2940,7 @@ __global__ void ComputeCostAnd1PointResidualCountFromFeaturesCUDAKernel(
   if (use_depth_residuals) {
     AccumulatePoseResidualAndCount<block_width, block_height>(
         visible,
-        ComputeWeightedDepthResidual(raw_depth_residual, threshold_factor),
+        ComputeWeightedDepthResidual(raw_depth_residual, threshold_factor)*wg,
         residual_count_buffer,
         residual_buffer,
         &temp_storage.float_storage,
@@ -2926,12 +2956,11 @@ __global__ void ComputeCostAnd1PointResidualCountFromFeaturesCUDAKernel(
     raw_residual_squared_sum += (raw_descriptor_residual_vec[channel]*raw_descriptor_residual_vec[channel]);
   }
   float DescriptorResidual = ComputeWeightedDescriptorResidualParam(raw_residual_squared_sum, rf_weight, threshold_factor);
-  
     // for (int channel = 0; channel < kTotalChannels; ++channel){
     AccumulatePoseResidualAndCount<block_width, block_height>(
       visible,
       // ComputeWeightedDescriptorResidual(raw_descriptor_residual_vec[channel], threshold_factor),
-      DescriptorResidual,
+      DescriptorResidual*wf,
       residual_count_buffer,
       residual_buffer,
       &temp_storage.float_storage,

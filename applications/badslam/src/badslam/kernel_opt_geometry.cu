@@ -394,6 +394,8 @@ __global__ void AccumulateSurfelPositionAndDescriptorOptimizationCoeffs1PointCUD
     CUDABuffer_<u8> active_surfels,
     float rf_weight /*5.20 */) {
   const unsigned int surfel_index = blockIdx.x * blockDim.x + threadIdx.x;
+  float wg = 1.f;
+  float wf = 1.f;
   if (surfel_index < s.surfels_size) {
     if (!(active_surfels(0, surfel_index) & kSurfelActiveFlag)) {
       return;
@@ -416,7 +418,11 @@ __global__ void AccumulateSurfelPositionAndDescriptorOptimizationCoeffs1PointCUD
             depth_residual_inv_stddev,
             r.surfel_local_position, rn, &local_unproj, &raw_depth_residual);
         
-        const float depth_weight = ComputeDepthResidualWeight(raw_depth_residual);
+        // 5.26
+        if(kGeomResidualChannel){
+          wg = feature_arr(r.py, r.px + kTotalChannels*kFeatureW); // BA only on the finest scale
+        }
+        const float depth_weight = ComputeDepthResidualWeight(raw_depth_residual)*wg;
         
         // Accumulate:
         s.surfels(kSurfelAccum0, surfel_index) += depth_weight * depth_jacobian * depth_jacobian; // H_00
@@ -487,7 +493,11 @@ __global__ void AccumulateSurfelPositionAndDescriptorOptimizationCoeffs1PointCUD
         for (int channel = 0; channel < kTotalChannels; ++channel){
           raw_residual_squared_sum += (raw_descriptor_residual[channel]*raw_descriptor_residual[channel]);
         }
-        const float weight_1 = ComputeDescriptorResidualWeightParam(raw_residual_squared_sum, rf_weight); // 5.20
+        // 5.26
+        if(kFeatResidualChannel){
+          wf = BilinearInterpolateFeatureWeight(feature_arr, color_pxy.x, color_pxy.y);
+        }
+        const float weight_1 = ComputeDescriptorResidualWeightParam(raw_residual_squared_sum, rf_weight)*wf; // 5.20, 5.26
         
         for (int channel_i = 0; channel_i < kTotalChannels; ++channel_i){
           
@@ -946,7 +956,6 @@ __global__ void AccumulateSurfelPositionOptimizationCoeffsFromDepthResidualCUDAK
     cudaTextureObject_t color_texture,
     CUDABuffer_<u8> active_surfels) {
   const unsigned int surfel_index = blockIdx.x * blockDim.x + threadIdx.x;
-  
   if (surfel_index < s.surfels_size) {
     if (!(active_surfels(0, surfel_index) & kSurfelActiveFlag)) {
       return;
@@ -968,7 +977,6 @@ __global__ void AccumulateSurfelPositionOptimizationCoeffsFromDepthResidualCUDAK
           depth_unprojector, r.px, r.py, r.pixel_calibrated_depth,
           depth_residual_inv_stddev,
           r.surfel_local_position, rn, &local_unproj, &raw_depth_residual);
-      
       // Accumulate:
       // kSurfelAccum0: H
       // kSurfelAccum1: b

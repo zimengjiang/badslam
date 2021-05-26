@@ -123,7 +123,7 @@ constexpr float kDescriptorResidualWeight = 1.f; // 4.12
 // Parameter for the Huber robust loss function for photometric residuals.
 // TODO: Make parameter?
 // constexpr float kDescriptorResidualHuberParameter = 10.f;
-constexpr float kDescriptorResidualHuberParameter =  1; // 4.9 1/18
+constexpr float kDescriptorResidualHuberParameter =  1.f; // 4.9 1/18
 
 
 // Computes the projections in an image of two (mostly) fixed points on the
@@ -385,8 +385,7 @@ __forceinline__ __device__ void ColorJacobianWrtProjectedPosition(
   *grad_y_fy = (bottom_right - top_right) * tx + (bottom_left - top_left) * (1 - tx);
 }
 
-/*11.17: bilinear interpolation, same effect as filtering in tex2D fetching */
-/*https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#texture-fetching*/
+// 5.26 bilinear interpolation of rf weight map
 __forceinline__ __device__ void TestFetchFeatureArrBilinearInterpolationVec(
     const CUDABuffer_<float>& feature_arr,
     const float& px, /*pixel corner coordinates, -> x, | y*/
@@ -394,7 +393,8 @@ __forceinline__ __device__ void TestFetchFeatureArrBilinearInterpolationVec(
     float* result) {
     int ix = static_cast<int>(::max(0.f, px - 0.5f));      // i = floor(px-0.5), converting corner pixel to center pixel convention
     int iy = static_cast<int>(::max(0.f, py - 0.5f));      // j = floor(py-0.5)
-    ix = ::min(ix, feature_arr.width()/kTotalChannels-1);
+    // ix = ::min(ix, feature_arr.width()/kTotalChannels-1);
+    ix = ::min(ix, feature_arr.width()/(kTotalChannels+kGeomResidualChannel+kFeatResidualChannel)-1);
     iy = ::min(iy, feature_arr.height()-1);
     float alpha = ::max(0.f, ::min(1.f, px - 0.5f - ix));  // alpha = frac(px-0.5) 
     float beta = ::max(0.f, ::min(1.f, py - 0.5f - iy));   // beta = frac(py-0.5)
@@ -402,9 +402,11 @@ __forceinline__ __device__ void TestFetchFeatureArrBilinearInterpolationVec(
 
     int2 top_left, top_right, bottom_left, bottom_right;
     top_left = make_int2(ix,iy);
-    top_right = make_int2(::min(ix+1, feature_arr.width()/kTotalChannels-1),iy);
+    // top_right = make_int2(::min(ix+1, feature_arr.width()/kTotalChannels-1),iy);
+    top_right = make_int2(::min(ix+1, feature_arr.width()/(kTotalChannels+kGeomResidualChannel+kFeatResidualChannel)-1),iy);
     bottom_left = make_int2(ix,::min(iy+1, feature_arr.height()-1));
-    bottom_right = make_int2(::min(ix+1, feature_arr.width()/kTotalChannels-1),::min(iy+1, feature_arr.height()-1));
+    // bottom_right = make_int2(::min(ix+1, feature_arr.width()/kTotalChannels-1),::min(iy+1, feature_arr.height()-1));
+    bottom_right = make_int2(::min(ix+1, feature_arr.width()/(kTotalChannels+kGeomResidualChannel+kFeatResidualChannel)-1),::min(iy+1, feature_arr.height()-1));
 
     #pragma unroll
     for (int c = 0; c < kTotalChannels; ++c){
@@ -423,29 +425,60 @@ __forceinline__ __device__ void TestFetchFeatureArrBilinearInterpolationVec(
     }
 }
 
-/*11.17: bilinear interpolation, when the number of channels = 1*/
+/*11.17: bilinear interpolation, same effect as filtering in tex2D fetching */
 /*https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#texture-fetching*/
-__forceinline__ __device__ void TestFetchFeatureArrBilinearInterpolationFloat(
+__forceinline__ __device__ float BilinearInterpolateFeatureWeight(
     const CUDABuffer_<float>& feature_arr,
     const float& px, /*pixel corner coordinates, -> x, | y*/
-    const float& py,
-    float* result) {
-    int ix = static_cast<int>(::max(0.f, px - 0.5f));      // i = floor(px-0.5)
+    const float& py) {
+    float result; 
+    int ix = static_cast<int>(::max(0.f, px - 0.5f));      // i = floor(px-0.5), converting corner pixel to center pixel convention
     int iy = static_cast<int>(::max(0.f, py - 0.5f));      // j = floor(py-0.5)
-    ix = ::min(ix, feature_arr.width()/kTotalChannels-1);
+    // ix = ::min(ix, feature_arr.width()/kTotalChannels-1);
+    ix = ::min(ix, feature_arr.width()/(kTotalChannels+kGeomResidualChannel+kFeatResidualChannel)-1);
     iy = ::min(iy, feature_arr.height()-1);
     float alpha = ::max(0.f, ::min(1.f, px - 0.5f - ix));  // alpha = frac(px-0.5) 
     float beta = ::max(0.f, ::min(1.f, py - 0.5f - iy));   // beta = frac(py-0.5)
+    // unsigned int surfel_index = blockIdx.x * blockDim.x + threadIdx.x;
+
     int2 top_left, top_right, bottom_left, bottom_right;
+    int w = feature_arr.width()/(kTotalChannels+kGeomResidualChannel+kFeatResidualChannel);
     top_left = make_int2(ix,iy);
-    top_right = make_int2(ix+1,iy);
-    bottom_left = make_int2(ix,iy+1);
-    bottom_right = make_int2(ix+1,iy+1);
-    *(result) = (1-alpha)*(1-beta)*feature_arr(top_left.y,top_left.x) \
-                    + alpha*(1-beta)*feature_arr(top_right.y,top_right.x) \
-                    + beta*(1-alpha)*feature_arr(bottom_left.y,bottom_left.x) \
-                    + alpha*beta*feature_arr(bottom_right.y, bottom_right.x);
+    // top_right = make_int2(::min(ix+1, feature_arr.width()/kTotalChannels-1),iy);
+    top_right = make_int2(::min(ix+1, w-1),iy);
+    bottom_left = make_int2(ix,::min(iy+1, feature_arr.height()-1));
+    // bottom_right = make_int2(::min(ix+1, feature_arr.width()/kTotalChannels-1),::min(iy+1, feature_arr.height()-1));
+    bottom_right = make_int2(::min(ix+1, w-1),::min(iy+1, feature_arr.height()-1));
+    result = (1-alpha)*(1-beta)*feature_arr(top_left.y, top_left.x + (kTotalChannels+kGeomResidualChannel)*w) \
+                      + alpha*(1-beta)*feature_arr(top_right.y, top_right.x + (kTotalChannels+kGeomResidualChannel)*w) \
+                      + beta*(1-alpha)*feature_arr(bottom_left.y,bottom_left.x + (kTotalChannels+kGeomResidualChannel)*w) \
+                      + alpha*beta*feature_arr(bottom_right.y, bottom_right.x + (kTotalChannels+kGeomResidualChannel)*w);
+    return result;
 }
+
+/*11.17: bilinear interpolation, when the number of channels = 1*/
+/*https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#texture-fetching*/
+// __forceinline__ __device__ void TestFetchFeatureArrBilinearInterpolationFloat(
+//     const CUDABuffer_<float>& feature_arr,
+//     const float& px, /*pixel corner coordinates, -> x, | y*/
+//     const float& py,
+//     float* result) {
+//     int ix = static_cast<int>(::max(0.f, px - 0.5f));      // i = floor(px-0.5)
+//     int iy = static_cast<int>(::max(0.f, py - 0.5f));      // j = floor(py-0.5)
+//     ix = ::min(ix, feature_arr.width()/kTotalChannels-1);
+//     iy = ::min(iy, feature_arr.height()-1);
+//     float alpha = ::max(0.f, ::min(1.f, px - 0.5f - ix));  // alpha = frac(px-0.5) 
+//     float beta = ::max(0.f, ::min(1.f, py - 0.5f - iy));   // beta = frac(py-0.5)
+//     int2 top_left, top_right, bottom_left, bottom_right;
+//     top_left = make_int2(ix,iy);
+//     top_right = make_int2(ix+1,iy);
+//     bottom_left = make_int2(ix,iy+1);
+//     bottom_right = make_int2(ix+1,iy+1);
+//     *(result) = (1-alpha)*(1-beta)*feature_arr(top_left.y,top_left.x)  \ 
+//                     + alpha*(1-beta)*feature_arr(top_right.y,top_right.x) \ 
+//                     + beta*(1-alpha)*feature_arr(bottom_left.y,bottom_left.x) \ 
+//                     + alpha*beta*feature_arr(bottom_right.y, bottom_right.x);
+// }
 
 __forceinline__ __device__ void TestFetchFeatureArrVec(
     const CUDABuffer_<float>& feature_arr,
@@ -783,7 +816,8 @@ __forceinline__ __device__ void TestDescriptorJacobianWrtProjectedPositionOnChan
   // https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#texture-fetching
   int ix = static_cast<int>(::max(0.f, color_pxy.x - 0.5f)); // refer to libvis/camera.h: 103, convert to pixel center convention??? easier to compute the offsets from te pixel centers -> bilinear interpolation
   int iy = static_cast<int>(::max(0.f, color_pxy.y - 0.5f));
-  ix = ::min(ix, feature_arr.width()/kTotalChannels-1);
+  // ix = ::min(ix, feature_arr.width()/kTotalChannels-1);
+  ix = ::min(ix, feature_arr.width()/(kTotalChannels+kGeomResidualChannel+kFeatResidualChannel)-1);
   iy = ::min(iy, feature_arr.height()-1);
   // 11.19 out of bounds error => clamp it, texture memory handles like this!!! always check if out of bounds when indexing something
   // see: https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#texture-memory
@@ -794,9 +828,11 @@ __forceinline__ __device__ void TestDescriptorJacobianWrtProjectedPositionOnChan
   float top_left, top_right, bottom_left, bottom_right;
 
   top_left = feature_arr(iy, ix*kTotalChannels+c);
-  top_right = feature_arr(iy, ::min(ix+1, feature_arr.width()/kTotalChannels-1)*kTotalChannels+c);
+  // top_right = feature_arr(iy, ::min(ix+1, feature_arr.width()/kTotalChannels-1)*kTotalChannels+c);
+  top_right = feature_arr(iy, ::min(ix+1, feature_arr.width()/(kTotalChannels+kGeomResidualChannel+kFeatResidualChannel)-1)*kTotalChannels+c);
   bottom_left = feature_arr(::min(iy+1, feature_arr.height()-1), ix*kTotalChannels+c);
-  bottom_right = feature_arr(::min(iy+1, feature_arr.height()-1), ::min(ix+1, feature_arr.width()/kTotalChannels-1)*kTotalChannels+c);
+  // bottom_right = feature_arr(::min(iy+1, feature_arr.height()-1), ::min(ix+1, feature_arr.width()/kTotalChannels-1)*kTotalChannels+c);
+  bottom_right = feature_arr(::min(iy+1, feature_arr.height()-1), ::min(ix+1, feature_arr.width()/(kTotalChannels+kGeomResidualChannel+kFeatResidualChannel)-1)*kTotalChannels+c);
 
   float center_dx = (bottom_right - bottom_left) * ty + (top_right - top_left) * (1 - ty);
   float center_dy = (bottom_right - top_right) * tx + (bottom_left - top_left) * (1 - tx);
@@ -804,15 +840,17 @@ __forceinline__ __device__ void TestDescriptorJacobianWrtProjectedPositionOnChan
 
   ix = static_cast<int>(::max(0.f, t1_pxy.x - 0.5f));
   iy = static_cast<int>(::max(0.f, t1_pxy.y - 0.5f));
-  ix = ::min(ix, feature_arr.width()/kTotalChannels-1);
+  ix = ::min(ix, feature_arr.width()/(kTotalChannels+kFeatResidualChannel+kGeomResidualChannel)-1);
   iy = ::min(iy, feature_arr.height()-1);
   tx = ::max(0.f, ::min(1.f, t1_pxy.x - 0.5f - ix));  // truncated x = trunc(cx + fx*ls.x/ls.z)
   ty = ::max(0.f, ::min(1.f, t1_pxy.y - 0.5f - iy));  // truncated y = trunc(cy + fy*ls.y/ls.z)
 
   top_left = feature_arr(iy, ix*kTotalChannels+c);
-  top_right = feature_arr(iy, ::min(ix+1, feature_arr.width()/kTotalChannels-1)*kTotalChannels+c);
+  // top_right = feature_arr(iy, ::min(ix+1, feature_arr.width()/kTotalChannels-1)*kTotalChannels+c);
+  top_right = feature_arr(iy, ::min(ix+1, feature_arr.width()/(kTotalChannels+kGeomResidualChannel+kFeatResidualChannel)-1)*kTotalChannels+c);
   bottom_left = feature_arr(::min(iy+1, feature_arr.height()-1), ix*kTotalChannels+c);
-  bottom_right = feature_arr(::min(iy+1, feature_arr.height()-1), ::min(ix+1, feature_arr.width()/kTotalChannels-1)*kTotalChannels+c);
+  // bottom_right = feature_arr(::min(iy+1, feature_arr.height()-1), ::min(ix+1, feature_arr.width()/kTotalChannels-1)*kTotalChannels+c);
+  bottom_right = feature_arr(::min(iy+1, feature_arr.height()-1), ::min(ix+1, feature_arr.width()/(kTotalChannels+kGeomResidualChannel+kFeatResidualChannel)-1)*kTotalChannels+c);
 
   
   float t1_dx = (bottom_right - bottom_left) * ty + (top_right - top_left) * (1 - ty);
@@ -821,16 +859,19 @@ __forceinline__ __device__ void TestDescriptorJacobianWrtProjectedPositionOnChan
   
   ix = static_cast<int>(::max(0.f, t2_pxy.x - 0.5f));
   iy = static_cast<int>(::max(0.f, t2_pxy.y - 0.5f));
-  ix = ::min(ix, feature_arr.width()/kTotalChannels-1);
+  // ix = ::min(ix, feature_arr.width()/kTotalChannels-1);
+  ix = ::min(ix, feature_arr.width()/(kTotalChannels+kGeomResidualChannel+kFeatResidualChannel)-1);
   iy = ::min(iy, feature_arr.height()-1);
   tx = ::max(0.f, ::min(1.f, t2_pxy.x - 0.5f - ix));  // truncated x = trunc(cx + fx*ls.x/ls.z)
   ty = ::max(0.f, ::min(1.f, t2_pxy.y - 0.5f - iy));  // truncated y = trunc(cy + fy*ls.y/ls.z)
 
 
   top_left = feature_arr(iy, ix*kTotalChannels+c);
-  top_right = feature_arr(iy, ::min(ix+1, feature_arr.width()/kTotalChannels-1)*kTotalChannels+c);
+  // top_right = feature_arr(iy, ::min(ix+1, feature_arr.width()/kTotalChannels-1)*kTotalChannels+c);
+  top_right = feature_arr(iy, ::min(ix+1, feature_arr.width()/(kTotalChannels+kGeomResidualChannel+kFeatResidualChannel)-1)*kTotalChannels+c);
   bottom_left = feature_arr(::min(iy+1, feature_arr.height()-1), ix*kTotalChannels+c);
-  bottom_right = feature_arr(::min(iy+1, feature_arr.height()-1), ::min(ix+1, feature_arr.width()/kTotalChannels-1)*kTotalChannels+c);
+  // bottom_right = feature_arr(::min(iy+1, feature_arr.height()-1), ::min(ix+1, feature_arr.width()/kTotalChannels-1)*kTotalChannels+c);
+  bottom_right = feature_arr(::min(iy+1, feature_arr.height()-1), ::min(ix+1, feature_arr.width()/(kTotalChannels+kGeomResidualChannel+kFeatResidualChannel)-1)*kTotalChannels+c);
 
   float t2_dx = (bottom_right - bottom_left) * ty + (top_right - top_left) * (1 - ty);
   float t2_dy = (bottom_right - top_right) * tx + (bottom_left - top_left) * (1 - tx);
@@ -859,7 +900,8 @@ __forceinline__ __device__ void Descriptor1PointJacobianWrtProjectedPositionOnCh
   // https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#texture-fetching
   int ix = static_cast<int>(::max(0.f, color_pxy.x - 0.5f)); // refer to libvis/camera.h: 103, convert to pixel center convention??? easier to compute the offsets from te pixel centers -> bilinear interpolation
   int iy = static_cast<int>(::max(0.f, color_pxy.y - 0.5f));
-  ix = ::min(ix, feature_arr.width()/kTotalChannels-1);
+  // ix = ::min(ix, feature_arr.width()/kTotalChannels-1);
+  ix = ::min(ix, feature_arr.width()/(kTotalChannels+kFeatResidualChannel+kGeomResidualChannel)-1);
   iy = ::min(iy, feature_arr.height()-1);
   // 11.19 out of bounds error => clamp it, texture memory handles like this!!! always check if out of bounds when indexing something
   // see: https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#texture-memory
@@ -870,9 +912,11 @@ __forceinline__ __device__ void Descriptor1PointJacobianWrtProjectedPositionOnCh
   float top_left, top_right, bottom_left, bottom_right;
 
   top_left = feature_arr(iy, ix*kTotalChannels+c);
-  top_right = feature_arr(iy, ::min(ix+1, feature_arr.width()/kTotalChannels-1)*kTotalChannels+c);
+  // top_right = feature_arr(iy, ::min(ix+1, feature_arr.width()/kTotalChannels-1)*kTotalChannels+c);
+  top_right = feature_arr(iy, ::min(ix+1, feature_arr.width()/(kTotalChannels+kGeomResidualChannel+kFeatResidualChannel)-1)*kTotalChannels+c);
   bottom_left = feature_arr(::min(iy+1, feature_arr.height()-1), ix*kTotalChannels+c);
-  bottom_right = feature_arr(::min(iy+1, feature_arr.height()-1), ::min(ix+1, feature_arr.width()/kTotalChannels-1)*kTotalChannels+c);
+  // bottom_right = feature_arr(::min(iy+1, feature_arr.height()-1), ::min(ix+1, feature_arr.width()/kTotalChannels-1)*kTotalChannels+c);
+  bottom_right = feature_arr(iy, ::min(ix+1, feature_arr.width()/(kTotalChannels+kGeomResidualChannel+kFeatResidualChannel)-1)*kTotalChannels+c);
 
   float center_dx = (bottom_right - bottom_left) * ty + (top_right - top_left) * (1 - ty);
   float center_dy = (bottom_right - top_right) * tx + (bottom_left - top_left) * (1 - tx);

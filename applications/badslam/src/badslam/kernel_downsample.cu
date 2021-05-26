@@ -186,6 +186,8 @@ if (x < downsampled_depth.width() && y < downsampled_depth.height()) {
   float depth_sum = 0;
   int depth_count = 0;
   float feature_sum[kTotalChannels] = {0};// each channel will have a sum, will take average for each later 
+  float wg_sum = 0; // 5.26
+  float wf_sum = 0; // 5.26
 
   #pragma unroll
   for (int i = 0; i < 4; ++ i) {
@@ -196,6 +198,13 @@ if (x < downsampled_depth.width() && y < downsampled_depth.height()) {
     #pragma unroll
     for (int c = 0; c < kTotalChannels; ++c){
       feature_sum[c] += feature_buffer(2 * y + kOffsets[i][0], (2 * x + kOffsets[i][1])*kTotalChannels + c);
+    }
+    // 5.25 downsample the weight map
+    if (kGeomResidualChannel > 0){
+      wg_sum += feature_buffer(2 * y + kOffsets[i][0], 2 * x + kOffsets[i][1] + kTotalChannels*2*downsampled_depth.width());
+    }
+    if (kFeatResidualChannel > 0){
+      wf_sum += feature_buffer(2 * y + kOffsets[i][0], 2 * x + kOffsets[i][1] + (kTotalChannels+kGeomResidualChannel)*2*downsampled_depth.width());
     }
     if (depths[i] > 0) {
       depth_sum += depths[i];
@@ -210,7 +219,13 @@ if (x < downsampled_depth.width() && y < downsampled_depth.height()) {
     // 2.10 TODO: uncomment if not debugging
     // CudaAssert(x*kTotalChannels+c < downsampled_feature.width());
     downsampled_feature(y, x*kTotalChannels+c) = feature_sum[c] / 4.f; // average over 4 nearby pixels
-    
+  }
+  // 5.26
+  if (kGeomResidualChannel){
+    downsampled_feature(y, kTotalChannels*downsampled_depth.width() + x) = wg_sum/4.f;
+  }
+  if(kFeatResidualChannel){
+    downsampled_feature(y, (kTotalChannels+kGeomResidualChannel)*downsampled_depth.width() + x) = wf_sum/4.f;
   }
 
   if (depth_count == 0) {
