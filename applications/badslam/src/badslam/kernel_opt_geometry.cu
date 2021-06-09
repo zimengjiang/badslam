@@ -419,7 +419,7 @@ __global__ void AccumulateSurfelPositionAndDescriptorOptimizationCoeffs1PointCUD
             r.surfel_local_position, rn, &local_unproj, &raw_depth_residual);
         
         // 5.26
-        if(kGeomResidualChannel){
+        if(kGeomResidualChannel > 0){
           wg = feature_arr(r.py, r.px + kTotalChannels*kFeatureW); // BA only on the finest scale
         }
         const float depth_weight = ComputeDepthResidualWeight(raw_depth_residual)*wg;
@@ -494,7 +494,7 @@ __global__ void AccumulateSurfelPositionAndDescriptorOptimizationCoeffs1PointCUD
           raw_residual_squared_sum += (raw_descriptor_residual[channel]*raw_descriptor_residual[channel]);
         }
         // 5.26
-        if(kFeatResidualChannel){
+        if(kFeatResidualChannel > 0){
           wf = BilinearInterpolateFeatureWeight(feature_arr, color_pxy.x, color_pxy.y);
         }
         const float weight_1 = ComputeDescriptorResidualWeightParam(raw_residual_squared_sum, rf_weight)*wf; // 5.20, 5.26

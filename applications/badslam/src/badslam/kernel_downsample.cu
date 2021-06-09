@@ -186,7 +186,7 @@ if (x < downsampled_depth.width() && y < downsampled_depth.height()) {
   float depth_sum = 0;
   int depth_count = 0;
   float feature_sum[kTotalChannels] = {0};// each channel will have a sum, will take average for each later 
-  float wg_sum = 0; // 5.26
+  // float wg_sum = 0; // 5.26
   float wf_sum = 0; // 5.26
 
   #pragma unroll
@@ -200,9 +200,9 @@ if (x < downsampled_depth.width() && y < downsampled_depth.height()) {
       feature_sum[c] += feature_buffer(2 * y + kOffsets[i][0], (2 * x + kOffsets[i][1])*kTotalChannels + c);
     }
     // 5.25 downsample the weight map
-    if (kGeomResidualChannel > 0){
-      wg_sum += feature_buffer(2 * y + kOffsets[i][0], 2 * x + kOffsets[i][1] + kTotalChannels*2*downsampled_depth.width());
-    }
+    // if (kGeomResidualChannel > 0){
+    //   wg_sum += feature_buffer(2 * y + kOffsets[i][0], 2 * x + kOffsets[i][1] + kTotalChannels*2*downsampled_depth.width());
+    // }
     if (kFeatResidualChannel > 0){
       wf_sum += feature_buffer(2 * y + kOffsets[i][0], 2 * x + kOffsets[i][1] + (kTotalChannels+kGeomResidualChannel)*2*downsampled_depth.width());
     }
@@ -220,10 +220,10 @@ if (x < downsampled_depth.width() && y < downsampled_depth.height()) {
     // CudaAssert(x*kTotalChannels+c < downsampled_feature.width());
     downsampled_feature(y, x*kTotalChannels+c) = feature_sum[c] / 4.f; // average over 4 nearby pixels
   }
-  // 5.26
-  if (kGeomResidualChannel){
-    downsampled_feature(y, kTotalChannels*downsampled_depth.width() + x) = wg_sum/4.f;
-  }
+  // // 5.26
+  // if (kGeomResidualChannel){
+  //   downsampled_feature(y, kTotalChannels*downsampled_depth.width() + x) = wg_sum/4.f;
+  // }
   if(kFeatResidualChannel){
     downsampled_feature(y, (kTotalChannels+kGeomResidualChannel)*downsampled_depth.width() + x) = wf_sum/4.f;
   }
@@ -247,6 +247,10 @@ if (x < downsampled_depth.width() && y < downsampled_depth.height()) {
     
     downsampled_depth(y, x) = depths[closest_index];
     downsampled_normals(y, x) = normals_buffer(2 * y + kOffsets[closest_index][0], 2 * x + kOffsets[closest_index][1]);
+    // 6.4 debugging the downsampling of depth weight
+    if (kGeomResidualChannel){
+      downsampled_feature(y, kTotalChannels*downsampled_depth.width() + x) = feature_buffer(2 * y + kOffsets[closest_index][0], 2 * x + kOffsets[closest_index][1] + kTotalChannels*2*downsampled_depth.width());
+    }
   }
   // Bilinearly interpolate in the middle of the original 4 pixels to get their average.
   float color = tex2D<float>(color_texture, 2 * x + 1.0f, 2 * y + 1.0f);

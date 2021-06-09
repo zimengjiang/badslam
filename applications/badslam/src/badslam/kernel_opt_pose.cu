@@ -2856,6 +2856,7 @@ __global__ void ComputeCostAnd1PointResidualCountFromFeaturesCUDAKernel(
               
               if (use_depth_residuals) {
                 if (kGeomResidualChannel > 0){
+                  // 6.7 this indexing holds only if depth and rgb image has the same resolution , ideally it should be : kTotalChannels*kFeatureW.width()+x
                   wg = surfel_feature(y, kTotalChannels*surfel_depth.width()+x) * frame_feature(py, kTotalChannels*surfel_depth.width()+px);
                }
                 float depth_residual_inv_stddev =

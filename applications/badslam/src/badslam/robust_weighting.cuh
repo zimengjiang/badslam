@@ -93,7 +93,7 @@ __forceinline__ __device__ float HuberWeightSquaredResidual(
     float huber_parameter) {
   const float residual_sqrt = sqrtf(residual_squared);
   const float residual_sqrt_inv = 1./(::max(1e-6f, residual_sqrt));
-  return (residual_squared < huber_parameter) ? 1.f : (huber_parameter / residual_sqrt_inv);
+  return (residual_squared < huber_parameter) ? 1.f : (huber_parameter * residual_sqrt_inv);
 }
 
 // 5.11 the input residual is err^2

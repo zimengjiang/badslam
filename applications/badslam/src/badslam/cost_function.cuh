@@ -435,14 +435,14 @@ __forceinline__ __device__ float BilinearInterpolateFeatureWeight(
     int ix = static_cast<int>(::max(0.f, px - 0.5f));      // i = floor(px-0.5), converting corner pixel to center pixel convention
     int iy = static_cast<int>(::max(0.f, py - 0.5f));      // j = floor(py-0.5)
     // ix = ::min(ix, feature_arr.width()/kTotalChannels-1);
-    ix = ::min(ix, feature_arr.width()/(kTotalChannels+kGeomResidualChannel+kFeatResidualChannel)-1);
+    int w = feature_arr.width()/(kTotalChannels+kGeomResidualChannel+kFeatResidualChannel);
+    ix = ::min(ix, w-1);
     iy = ::min(iy, feature_arr.height()-1);
     float alpha = ::max(0.f, ::min(1.f, px - 0.5f - ix));  // alpha = frac(px-0.5) 
     float beta = ::max(0.f, ::min(1.f, py - 0.5f - iy));   // beta = frac(py-0.5)
     // unsigned int surfel_index = blockIdx.x * blockDim.x + threadIdx.x;
 
     int2 top_left, top_right, bottom_left, bottom_right;
-    int w = feature_arr.width()/(kTotalChannels+kGeomResidualChannel+kFeatResidualChannel);
     top_left = make_int2(ix,iy);
     // top_right = make_int2(::min(ix+1, feature_arr.width()/kTotalChannels-1),iy);
     top_right = make_int2(::min(ix+1, w-1),iy);
