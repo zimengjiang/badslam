@@ -103,7 +103,7 @@ __forceinline__ __device__ float HuberResidualSquared(
     float residual_squared,
     float huber_parameter) {
   const float residual_sqrt = sqrtf(residual_squared);
-  return (residual_squared < huber_parameter) ? residual_squared : (2*residual_sqrt-1);
+  return (residual_squared < huber_parameter) ? residual_squared : (2*residual_sqrt-huber_parameter)*huber_parameter;
 }
 
 }
