@@ -98,7 +98,8 @@ bool BadSlamConfig::Save(FILE* file) const {
 
   // 5.20 residual weight
   fwrite(&rf_weight, sizeof(float), 1, file);
-  
+  // 6.9
+  fwrite(&tracking_interval, sizeof(int), 1, file);
   return true;
 }
 

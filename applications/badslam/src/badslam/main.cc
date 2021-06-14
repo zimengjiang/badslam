@@ -405,6 +405,11 @@ int LIBVIS_QT_MAIN(int argc, char** argv) {
       "--rf_weight",
       &bad_slam_config.rf_weight, /*required*/ false,
       bad_slam_config.rf_weight_help);
+  // 6.9 
+  cmd_parser.NamedParameter(
+      "--tracking_interval",
+      &bad_slam_config.tracking_interval, /*required*/ false,
+      bad_slam_config.tracking_interval_help);
   
   
   // These sequential parameters must be specified last (in code).
@@ -529,6 +534,7 @@ int LIBVIS_QT_MAIN(int argc, char** argv) {
     live_input = 2;
   } else {
     if (!ReadTUMRGBDDatasetAssociatedAndCalibrated(
+                bad_slam_config.tracking_interval, // 6.9
                 feature_folder.c_str(), // 2.9 for loading features
                 dataset_folder_path.c_str(),
                 trajectory_path.empty() ? nullptr : trajectory_path.c_str(),

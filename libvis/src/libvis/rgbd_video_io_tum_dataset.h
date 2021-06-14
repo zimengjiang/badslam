@@ -126,6 +126,7 @@ bool ReadTUMRGBDTrajectory(
 // The trajectory filename can be left empty to not load a trajectory.
 template<typename ColorT, typename DepthT>
 bool ReadTUMRGBDDatasetAssociatedAndCalibrated(
+    const int tracking_interval, // 6.9
     const char* feature_folder, // 2.9 name of the feature folder
     const char* dataset_folder_path,
     const char* trajectory_filename,
@@ -167,13 +168,17 @@ bool ReadTUMRGBDDatasetAssociatedAndCalibrated(
     LOG(ERROR) << "Could not open associated file: " << associated_filename;
     return false;
   }
-  
+  // 6.8 load for every tracking_interval frames
+  // int tracking_interval = 2;
+  int frame_counter = 0;
   while (!associated_file.eof() && !associated_file.bad()) {
+    // 6.8
     std::getline(associated_file, line);
-    if (line.size() == 0 || line[0] == '#') {
+    if (line.size() == 0 || line[0] == '#' || frame_counter % tracking_interval !=0) {
+      frame_counter ++;
       continue;
     }
-    
+    frame_counter ++;
     char rgb_time_string[128];
     char rgb_filename[128];
     char depth_time_string[128];

@@ -378,6 +378,11 @@ struct BadSlamConfig {
       "The weight of feature-metric residual. see kDescriptorResidualWeight. By default it's 1.f";
   float rf_weight = 1.f;
 
+  // 6.9
+  static constexpr const char* tracking_interval_help =
+      "The frame intervals for tracking. By default it's 1 (track every frame)";
+  int tracking_interval = 1;
+
 };
 
 }

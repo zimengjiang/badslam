@@ -1585,6 +1585,7 @@ void MainWindow::WorkerThreadMain() {
     live_input = 2;
   } else {
     if (!ReadTUMRGBDDatasetAssociatedAndCalibrated(
+            config_.tracking_interval, // 6.9
             feature_folder_.c_str(), // 2.9 name of the feature folder
             dataset_folder_path_.c_str(),
             nullptr,  // TODO:  trajectory_path.empty() ? nullptr : trajectory_path.c_str(),
