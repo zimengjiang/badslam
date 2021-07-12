@@ -895,7 +895,9 @@ __global__ void AccumulatePoseEstimationCoeffs1PointCUDAKernel(
     for (int channel = 0; channel < kTotalChannels; ++channel){
       raw_residual_squared_sum += (raw_residual_vec[channel]*raw_residual_vec[channel]);
     }
-    float DescriptorResidualWeight = ComputeDescriptorResidualWeightParam(raw_residual_squared_sum, rf_weight);
+    // float DescriptorResidualWeight = ComputeDescriptorResidualWeightParam(raw_residual_squared_sum, rf_weight);
+    // 7.7 use different huber param for BA
+    float DescriptorResidualWeight = ComputeDescriptorResidualWeightParamBA(raw_residual_squared_sum, rf_weight);
     for (int channel = 0; channel < kTotalChannels; ++channel){
       AccumulateGaussNewtonHAndB<6, block_width, block_height>(
         visible,
@@ -911,7 +913,7 @@ __global__ void AccumulatePoseEstimationCoeffs1PointCUDAKernel(
     if (debug) {
       AccumulatePoseResidualAndCount<block_width, block_height>(
           visible,
-          ComputeWeightedDescriptorResidualParam(raw_residual_vec[0], rf_weight),
+          ComputeWeightedDescriptorResidualParamBA(raw_residual_vec[0], rf_weight),
           residual_count_buffer,
           residual_buffer,
           &temp_storage.float_storage,
@@ -1610,15 +1612,15 @@ __global__ void AccumulatePoseEstimationCoeffsFromFeatures1PointCUDAKernel(
     DepthToColorPixelCorner depth_to_color,
     float threshold_factor,
     float rf_weight, // 5.20 
-    CUDAMatrix3x4 estimate_frame_T_surfel_frame,
+    CUDAMatrix3x4 estimate_frame_T_surfel_frame, // 7.8 from base to tracked
     CUDABuffer_<float> surfel_depth,
     CUDABuffer_<u16> surfel_normals,
-    CUDABuffer_<u8> surfel_color,
-    CUDABuffer_<float> surfel_feature, // 2.10
+    // CUDABuffer_<u8> surfel_color,
+    CUDABuffer_<float> surfel_feature, // 2.10, 7.8 base features
     CUDABuffer_<float> frame_depth,
     CUDABuffer_<u16> frame_normals,
-    cudaTextureObject_t frame_color,
-    CUDABuffer_<float> frame_feature, // 2.10
+    // cudaTextureObject_t frame_color,
+    CUDABuffer_<float> frame_feature, // 2.10, 7.8 tracked features
     CUDABuffer_<u32> residual_count_buffer,
     CUDABuffer_<float> residual_buffer,
     CUDABuffer_<float> H_buffer,
@@ -1839,11 +1841,11 @@ void CallAccumulatePoseEstimationCoeffsFromFeatures1PointCUDAKernel(
   const CUDAMatrix3x4& estimate_frame_T_surfel_frame,
   const CUDABuffer_<float>& surfel_depth,
   const CUDABuffer_<u16>& surfel_normals,
-  const CUDABuffer_<u8>& surfel_color,
+  // const CUDABuffer_<u8>& surfel_color,
   const CUDABuffer_<float>& surfel_feature, // 2.10
   const CUDABuffer_<float>& frame_depth,
   const CUDABuffer_<u16>& frame_normals,
-  cudaTextureObject_t frame_color,
+  // cudaTextureObject_t frame_color,
   const CUDABuffer_<float>& frame_feature, // 2.10
   const CUDABuffer_<u32>& residual_count_buffer,
   const CUDABuffer_<float>& residual_buffer,
@@ -1868,11 +1870,11 @@ COMPILE_OPTION_3(debug, use_depth_residuals, use_descriptor_residuals,
       estimate_frame_T_surfel_frame,
       surfel_depth,
       surfel_normals,
-      surfel_color,
+      // surfel_color,
       surfel_feature, // 2.10
       frame_depth,
       frame_normals,
-      frame_color,
+      // frame_color,
       frame_feature, // 2.10
       residual_count_buffer,
       residual_buffer,
@@ -2803,11 +2805,11 @@ __global__ void ComputeCostAnd1PointResidualCountFromFeaturesCUDAKernel(
     CUDAMatrix3x4 estimate_frame_T_surfel_frame,
     CUDABuffer_<float> surfel_depth,
     CUDABuffer_<u16> surfel_normals,
-    CUDABuffer_<u8> surfel_color,
+    // CUDABuffer_<u8> surfel_color,
     CUDABuffer_<float> surfel_feature, // 2.10
     CUDABuffer_<float> frame_depth,
     CUDABuffer_<u16> frame_normals,
-    cudaTextureObject_t frame_color,
+    // cudaTextureObject_t frame_color,
     CUDABuffer_<float> frame_feature, // 2.10
     CUDABuffer_<u32> residual_count_buffer,
     CUDABuffer_<float> residual_buffer) {
@@ -2984,11 +2986,11 @@ void ComputeCostAnd1PointResidualCountFromFeaturesCUDAKernel(
   const CUDAMatrix3x4& estimate_frame_T_surfel_frame,
   const CUDABuffer_<float>& surfel_depth,
   const CUDABuffer_<u16>& surfel_normals,
-  const CUDABuffer_<u8>& surfel_color,
+  // const CUDABuffer_<u8>& surfel_color,
   const CUDABuffer_<float>& surfel_feature, // 2.10
   const CUDABuffer_<float>& frame_depth,
   const CUDABuffer_<u16>& frame_normals,
-  cudaTextureObject_t frame_color,
+  // cudaTextureObject_t frame_color,
   const CUDABuffer_<float>& frame_feature, // 2.10
   const CUDABuffer_<u32>& residual_count_buffer,
   const CUDABuffer_<float>& residual_buffer) {
@@ -3009,11 +3011,11 @@ COMPILE_OPTION_2(use_depth_residuals, use_descriptor_residuals,
         estimate_frame_T_surfel_frame,
         surfel_depth,
         surfel_normals,
-        surfel_color,
+        // surfel_color,
         surfel_feature, // 2.10
         frame_depth,
         frame_normals,
-        frame_color,
+        // frame_color,
         frame_feature, // 2.10
         residual_count_buffer,
         residual_buffer));

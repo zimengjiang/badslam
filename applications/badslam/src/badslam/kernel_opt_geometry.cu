@@ -497,7 +497,8 @@ __global__ void AccumulateSurfelPositionAndDescriptorOptimizationCoeffs1PointCUD
         if(kFeatResidualChannel > 0){
           wf = BilinearInterpolateFeatureWeight(feature_arr, color_pxy.x, color_pxy.y);
         }
-        const float weight_1 = ComputeDescriptorResidualWeightParam(raw_residual_squared_sum, rf_weight)*wf; // 5.20, 5.26
+        // const float weight_1 = ComputeDescriptorResidualWeightParam(raw_residual_squared_sum, rf_weight)*wf; // 5.20, 5.26
+        const float weight_1 = ComputeDescriptorResidualWeightParamBA(raw_residual_squared_sum, rf_weight)*wf; // 7.7
         
         for (int channel_i = 0; channel_i < kTotalChannels; ++channel_i){
           

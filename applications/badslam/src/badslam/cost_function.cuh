@@ -123,7 +123,8 @@ constexpr float kDescriptorResidualWeight = 1.f; // 4.12
 // Parameter for the Huber robust loss function for photometric residuals.
 // TODO: Make parameter?
 // constexpr float kDescriptorResidualHuberParameter = 10.f;
-constexpr float kDescriptorResidualHuberParameter =  1.f; // 4.9 1/18
+constexpr float kDescriptorResidualHuberParameter =  0.05f; // 4.9 1/18
+constexpr float kDescriptorResidualHuberParameterBA =  0.05f; // 4.9 1/18
 
 
 // Computes the projections in an image of two (mostly) fixed points on the
@@ -210,6 +211,14 @@ __forceinline__ __device__ float ComputeDescriptorResidualWeightParam(float raw_
   return scaling * rf_weight * HuberWeightSquaredResidual(raw_residual, kDescriptorResidualHuberParameter);
 }
 
+// 7.7
+// Computes the weight of the descriptor residual in the optimization.
+__forceinline__ __device__ float ComputeDescriptorResidualWeightParamBA(float raw_residual, float rf_weight, float scaling = 1.f) {
+  // return scaling * kDescriptorResidualWeight * HuberWeight(raw_residual, kDescriptorResidualHuberParameter);
+  // return scaling * kDescriptorResidualWeight * HuberWeightSquaredResidual(raw_residual, kDescriptorResidualHuberParameter);
+  return scaling * rf_weight * HuberWeightSquaredResidual(raw_residual, kDescriptorResidualHuberParameterBA);
+}
+
 // Computes the weighted descriptor residual for summing up the optimization 
 // cost.
 __forceinline__ __device__ float ComputeWeightedDescriptorResidualParam(float raw_residual, float rf_weight, float scaling = 1.f) {
@@ -217,6 +226,16 @@ __forceinline__ __device__ float ComputeWeightedDescriptorResidualParam(float ra
   // return scaling * kDescriptorResidualWeight * HuberResidualSquared(raw_residual, kDescriptorResidualHuberParameter);
   return scaling * rf_weight * HuberResidualSquared(raw_residual, kDescriptorResidualHuberParameter);
 }
+
+// Computes the weighted descriptor residual for summing up the optimization 
+// cost.
+// 7.7 use huber param for BA
+__forceinline__ __device__ float ComputeWeightedDescriptorResidualParamBA(float raw_residual, float rf_weight, float scaling = 1.f) {
+  // return scaling * kDescriptorResidualWeight * HuberResidual(raw_residual, kDescriptorResidualHuberParameter);
+  // return scaling * kDescriptorResidualWeight * HuberResidualSquared(raw_residual, kDescriptorResidualHuberParameter);
+  return scaling * rf_weight * HuberResidualSquared(raw_residual, kDescriptorResidualHuberParameterBA);
+}
+
 
 // Computes the Jacobian of a surfel descriptor with regard to changes in the
 // projected pixel position of the surfel. This function makes the approximation that

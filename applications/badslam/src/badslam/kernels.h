@@ -281,12 +281,12 @@ void AccumulatePoseEstimationCoeffsFromFeatures1PointCUDA(
     float rf_weight, // 5.20
     const CUDABuffer<float>& downsampled_depth,
     const CUDABuffer<u16>& downsampled_normals,
-    cudaTextureObject_t downsampled_color,
+    // cudaTextureObject_t downsampled_color,
     const CUDABuffer<float>& downsampled_feature, // 2.10
     const CUDAMatrix3x4& estimate_frame_T_surfel_frame,
     const CUDABuffer<float>& surfel_depth,
     const CUDABuffer<u16>& surfel_normals,
-    const CUDABuffer<uchar>& surfel_color,
+    // const CUDABuffer<uchar>& surfel_color,
     const CUDABuffer<float>& surfel_feature, // 2.10
     u32* residual_count,
     float* residual_sum,
@@ -350,12 +350,12 @@ void ComputeCostAnd1PointResidualCountFromFeaturesCUDA(
     float rf_weight, // 5.20 
     const CUDABuffer<float>& downsampled_depth,
     const CUDABuffer<u16>& downsampled_normals,
-    cudaTextureObject_t downsampled_color,
+    // cudaTextureObject_t downsampled_color,
     const CUDABuffer<float>& downsampled_feature, // 2.10
     const CUDAMatrix3x4& estimate_frame_T_surfel_frame,
     const CUDABuffer<float>& surfel_depth,
     const CUDABuffer<u16>& surfel_normals,
-    const CUDABuffer<uchar>& surfel_color,
+    // const CUDABuffer<uchar>& surfel_color,
     const CUDABuffer<float>& sufel_feature, // 2.10 
     u32* residual_count,
     float* residual_sum,
@@ -527,6 +527,19 @@ void DownsampleImagesAndFeaturesCUDA(
   CUDABuffer_<u16>* downsampled_normals,
   CUDABuffer_<u8>* downsampled_color,
   CUDABuffer_<float>* downsampled_feature, // 2.10
+  bool debug);
+
+// 7.8 normalize features of each scale
+void NormalizeFeaturesCUDA(
+  cudaStream_t stream,
+//   const CUDABuffer_<float>* depth_buffer,
+//   const CUDABuffer_<u16>* normals_buffer,
+//   cudaTextureObject_t color_texture,
+  CUDABuffer_<float>* feature_buffer, // 2.10
+//   CUDABuffer_<float>* downsampled_depth,
+//   CUDABuffer_<u16>* downsampled_normals,
+//   CUDABuffer_<u8>* downsampled_color,
+//   CUDABuffer_<float>* downsampled_feature, // 2.10
   bool debug);
 
 // void DownsampleImagesConsistentlyCUDA(

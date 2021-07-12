@@ -362,6 +362,9 @@ __global__ void AccumulateIntrinsicsCoefficients1PointCUDAKernel(
   float raw_residual_vec[kSurfelNumDescriptor]={0};
   float jacobian_all[4*kSurfelNumDescriptor] = {0}; // jacobian w.r.t. fx, fy, cx, cy
   int sparse_pixel_index = -1;
+  // 6.22
+  float wf = 1.f;
+  float wg = 1.f;
   
   SurfelProjectionResult6 r;
   if (SurfelProjectsToAssociatedPixel(surfel_index, s, &r)) {
@@ -406,6 +409,10 @@ __global__ void AccumulateIntrinsicsCoefficients1PointCUDAKernel(
             depth_residual_inv_stddev, r.surfel_local_position, local_surfel_normal, local_unproj, &raw_depth_residual);
         sparse_pixel_index = sparse_px + sparse_py * s.depth_params.cfactor_buffer.width();
       }
+      // 6.22
+      if(kGeomResidualChannel > 0){
+        wg = feature(r.py, r.px + kTotalChannels*kFeatureW);
+      }
     }
     
     if (optimize_color_intrinsics) {
@@ -434,7 +441,9 @@ __global__ void AccumulateIntrinsicsCoefficients1PointCUDAKernel(
              *(jacobian_all+4*channel+2) = grad_x_1; // 2.22 cx_color
              *(jacobian_all+4*channel+3) = grad_y_1; // 2.22 cy_color
         }
-
+        if (kFeatResidualChannel > 0){
+          wf = BilinearInterpolateFeatureWeight(feature, color_pxy.x, color_pxy.y);
+        }
         /*
         float grad_x_1;
         float grad_y_1;
@@ -467,7 +476,7 @@ __global__ void AccumulateIntrinsicsCoefficients1PointCUDAKernel(
   __shared__ typename BlockReduceFloat::TempStorage float_storage;
   
   if (optimize_depth_intrinsics) {
-    const float depth_weight = ComputeDepthResidualWeight(raw_depth_residual);
+    const float depth_weight = ComputeDepthResidualWeight(raw_depth_residual)*wg;
     
     // depth_jacobian.tranpose() * depth_jacobian (top-left part A), as well as
     // depth_jacobian.transpose() * raw_depth_residual (top rows corresponding to A):
@@ -523,7 +532,8 @@ __global__ void AccumulateIntrinsicsCoefficients1PointCUDAKernel(
     for (int channel = 0; channel < kTotalChannels; ++channel){
       raw_residual_squared_sum += (raw_residual_vec[channel]*raw_residual_vec[channel]);
     }
-    float DescriptorResidualWeight = ComputeDescriptorResidualWeightParam(raw_residual_squared_sum, rf_weight); // 5.20
+    // float DescriptorResidualWeight = ComputeDescriptorResidualWeightParam(raw_residual_squared_sum, rf_weight)*wf; // 5.20
+    float DescriptorResidualWeight = ComputeDescriptorResidualWeightParamBA(raw_residual_squared_sum, rf_weight)*wf; // 7.7
     for (int channel=0; channel<kTotalChannels; ++channel){
       AccumulateGaussNewtonHAndB<4, block_width, block_height>(
         raw_residual_vec[channel] != 0, // first residual term

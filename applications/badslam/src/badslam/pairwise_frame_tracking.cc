@@ -291,7 +291,8 @@ repeat_pose_estimation:;
   
   static CUDABufferPtr<float> debug_residual_image;
   if ((kDebug || convergence_samples_file) && !debug_residual_image) {
-    debug_residual_image.reset(new CUDABuffer<float>(tracked_depth_buffer.height() / 2, tracked_depth_buffer.width() / 2));
+    // debug_residual_image.reset(new CUDABuffer<float>(tracked_depth_buffer.height() / 2, tracked_depth_buffer.width() / 2)); // 7.7 why / 2 ?
+    debug_residual_image.reset(new CUDABuffer<float>(tracked_depth_buffer.height() , tracked_depth_buffer.width())); // 7.7 why / 2 ?
   }
   
   // Set pointers to use provided base image
@@ -364,6 +365,22 @@ repeat_pose_estimation:;
           kDebug);
     }
   }
+
+  // 7.8 normalize features of each scale
+  // for (u32 scale = 0; scale < num_scales; ++ scale) {
+  //   if(scale>0){
+  //     NormalizeFeaturesCUDA(
+  //       stream,
+  //       // *base_color_textures[scale],
+  //       &base_features[scale]->ToCUDA(), // 2.10
+  //       kDebug);
+  //     NormalizeFeaturesCUDA(
+  //       stream,
+  //       // *base_color_textures[scale],
+  //       &tracked_features[scale]->ToCUDA(), // 2.10
+  //       kDebug);
+  //   }
+  // }
 
   // 2.11 TODO: save features here to check scaling
   if (convergence_samples_file) {
@@ -470,12 +487,12 @@ repeat_pose_estimation:;
           rf_weight, //5.20
           *tracked_depth[scale],
           *tracked_normals[scale],
-          *tracked_color_textures[scale],
+          // *tracked_color_textures[scale],
           *tracked_features[scale], // 2.10
           CUDAMatrix3x4(base_T_frame_last_scale.inverse().matrix3x4()),
           *base_depth[scale],
           *base_normals[scale],
-          *base_color[scale],
+          // *base_color[scale],
           *base_features[scale], // 2.10
           &residual_count_last_scale,
           &cost_last_scale,
@@ -494,12 +511,12 @@ repeat_pose_estimation:;
           rf_weight, // 5.20
           *tracked_depth[scale],
           *tracked_normals[scale],
-          *tracked_color_textures[scale],
+          // *tracked_color_textures[scale],
           *tracked_features[scale],
           CUDAMatrix3x4(base_T_frame_initial_estimate.inverse().matrix3x4()),
           *base_depth[scale],
           *base_normals[scale],
-          *base_color[scale],
+          // *base_color[scale],
           *base_features[scale],
           &residual_count_initial_estimate,
           &cost_initial_estimate,
@@ -510,22 +527,26 @@ repeat_pose_estimation:;
   //       if (scale != num_scales - 1) {
   //         ++ times_last_scale_chosen;
   //       }
+        // printf("jzm0, use last scale");
         base_T_frame_estimate = base_T_frame_last_scale;
       } else if (residual_count_initial_estimate > 2 * residual_count_last_scale) {
   //       if (scale != num_scales - 1) {
   //         ++ times_initial_estimate_chosen;
   //       }
         base_T_frame_estimate = base_T_frame_initial_estimate;
+        // printf("jzm1, use initial");
       } else if (cost_last_scale < cost_initial_estimate) {
   //       if (scale != num_scales - 1) {
   //         ++ times_last_scale_chosen;
   //       }
         base_T_frame_estimate = base_T_frame_last_scale;
+        // printf("jzm2, use last scale");
       } else {
   //       if (scale != num_scales - 1) {
   //         ++ times_initial_estimate_chosen;
   //       }
         base_T_frame_estimate = base_T_frame_initial_estimate;
+        // printf("jzm3, use initial");
       }
       
       if (scale == num_scales - 1) {
@@ -564,12 +585,12 @@ repeat_pose_estimation:;
           rf_weight, // 5.20
           *tracked_depth[scale],
           *tracked_normals[scale],
-          *tracked_color_textures[scale],
+          // *tracked_color_textures[scale],
           *tracked_features[scale], // 2.10
           CUDAMatrix3x4(base_T_frame_estimate.inverse().matrix3x4()),
           *base_depth[scale],
           *base_normals[scale],
-          *base_color[scale],
+          // *base_color[scale],
           *base_features[scale], // 2.10
           &residual_count,
           &residual_sum,

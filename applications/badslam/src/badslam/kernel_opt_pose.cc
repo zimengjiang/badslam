@@ -493,12 +493,12 @@ void ComputeCostAnd1PointResidualCountFromFeaturesCUDA(
     float rf_weight, // 5.20 
     const CUDABuffer<float>& downsampled_depth,
     const CUDABuffer<u16>& downsampled_normals,
-    cudaTextureObject_t downsampled_color,
+    // cudaTextureObject_t downsampled_color,
     const CUDABuffer<float>& downsampled_feature, // 2.10 tracked 
     const CUDAMatrix3x4& estimate_frame_T_surfel_frame,
     const CUDABuffer<float>& surfel_depth,
     const CUDABuffer<u16>& surfel_normals,
-    const CUDABuffer<uchar>& surfel_color,
+    // const CUDABuffer<uchar>& surfel_color,
     const CUDABuffer<float>& surfel_feature, // 2.10 base
     u32* residual_count,
     float* residual_sum,
@@ -522,11 +522,11 @@ void ComputeCostAnd1PointResidualCountFromFeaturesCUDA(
       estimate_frame_T_surfel_frame,
       surfel_depth.ToCUDA(), //2.7 base_depth[scale]
       surfel_normals.ToCUDA(),
-      surfel_color.ToCUDA(),
+      // surfel_color.ToCUDA(),
       surfel_feature.ToCUDA(), // 2.10
       downsampled_depth.ToCUDA(), // 2.7 tracked_depth[scale]
       downsampled_normals.ToCUDA(),
-      downsampled_color,
+      // downsampled_color,
       downsampled_feature.ToCUDA(), // 2.10
       helper_buffers->residual_count_buffer.ToCUDA(),
       helper_buffers->residual_buffer.ToCUDA());
@@ -550,12 +550,12 @@ void AccumulatePoseEstimationCoeffsFromFeatures1PointCUDA(
     float rf_weight, // 5.20
     const CUDABuffer<float>& downsampled_depth,
     const CUDABuffer<u16>& downsampled_normals,
-    cudaTextureObject_t downsampled_color,
+    // cudaTextureObject_t downsampled_color,
     const CUDABuffer<float>& downsampled_feature, // 2.10
     const CUDAMatrix3x4& estimate_frame_T_surfel_frame,
     const CUDABuffer<float>& surfel_depth,
     const CUDABuffer<u16>& surfel_normals,
-    const CUDABuffer<uchar>& surfel_color,
+    // const CUDABuffer<uchar>& surfel_color,
     const CUDABuffer<float>& surfel_feature, // 2.10
     u32* residual_count,
     float* residual_sum,
@@ -591,11 +591,11 @@ void AccumulatePoseEstimationCoeffsFromFeatures1PointCUDA(
         estimate_frame_T_surfel_frame,
         surfel_depth.ToCUDA(),
         surfel_normals.ToCUDA(),
-        surfel_color.ToCUDA(),
+        // surfel_color.ToCUDA(),
         surfel_feature.ToCUDA(), // 2.10
         downsampled_depth.ToCUDA(),
         downsampled_normals.ToCUDA(),
-        downsampled_color,
+        // downsampled_color,
         downsampled_feature.ToCUDA(), // 2.10
         helper_buffers->residual_count_buffer.ToCUDA(),
         helper_buffers->residual_buffer.ToCUDA(),

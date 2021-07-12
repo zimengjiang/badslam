@@ -439,6 +439,71 @@ CUDA_AUTO_TUNE_2D(
 CUDA_CHECK();
 }
 
+// 7.8
+__global__ void NormalizeFeaturesCUDAKernel(
+  // CUDABuffer_<float> depth_buffer,
+  // CUDABuffer_<u16> normals_buffer,
+  // cudaTextureObject_t color_texture,
+  CUDABuffer_<float> feature_buffer // 2.10 // the feature buffer contain both feature values and weights!
+  // CUDABuffer_<float> downsampled_depth,
+  // CUDABuffer_<u16> downsampled_normals,
+  // CUDABuffer_<u8> downsampled_color,
+  // CUDABuffer_<float> downsampled_feature /*2.10*/
+) {
+unsigned int x = blockIdx.x * blockDim.x + threadIdx.x;
+unsigned int y = blockIdx.y * blockDim.y + threadIdx.y;
+
+// only normalize features, but not feature weights!!!
+if (x < feature_buffer.width() / (kTotalChannels+kGeomResidualChannel+kFeatResidualChannel) && y < feature_buffer.height()) {
+  float feature_sqaured_norm = 0; // store the L2 norm of each feature vector
+  float value=0; 
+  #pragma unroll
+  for (int c = 0; c < kTotalChannels; ++c){
+    value = feature_buffer(y, kTotalChannels*x + c);
+    feature_sqaured_norm += (value*value);
+  }
+  float feature_norm = sqrtf(feature_sqaured_norm);
+  #pragma unroll
+  for (int c = 0; c < kTotalChannels; ++c){
+    feature_buffer(y, kTotalChannels*x + c) = feature_buffer(y, kTotalChannels*x + c) / feature_norm;
+  }
+}
+}
+// 2.10
+void NormalizeFeaturesCUDA(
+  cudaStream_t stream,
+  // CUDABuffer_<float>* depth_buffer,
+  // CUDABuffer_<u16>* normals_buffer,
+  // cudaTextureObject_t color_texture,
+  CUDABuffer_<float>* feature_buffer, // 2.10
+  // CUDABuffer_<float>* downsampled_depth,
+  // CUDABuffer_<u16>* downsampled_normals,
+  // CUDABuffer_<u8>* downsampled_color,
+  // CUDABuffer_<float>* downsampled_feature, // 2.10
+  bool debug) {
+CUDA_CHECK();
+
+// if (debug) {
+//   downsampled_feature->Clear(0, stream); // 2.10
+// }
+
+CUDA_AUTO_TUNE_2D(
+    NormalizeFeaturesCUDAKernel,
+    32, 32,
+    feature_buffer->width()/kTotalChannels, feature_buffer->height(),
+    0, stream,
+    /* kernel parameters */
+    // *depth_buffer,
+    // *normals_buffer,
+    // color_texture,
+    *feature_buffer
+    // *downsampled_depth,
+    // *downsampled_normals,
+    // *downsampled_color,
+    // *downsampled_feature
+  );
+CUDA_CHECK();
+}
 // void DownsampleImagesConsistentlyCUDA(
 //     cudaStream_t stream,
 //     const CUDABuffer_<float>& comparison_depth_buffer,
