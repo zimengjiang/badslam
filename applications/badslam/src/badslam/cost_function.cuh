@@ -123,8 +123,8 @@ constexpr float kDescriptorResidualWeight = 1.f; // 4.12
 // Parameter for the Huber robust loss function for photometric residuals.
 // TODO: Make parameter?
 // constexpr float kDescriptorResidualHuberParameter = 10.f;
-constexpr float kDescriptorResidualHuberParameter =  0.05f; // 4.9 1/18
-constexpr float kDescriptorResidualHuberParameterBA =  0.05f; // 4.9 1/18
+constexpr float kDescriptorResidualHuberParameter =  0.5f; // 4.9 1/18
+constexpr float kDescriptorResidualHuberParameterBA =  0.5f; // 4.9 1/18
 
 
 // Computes the projections in an image of two (mostly) fixed points on the

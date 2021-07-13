@@ -411,7 +411,8 @@ __global__ void AccumulateIntrinsicsCoefficients1PointCUDAKernel(
       }
       // 6.22
       if(kGeomResidualChannel > 0){
-        wg = feature(r.py, r.px + kTotalChannels*kFeatureW);
+        // float denom_g = 1 + feature(r.py, r.px + kTotalChannels*kFeatureW);
+        wg = 1 / (1 + feature(r.py, r.px + kTotalChannels*kFeatureW));
       }
     }
     
@@ -442,7 +443,8 @@ __global__ void AccumulateIntrinsicsCoefficients1PointCUDAKernel(
              *(jacobian_all+4*channel+3) = grad_y_1; // 2.22 cy_color
         }
         if (kFeatResidualChannel > 0){
-          wf = BilinearInterpolateFeatureWeight(feature, color_pxy.x, color_pxy.y);
+          // float denom_f = 1 + BilinearInterpolateFeatureWeight(feature, color_pxy.x, color_pxy.y);
+          wf = 1 / (1 + BilinearInterpolateFeatureWeight(feature, color_pxy.x, color_pxy.y));
         }
         /*
         float grad_x_1;

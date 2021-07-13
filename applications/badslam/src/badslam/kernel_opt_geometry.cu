@@ -420,7 +420,8 @@ __global__ void AccumulateSurfelPositionAndDescriptorOptimizationCoeffs1PointCUD
         
         // 5.26
         if(kGeomResidualChannel > 0){
-          wg = feature_arr(r.py, r.px + kTotalChannels*kFeatureW); // BA only on the finest scale
+          // float denom_g = 1 + feature_arr(r.py, r.px + kTotalChannels*kFeatureW);
+          wg = 1 / (1 + feature_arr(r.py, r.px + kTotalChannels*kFeatureW)); // BA only on the finest scale
         }
         const float depth_weight = ComputeDepthResidualWeight(raw_depth_residual)*wg;
         
@@ -495,7 +496,8 @@ __global__ void AccumulateSurfelPositionAndDescriptorOptimizationCoeffs1PointCUD
         }
         // 5.26
         if(kFeatResidualChannel > 0){
-          wf = BilinearInterpolateFeatureWeight(feature_arr, color_pxy.x, color_pxy.y);
+          // float denom_f = 1 + BilinearInterpolateFeatureWeight(feature_arr, color_pxy.x, color_pxy.y);
+          wf = 1 / (1 + BilinearInterpolateFeatureWeight(feature_arr, color_pxy.x, color_pxy.y));
         }
         // const float weight_1 = ComputeDescriptorResidualWeightParam(raw_residual_squared_sum, rf_weight)*wf; // 5.20, 5.26
         const float weight_1 = ComputeDescriptorResidualWeightParamBA(raw_residual_squared_sum, rf_weight)*wf; // 7.7
