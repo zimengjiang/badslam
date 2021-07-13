@@ -48,6 +48,13 @@ void CallAccumulateSurfelNormalOptimizationCoeffsCUDAKernel(
     CUDAMatrix3x3 global_R_frame,
     CUDABuffer_<u8> active_surfels);
 
+void CallAccumulateSurfelNormalUncOptimizationCoeffsCUDAKernel(
+    cudaStream_t stream,
+    SurfelProjectionParameters s,
+    CUDAMatrix3x3 global_R_frame,
+    CUDABuffer_<float> feature_arr, // 7.13
+    CUDABuffer_<u8> active_surfels);
+
 void CallUpdateSurfelNormalCUDAKernel(
     cudaStream_t stream,
     u32 surfels_size,

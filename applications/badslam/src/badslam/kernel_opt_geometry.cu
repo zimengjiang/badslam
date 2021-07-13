@@ -103,6 +103,12 @@ __global__ void ResetSurfelAccum0to3CUDAKernel(
     surfels(kSurfelAccum1, surfel_index) = 0;
     surfels(kSurfelAccum2, surfel_index) = 0;
     surfels(kSurfelAccum3, surfel_index) = 0;
+    if (kGeomResidualChannel){
+      surfels(kSurfelAccum4, surfel_index) = 0; // 7.13 for geom unc
+    }
+    if (kFeatResidualChannel){
+      surfels(kSurfelAccum5, surfel_index) = 0; // 7.13 for feat unc
+    }
   }
 }
 
@@ -420,8 +426,8 @@ __global__ void AccumulateSurfelPositionAndDescriptorOptimizationCoeffs1PointCUD
         
         // 5.26
         if(kGeomResidualChannel > 0){
-          // float denom_g = 1 + feature_arr(r.py, r.px + kTotalChannels*kFeatureW);
-          wg = 1 / (1 + feature_arr(r.py, r.px + kTotalChannels*kFeatureW)); // BA only on the finest scale
+          // float denom_g = (1.f + feature_arr(r.py, r.px + kTotalChannels*kFeatureW)) * (1.f + s.surfels(kSurfelUncGeom, surfel_index));
+          wg = 1.f / ((1.f + feature_arr(r.py, r.px + kTotalChannels*kFeatureW)) * (1.f + s.surfels(kSurfelUncGeom, surfel_index))); // BA only on the finest scale
         }
         const float depth_weight = ComputeDepthResidualWeight(raw_depth_residual)*wg;
         
@@ -496,8 +502,8 @@ __global__ void AccumulateSurfelPositionAndDescriptorOptimizationCoeffs1PointCUD
         }
         // 5.26
         if(kFeatResidualChannel > 0){
-          // float denom_f = 1 + BilinearInterpolateFeatureWeight(feature_arr, color_pxy.x, color_pxy.y);
-          wf = 1 / (1 + BilinearInterpolateFeatureWeight(feature_arr, color_pxy.x, color_pxy.y));
+          // float denom_f = (1.f + BilinearInterpolateFeatureWeight(feature_arr, color_pxy.x, color_pxy.y))*(1.f + s.surfels(kSurfelUncFeat, surfel_index));
+          wf = 1.f / ((1.f + BilinearInterpolateFeatureWeight(feature_arr, color_pxy.x, color_pxy.y))*(1.f + s.surfels(kSurfelUncFeat, surfel_index)));
         }
         // const float weight_1 = ComputeDescriptorResidualWeightParam(raw_residual_squared_sum, rf_weight)*wf; // 5.20, 5.26
         const float weight_1 = ComputeDescriptorResidualWeightParamBA(raw_residual_squared_sum, rf_weight)*wf; // 7.7
@@ -654,7 +660,7 @@ if (surfel_index < surfels_size) {
   #pragma unroll
   for (int i = 0; i < kSurfelNumDescriptor; ++i){ // i < 2N
     // D_inverse = 1.0/D(i)
-    Di_inverse = 1.0f / (surfels(DiOffset + i, surfel_index)+kEpsilon); // 7 = 2N+1
+    Di_inverse = 1.f / (surfels(DiOffset + i, surfel_index)+kEpsilon); // 7 = 2N+1
     Bi = surfels(BiOffset + i, surfel_index); // 'A' occupies 1 space, so here b starts from kSurfelAccum0+1
     // CudaAssert(Bi!=0);
     // CudaAssert (surfels(kSurfelAccum0 + kSurfelAccumHCount, surfel_index) != 0);
@@ -1069,7 +1075,7 @@ __global__ void AccumulateSurfelNormalOptimizationCoeffsCUDAKernel(
       return;
     }
     
-    SurfelProjectionResultXY r;
+    SurfelProjectionResultXY r; // 7.13 r.px and r.py are int.
     if (SurfelProjectsToAssociatedPixel(surfel_index, s, &r)) {
       // Transform the frame's normal to global space.
       float3 local_normal = U16ToImageSpaceNormal(s.normals_buffer(r.py, r.px));
@@ -1107,6 +1113,67 @@ void CallAccumulateSurfelNormalOptimizationCoeffsCUDAKernel(
   CUDA_CHECK();
 }
 
+__global__ void AccumulateSurfelNormalUncOptimizationCoeffsCUDAKernel(
+  SurfelProjectionParameters s,
+  CUDAMatrix3x3 global_R_frame,
+  CUDABuffer_<float> feature_buffer, // 7.13
+  CUDABuffer_<u8> active_surfels) {
+const unsigned int surfel_index = blockIdx.x * blockDim.x + threadIdx.x;
+
+if (surfel_index < s.surfels_size) {
+  if (!(active_surfels(0, surfel_index) & kSurfelActiveFlag)) {
+    return;
+  }
+  
+  SurfelProjectionResultXY r; // 7.13 r.px and r.py are int.
+  if (SurfelProjectsToAssociatedPixel(surfel_index, s, &r)) {
+    // Transform the frame's normal to global space.
+    float3 local_normal = U16ToImageSpaceNormal(s.normals_buffer(r.py, r.px));
+    float3 global_normal = global_R_frame * local_normal;
+    
+    // Accumulate.
+    // kSurfelAccum0: normal.x
+    // kSurfelAccum1: normal.y
+    // kSurfelAccum2: normal.z
+    // kSurfelAccum3: count
+    // kSurfelAccum4: unc_geom // 7.13
+    // kSurfelAccum5: unc_feat // 7.13
+    // NOTE: This does a simple averaging of the normals, it does not
+    //       optimize according to the cost function.
+    s.surfels(kSurfelAccum0, surfel_index) += global_normal.x;
+    s.surfels(kSurfelAccum1, surfel_index) += global_normal.y;
+    s.surfels(kSurfelAccum2, surfel_index) += global_normal.z;
+    s.surfels(kSurfelAccum3, surfel_index) += 1.f;
+    // 7.13
+    if (kGeomResidualChannel){
+      s.surfels(kSurfelAccum4, surfel_index) += feature_buffer(r.py, r.px + kTotalChannels*kFeatureW);
+    }
+    if (kFeatResidualChannel){
+      s.surfels(kSurfelAccum5, surfel_index) += feature_buffer(r.py, r.px + kTotalChannels*kFeatureW);
+    }
+  }
+}
+}
+
+void CallAccumulateSurfelNormalUncOptimizationCoeffsCUDAKernel(
+  cudaStream_t stream,
+  SurfelProjectionParameters s,
+  CUDAMatrix3x3 global_R_frame,
+  CUDABuffer_<float> feature_arr,
+  CUDABuffer_<u8> active_surfels) {
+CUDA_AUTO_TUNE_1D(
+    AccumulateSurfelNormalUncOptimizationCoeffsCUDAKernel,
+    512,
+    s.surfels_size,
+    0, stream,
+    /* kernel parameters */
+    s,
+    global_R_frame,
+    feature_arr, // 7.13
+    active_surfels);
+CUDA_CHECK();
+}
+
 
 __global__ void UpdateSurfelNormalCUDAKernel(
     u32 surfels_size,
@@ -1126,6 +1193,13 @@ __global__ void UpdateSurfelNormalCUDAKernel(
                       surfels(kSurfelAccum1, surfel_index),
                       surfels(kSurfelAccum2, surfel_index));
       SurfelSetNormal(&surfels, surfel_index, (1.f / count) * normal_sum);
+      // 7.13, optionally set uncertainties for rg and rf
+      if (kGeomResidualChannel){
+        surfels(kSurfelUncGeom, surfel_index) = (1.f / count) * surfels(kSurfelAccum4, surfel_index);
+      }
+      if (kFeatResidualChannel){
+        surfels(kSurfelUncFeat, surfel_index) = (1.f / count) * surfels(kSurfelAccum5, surfel_index);
+      }
     }
   }
 }

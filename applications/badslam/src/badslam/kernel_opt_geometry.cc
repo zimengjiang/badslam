@@ -103,10 +103,10 @@ void OptimizeGeometryIterationCUDA(
   //       this has to be adapted if the order of the steps is changed.
   
   
-  // --- Normals ---
+  // --- Normals and Uncertainties ---
   
   // Accumulate normals by projecting the surfels into all active and covis-active keyframes.
-  CallResetSurfelAccum0to3CUDAKernel(
+  CallResetSurfelAccum0to3CUDAKernel( // 7.13 the naming is off, actually it should be CallResetSurfelAccum0to5CUDAKernel
       stream,
       surfels_size,
       surfels.ToCUDA(),
@@ -117,16 +117,17 @@ void OptimizeGeometryIterationCUDA(
       continue;
     }
     
-    CallAccumulateSurfelNormalOptimizationCoeffsCUDAKernel(
+    CallAccumulateSurfelNormalUncOptimizationCoeffsCUDAKernel(
         stream,
         CreateSurfelProjectionParameters(depth_camera, depth_params, surfels_size, surfels, keyframe.get()),
         keyframe->global_R_frame_cuda(),
+        keyframe->feature_buffer().ToCUDA(), // 7.13 for initializing uncertainties
         active_surfels.ToCUDA());
     CUDA_CHECK();
   }
   
   // Solve for the normal updates.
-  CallUpdateSurfelNormalCUDAKernel(
+  CallUpdateSurfelNormalCUDAKernel( // 7.13 the name is off, actually it optimizes the normal and uncertainties
       stream,
       /* kernel parameters */
       surfels_size,

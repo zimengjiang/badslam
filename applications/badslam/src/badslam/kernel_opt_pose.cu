@@ -810,8 +810,8 @@ __global__ void AccumulatePoseEstimationCoeffs1PointCUDAKernel(
         jacobian);
         // 5.26
         if(kGeomResidualChannel > 0){
-          // float denom_g = 1 + feature_arr(r.py, r.px + kTotalChannels*kFeatureW);
-          wg = 1 / (1 + feature_arr(r.py, r.px + kTotalChannels*kFeatureW));
+          // float denom_g = (1.f + feature_arr(r.py, r.px + kTotalChannels*kFeatureW))*(1.f + s.surfels(kSurfelUncGeom, surfel_index));
+          wg = 1.f / ((1.f + feature_arr(r.py, r.px + kTotalChannels*kFeatureW))*(1.f + s.surfels(kSurfelUncGeom, surfel_index)));
         }
     
     AccumulateGaussNewtonHAndB<6, block_width, block_height>(
@@ -885,8 +885,8 @@ __global__ void AccumulatePoseEstimationCoeffs1PointCUDAKernel(
             channel /* channel*/);
         }
         if (kFeatResidualChannel > 0){
-          // float denom_f = 1 + BilinearInterpolateFeatureWeight(feature_arr, color_pxy.x, color_pxy.y);
-          wf = 1 / (1 + BilinearInterpolateFeatureWeight(feature_arr, color_pxy.x, color_pxy.y));
+          // float denom_f = (1.f + BilinearInterpolateFeatureWeight(feature_arr, color_pxy.x, color_pxy.y))*(1.f+s.surfels(kSurfelUncFeat, surfel_index));
+          wf = 1.f / ((1.f + BilinearInterpolateFeatureWeight(feature_arr, color_pxy.x, color_pxy.y))*(1.f+s.surfels(kSurfelUncFeat, surfel_index)));
         }
     }
     else{
@@ -1692,7 +1692,7 @@ __global__ void AccumulatePoseEstimationCoeffsFromFeatures1PointCUDAKernel(
                 // 5.26
                 if (kGeomResidualChannel > 0){
                   // float denom_g = (1+surfel_feature(y, x + kTotalChannels*surfel_depth.width()))*(1+frame_feature(py, px + kTotalChannels*surfel_depth.width()));
-                  wg = 1 / ((1+surfel_feature(y, x + kTotalChannels*surfel_depth.width()))*(1+frame_feature(py, px + kTotalChannels*surfel_depth.width())));
+                  wg = 1.f / ((1.f+surfel_feature(y, x + kTotalChannels*surfel_depth.width()))*(1.f+frame_feature(py, px + kTotalChannels*surfel_depth.width())));
                 }
               }
               
@@ -1721,7 +1721,7 @@ __global__ void AccumulatePoseEstimationCoeffsFromFeatures1PointCUDAKernel(
                       // 5.26
                       if (kFeatResidualChannel > 0){
                         // float denom_f = (1+surfel_feature(y, x + (kTotalChannels+kGeomResidualChannel)*surfel_depth.width()))*(1+BilinearInterpolateFeatureWeight(frame_feature, color_pxy.x, color_pxy.y));
-                        wf = 1 / ((1+surfel_feature(y, x + (kTotalChannels+kGeomResidualChannel)*surfel_depth.width()))*(1+BilinearInterpolateFeatureWeight(frame_feature, color_pxy.x, color_pxy.y)));
+                        wf = 1.f / ((1.f+surfel_feature(y, x + (kTotalChannels+kGeomResidualChannel)*surfel_depth.width()))*(1.f+BilinearInterpolateFeatureWeight(frame_feature, color_pxy.x, color_pxy.y)));
                       }
                       for (int channel = 0; channel < kTotalChannels; ++channel){
                         ComputeRawDescriptor1PointFeatureJacobian(
@@ -2864,7 +2864,7 @@ __global__ void ComputeCostAnd1PointResidualCountFromFeaturesCUDAKernel(
                 if (kGeomResidualChannel > 0){
                   // 6.7 this indexing holds only if depth and rgb image has the same resolution , ideally it should be : kTotalChannels*kFeatureWScale.width()+x
                   // float denom_g = (1+surfel_feature(y, kTotalChannels*surfel_depth.width()+x)) * (1+frame_feature(py, kTotalChannels*surfel_depth.width()+px));
-                  wg = 1 / ((1+surfel_feature(y, kTotalChannels*surfel_depth.width()+x)) * (1+frame_feature(py, kTotalChannels*surfel_depth.width()+px)));
+                  wg = 1.f / ((1.f+surfel_feature(y, kTotalChannels*surfel_depth.width()+x)) * (1.f+frame_feature(py, kTotalChannels*surfel_depth.width()+px)));
                }
                 float depth_residual_inv_stddev =
                     ComputeDepthResidualInvStddevEstimate(depth_unprojector.nx(px), depth_unprojector.ny(py), pixel_calibrated_depth, surfel_local_normal, baseline_fx);
@@ -2908,7 +2908,7 @@ __global__ void ComputeCostAnd1PointResidualCountFromFeaturesCUDAKernel(
                       // 5.26
                       if (kFeatResidualChannel > 0){
                         // float denom_f = (1+surfel_feature(y, x + (kTotalChannels+kGeomResidualChannel)*surfel_depth.width())) * (1+BilinearInterpolateFeatureWeight(frame_feature, color_pxy.x, color_pxy.y));
-                        wf = 1 / ((1+surfel_feature(y, x + (kTotalChannels+kGeomResidualChannel)*surfel_depth.width())) * (1+BilinearInterpolateFeatureWeight(frame_feature, color_pxy.x, color_pxy.y)));
+                        wf = 1.f / ((1.f+surfel_feature(y, x + (kTotalChannels+kGeomResidualChannel)*surfel_depth.width())) * (1.f+BilinearInterpolateFeatureWeight(frame_feature, color_pxy.x, color_pxy.y)));
                       }          
                   } else {
                     visible = false;

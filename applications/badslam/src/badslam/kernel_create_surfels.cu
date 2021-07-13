@@ -129,15 +129,15 @@ __device__ __forceinline__ void CreateNewSurfel(
   float4 color = tex2D<float4>(color_texture, color_pxy.x, color_pxy.y);
   
   
-  float2 t1_pxy, t2_pxy;
-  ComputeTangentProjections(
-      surfel_global_position,
-      surfel_global_normal,
-      surfel_radius_squared,
-      frame_T_global,
-      color_corner_projector,
-      &t1_pxy,
-      &t2_pxy);
+  // float2 t1_pxy, t2_pxy;
+  // ComputeTangentProjections(
+  //     surfel_global_position,
+  //     surfel_global_normal,
+  //     surfel_radius_squared,
+  //     frame_T_global,
+  //     color_corner_projector,
+  //     &t1_pxy,
+  //     &t2_pxy);
   
   // float descriptor_1;
   // float descriptor_2;
@@ -160,11 +160,16 @@ __device__ __forceinline__ void CreateNewSurfel(
         t2_pxy,
         surfel_descriptor,
         descriptor);*/
-    TestComputeRawFeatureDescriptorResidual(
+    // TestComputeRawFeatureDescriptorResidual(
+    //   feature_buffer,
+    //   color_pxy,
+    //   t1_pxy,
+    //   t2_pxy,
+    //   surfel_descriptor,
+    //   descriptor);
+    ComputeRawFeatureDescriptor1PointResidualFloatpixel(
       feature_buffer,
       color_pxy,
-      t1_pxy,
-      t2_pxy,
       surfel_descriptor,
       descriptor);
   
@@ -177,9 +182,16 @@ __device__ __forceinline__ void CreateNewSurfel(
   //surfels(kSurfelDescriptor1, surfel_index) = descriptor_1;
   //surfels(kSurfelDescriptor2, surfel_index) = descriptor_2;
   // constexpr int kSurfelDescriptorArr[6] = {6,7,8,9,10,11};
+  // 7.13 jzmTODO: add uncertainty as another descriptor channel
   # pragma unroll
   for (int i = 0; i<kSurfelNumDescriptor; ++i){
     surfels(kSurfelFixedAttributeCount+i, surfel_index) = descriptor[i];
+  }
+  if (kGeomResidualChannel){
+    surfels(kSurfelUncGeom, surfel_index) = feature_buffer(y, x + kTotalChannels*kFeatureW);
+  }
+  if (kFeatResidualChannel){
+    surfels(kSurfelUncFeat, surfel_index) = BilinearInterpolateFeatureWeight(feature_buffer, color_pxy.x, color_pxy.y);
   }
 }
 
