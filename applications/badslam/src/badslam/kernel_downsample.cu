@@ -455,14 +455,14 @@ unsigned int y = blockIdx.y * blockDim.y + threadIdx.y;
 
 // only normalize features, but not feature weights!!!
 if (x < feature_buffer.width() / (kTotalChannels+kGeomResidualChannel+kFeatResidualChannel) && y < feature_buffer.height()) {
-  float feature_sqaured_norm = 0; // store the L2 norm of each feature vector
+  float feature_squared_norm = 0; // store the L2 norm of each feature vector
   float value=0; 
   #pragma unroll
   for (int c = 0; c < kTotalChannels; ++c){
     value = feature_buffer(y, kTotalChannels*x + c);
-    feature_sqaured_norm += (value*value);
+    feature_squared_norm += (value*value);
   }
-  float feature_norm = sqrtf(feature_sqaured_norm);
+  float feature_norm = sqrtf(feature_squared_norm);
   #pragma unroll
   for (int c = 0; c < kTotalChannels; ++c){
     feature_buffer(y, kTotalChannels*x + c) = feature_buffer(y, kTotalChannels*x + c) / feature_norm;

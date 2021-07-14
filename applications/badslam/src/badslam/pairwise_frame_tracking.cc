@@ -368,12 +368,12 @@ repeat_pose_estimation:;
 
   // 7.8 normalize features of each scale
   // for (u32 scale = 0; scale < num_scales; ++ scale) {
-  //   if(scale>0){
+  //   if (scale > 0){
   //     NormalizeFeaturesCUDA(
-  //       stream,
-  //       // *base_color_textures[scale],
-  //       &base_features[scale]->ToCUDA(), // 2.10
-  //       kDebug);
+  //     stream,
+  //     // *base_color_textures[scale],
+  //     &base_features[scale]->ToCUDA(), // 2.10
+  //     kDebug);
   //     NormalizeFeaturesCUDA(
   //       stream,
   //       // *base_color_textures[scale],
