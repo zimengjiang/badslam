@@ -402,6 +402,7 @@ __global__ void AccumulateSurfelPositionAndDescriptorOptimizationCoeffs1PointCUD
   const unsigned int surfel_index = blockIdx.x * blockDim.x + threadIdx.x;
   float wg = 1.f;
   float wf = 1.f;
+  float unc_f_tracked = 1.f;
   if (surfel_index < s.surfels_size) {
     if (!(active_surfels(0, surfel_index) & kSurfelActiveFlag)) {
       return;
@@ -503,7 +504,9 @@ __global__ void AccumulateSurfelPositionAndDescriptorOptimizationCoeffs1PointCUD
         // 5.26
         if(kFeatResidualChannel > 0){
           // float denom_f = (1.f + BilinearInterpolateFeatureWeight(feature_arr, color_pxy.x, color_pxy.y))*(1.f + s.surfels(kSurfelUncFeat, surfel_index));
-          wf = 1.f / ((1.f + BilinearInterpolateFeatureWeight(feature_arr, color_pxy.x, color_pxy.y))*(1.f + s.surfels(kSurfelUncFeat, surfel_index)));
+          unc_f_tracked = BilinearInterpolateFeatureWeight(feature_arr, color_pxy.x, color_pxy.y);
+          wf = 1.f / ((1.f + unc_f_tracked)*(1.f + s.surfels(kSurfelUncFeat, surfel_index)));
+          raw_residual_squared_sum = raw_residual_squared_sum / sqrtf(::max(1e-6, unc_f_tracked+s.surfels(kSurfelUncFeat, surfel_index)));
         }
         // const float weight_1 = ComputeDescriptorResidualWeightParam(raw_residual_squared_sum, rf_weight)*wf; // 5.20, 5.26
         const float weight_1 = ComputeDescriptorResidualWeightParamBA(raw_residual_squared_sum, rf_weight)*wf; // 7.7
@@ -1149,7 +1152,7 @@ if (surfel_index < s.surfels_size) {
       s.surfels(kSurfelAccum4, surfel_index) += feature_buffer(r.py, r.px + kTotalChannels*kFeatureW);
     }
     if (kFeatResidualChannel){
-      s.surfels(kSurfelAccum5, surfel_index) += feature_buffer(r.py, r.px + kTotalChannels*kFeatureW);
+      s.surfels(kSurfelAccum5, surfel_index) += feature_buffer(r.py, r.px + (kTotalChannels+kGeomResidualChannel)*kFeatureW);
     }
   }
 }

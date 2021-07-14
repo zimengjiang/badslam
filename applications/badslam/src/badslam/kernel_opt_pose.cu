@@ -780,6 +780,7 @@ __global__ void AccumulatePoseEstimationCoeffs1PointCUDAKernel(
   // 5.26
   float wf = 1.f;
   float wg = 1.f;
+  float unc_f_tracked = 1.f;
 
   constexpr int block_height = 1;
   typedef cub::BlockReduce<float, block_width, cub::BLOCK_REDUCE_RAKING_COMMUTATIVE_ONLY, block_height> BlockReduceFloat;
@@ -886,7 +887,8 @@ __global__ void AccumulatePoseEstimationCoeffs1PointCUDAKernel(
         }
         if (kFeatResidualChannel > 0){
           // float denom_f = (1.f + BilinearInterpolateFeatureWeight(feature_arr, color_pxy.x, color_pxy.y))*(1.f+s.surfels(kSurfelUncFeat, surfel_index));
-          wf = 1.f / ((1.f + BilinearInterpolateFeatureWeight(feature_arr, color_pxy.x, color_pxy.y))*(1.f+s.surfels(kSurfelUncFeat, surfel_index)));
+          unc_f_tracked = BilinearInterpolateFeatureWeight(feature_arr, color_pxy.x, color_pxy.y);
+          wf = 1.f / ((1.f + unc_f_tracked)*(1.f+s.surfels(kSurfelUncFeat, surfel_index)));
         }
     }
     else{
@@ -896,6 +898,9 @@ __global__ void AccumulatePoseEstimationCoeffs1PointCUDAKernel(
     float raw_residual_squared_sum = 0;
     for (int channel = 0; channel < kTotalChannels; ++channel){
       raw_residual_squared_sum += (raw_residual_vec[channel]*raw_residual_vec[channel]);
+    }
+    if (kFeatResidualChannel){
+      raw_residual_squared_sum = raw_residual_squared_sum / sqrtf(::max(1e-6, unc_f_tracked+s.surfels(kSurfelUncFeat, surfel_index)));
     }
     // float DescriptorResidualWeight = ComputeDescriptorResidualWeightParam(raw_residual_squared_sum, rf_weight);
     // 7.7 use different huber param for BA
@@ -1640,6 +1645,7 @@ __global__ void AccumulatePoseEstimationCoeffsFromFeatures1PointCUDAKernel(
   // 5.26
   float wg = 1.f;
   float wf = 1.f;
+  float unc_f_tracked = 1.f;
   
   
   if (x < surfel_depth.width() && y < surfel_depth.height()) {
@@ -1721,7 +1727,8 @@ __global__ void AccumulatePoseEstimationCoeffsFromFeatures1PointCUDAKernel(
                       // 5.26
                       if (kFeatResidualChannel > 0){
                         // float denom_f = (1+surfel_feature(y, x + (kTotalChannels+kGeomResidualChannel)*surfel_depth.width()))*(1+BilinearInterpolateFeatureWeight(frame_feature, color_pxy.x, color_pxy.y));
-                        wf = 1.f / ((1.f+surfel_feature(y, x + (kTotalChannels+kGeomResidualChannel)*surfel_depth.width()))*(1.f+BilinearInterpolateFeatureWeight(frame_feature, color_pxy.x, color_pxy.y)));
+                        unc_f_tracked = BilinearInterpolateFeatureWeight(frame_feature, color_pxy.x, color_pxy.y);
+                        wf = 1.f / ((1.f+surfel_feature(y, x + (kTotalChannels+kGeomResidualChannel)*surfel_depth.width()))*(1.f+unc_f_tracked));
                       }
                       for (int channel = 0; channel < kTotalChannels; ++channel){
                         ComputeRawDescriptor1PointFeatureJacobian(
@@ -1803,6 +1810,9 @@ __global__ void AccumulatePoseEstimationCoeffsFromFeatures1PointCUDAKernel(
     float raw_residual_squared_sum = 0;
     for (int channel = 0; channel < kTotalChannels; ++channel){
       raw_residual_squared_sum += (raw_descriptor_residual_vec[channel]*raw_descriptor_residual_vec[channel]);
+    }
+    if (kFeatResidualChannel){
+      raw_residual_squared_sum = raw_residual_squared_sum / sqrtf(::max(1e-6, unc_f_tracked + surfel_feature(y, x + (kTotalChannels+kGeomResidualChannel)*surfel_depth.width())));
     }
     float DescriptorResidualWeight = ComputeDescriptorResidualWeightParam(raw_residual_squared_sum, rf_weight, threshold_factor);
     for (int channel = 0; channel < kTotalChannels; ++channel){
@@ -2825,6 +2835,7 @@ __global__ void ComputeCostAnd1PointResidualCountFromFeaturesCUDAKernel(
   float raw_descriptor_residual_vec[kSurfelNumDescriptor] = {0}; //2.10
   float wg = 1.f; // 5.26 initialization 
   float wf = 1.f;
+  float unc_f_tracked = 1.f;
   
   if (x < surfel_depth.width() && y < surfel_depth.height()) {
     float surfel_calibrated_depth = surfel_depth(y, x);
@@ -2908,7 +2919,8 @@ __global__ void ComputeCostAnd1PointResidualCountFromFeaturesCUDAKernel(
                       // 5.26
                       if (kFeatResidualChannel > 0){
                         // float denom_f = (1+surfel_feature(y, x + (kTotalChannels+kGeomResidualChannel)*surfel_depth.width())) * (1+BilinearInterpolateFeatureWeight(frame_feature, color_pxy.x, color_pxy.y));
-                        wf = 1.f / ((1.f+surfel_feature(y, x + (kTotalChannels+kGeomResidualChannel)*surfel_depth.width())) * (1.f+BilinearInterpolateFeatureWeight(frame_feature, color_pxy.x, color_pxy.y)));
+                        unc_f_tracked = BilinearInterpolateFeatureWeight(frame_feature, color_pxy.x, color_pxy.y);
+                        wf = 1.f / ((1.f+surfel_feature(y, x + (kTotalChannels+kGeomResidualChannel)*surfel_depth.width())) * (1.f+unc_f_tracked));
                       }          
                   } else {
                     visible = false;
@@ -2963,6 +2975,10 @@ __global__ void ComputeCostAnd1PointResidualCountFromFeaturesCUDAKernel(
   float raw_residual_squared_sum = 0;
   for (int channel = 0; channel < kTotalChannels; ++channel){
     raw_residual_squared_sum += (raw_descriptor_residual_vec[channel]*raw_descriptor_residual_vec[channel]);
+  }
+  // 7.14 normalize the residual before computing huber norm
+  if (kFeatResidualChannel){
+    raw_residual_squared_sum = raw_residual_squared_sum / sqrtf(::max(1e-6, surfel_feature(y, x + (kTotalChannels+kGeomResidualChannel)*surfel_depth.width())+unc_f_tracked));
   }
   float DescriptorResidual = ComputeWeightedDescriptorResidualParam(raw_residual_squared_sum, rf_weight, threshold_factor);
     // for (int channel = 0; channel < kTotalChannels; ++channel){
