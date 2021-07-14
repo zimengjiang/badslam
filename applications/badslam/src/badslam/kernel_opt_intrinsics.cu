@@ -365,6 +365,7 @@ __global__ void AccumulateIntrinsicsCoefficients1PointCUDAKernel(
   // 6.22
   float wf = 1.f;
   float wg = 1.f;
+  float unc_f_tracked = 1.f;
   
   SurfelProjectionResult6 r;
   if (SurfelProjectsToAssociatedPixel(surfel_index, s, &r)) {
@@ -444,7 +445,8 @@ __global__ void AccumulateIntrinsicsCoefficients1PointCUDAKernel(
         }
         if (kFeatResidualChannel > 0){
           // float denom_f = (1.f + BilinearInterpolateFeatureWeight(feature, color_pxy.x, color_pxy.y))*(1.f+s.surfels(kSurfelUncFeat, surfel_index));
-          wf = 1.f / (1.f + BilinearInterpolateFeatureWeight(feature, color_pxy.x, color_pxy.y))*(1.f+s.surfels(kSurfelUncFeat, surfel_index));
+          unc_f_tracked = BilinearInterpolateFeatureWeight(feature, color_pxy.x, color_pxy.y);
+          wf = 1.f / (1.f + unc_f_tracked)*(1.f+s.surfels(kSurfelUncFeat, surfel_index));
         }
         /*
         float grad_x_1;
@@ -533,6 +535,9 @@ __global__ void AccumulateIntrinsicsCoefficients1PointCUDAKernel(
     float raw_residual_squared_sum = 0;
     for (int channel = 0; channel < kTotalChannels; ++channel){
       raw_residual_squared_sum += (raw_residual_vec[channel]*raw_residual_vec[channel]);
+    }
+    if (kFeatResidualChannel){
+      raw_residual_squared_sum = raw_residual_squared_sum / sqrtf(::max(1e-6, unc_f_tracked+s.surfels(kSurfelUncFeat, surfel_index)));
     }
     // float DescriptorResidualWeight = ComputeDescriptorResidualWeightParam(raw_residual_squared_sum, rf_weight)*wf; // 5.20
     float DescriptorResidualWeight = ComputeDescriptorResidualWeightParamBA(raw_residual_squared_sum, rf_weight)*wf; // 7.7
