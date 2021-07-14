@@ -1149,7 +1149,7 @@ if (surfel_index < s.surfels_size) {
       s.surfels(kSurfelAccum4, surfel_index) += feature_buffer(r.py, r.px + kTotalChannels*kFeatureW);
     }
     if (kFeatResidualChannel){
-      s.surfels(kSurfelAccum5, surfel_index) += feature_buffer(r.py, r.px + kTotalChannels*kFeatureW);
+      s.surfels(kSurfelAccum5, surfel_index) += feature_buffer(r.py, r.px + (kTotalChannels+kGeomResidualChannel)*kFeatureW);
     }
   }
 }
